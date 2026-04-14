@@ -55,7 +55,7 @@ export default async function DashboardPage() {
   const { data: studies } = await supabase
     .from('studies')
     .select('*')
-    .eq('researcher_id', user.id)
+    .eq('created_by', user.id)
     .order('created_at', { ascending: false })
     .limit(5)
 
@@ -80,18 +80,17 @@ export default async function DashboardPage() {
   const { count: activeStudiesCount } = await supabase
     .from('studies')
     .select('*', { count: 'exact', head: true })
-    .eq('researcher_id', user.id)
+    .eq('created_by', user.id)
     .eq('status', 'active')
 
   const { count: totalParticipantsCount } = await supabase
-    .from('participants')
+    .from('study_enrollments')
     .select('*', { count: 'exact', head: true })
     .in('study_id', studyIds)
 
   const { count: responsesCount } = await supabase
-    .from('responses')
+    .from('questionnaire_item_responses')
     .select('*', { count: 'exact', head: true })
-    .in('study_id', studyIds)
 
   const { count: alertsCount } = await supabase
     .from('clinical_alerts_log')
@@ -108,7 +107,7 @@ export default async function DashboardPage() {
 
   // Fetch recent activity
   const { data: recentActivity } = await supabase
-    .from('activity_logs')
+    .from('audit_log')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(8)
