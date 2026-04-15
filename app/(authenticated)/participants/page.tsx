@@ -1,73 +1,72 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
-export default async function ParticipantsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+export default function InstrumentsPage() {
+  const [instruments, setInstruments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const { data: studies } = await supabase
-    .from('studies')
-    .select('id')
-    .eq('created_by', user.id)
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-  const studyIds = studies?.map(s => s.id) || []
+      const { data: studies } = await supabase
+        .from('studies')
+        .select('id')
+        .eq('created_by', user.id)
 
-  const { data: enrollments } = studyIds.length > 0
-    ? await supabase
-        .from('study_enrollments')
-        .select('*, profiles(full_name, email), studies(title)')
-        .in('study_id', studyIds)
-        .order('enrolled_at', { ascending: false })
-    : { data: [] }
+      const studyIds = studies?.map((s: any) => s.id) || []
+
+      if (studyIds.length > 0) {
+        const { data } = await supabase
+          .from('study_instruments')
+          .select('*, studies(title)')
+          .in('study_id', studyIds)
+          .order('created_at', { ascending: false })
+        setInstruments(data || [])
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  if (loading) return <div className="p-6 lg:p-8">Loading...</div>
 
   return (
     <div className="p-6 lg:p-8">
       <div className="mb-8">
-        <h1 className="font-serif text-2xl text-foreground">Participants</h1>
+        <h1 className="font-serif text-2xl text-foreground">Instruments</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {enrollments?.length ? `${enrollments.length} brave souls enrolled` : 'Nobody here yet.'}
+          {instruments.length ? `${instruments.length} instruments across your studies` : 'No instruments yet.'}
         </p>
       </div>
 
-      {enrollments && enrollments.length > 0 ? (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="font-serif text-base">All participants</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {enrollments.map((enrollment: any) => (
-                <div key={enrollment.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium"
-                      style={{ backgroundColor: '#2D6A4F' }}
-                    >
-                      {enrollment.profiles?.full_name?.charAt(0) || '?'}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{enrollment.profiles?.full_name || 'Unknown'}</p>
-                      <p className="text-xs text-muted-foreground">{enrollment.profiles?.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <p className="text-xs text-muted-foreground">{enrollment.studies?.title}</p>
-                    <Badge variant={enrollment.status === 'active' ? 'default' : 'secondary'}>
-                      {enrollment.status === 'active' ? 'Getting there...' : enrollment.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+      {instruments.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {instruments.map((instrument: any) => (
+            <div key={instrument.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-2">
+                <h2 className="font-serif text-base font-semibold">{instrument.instrument_label}</h2>
+                <Badge variant="outline" className="ml-2 shrink-0">
+                  {instrument.instrument_type?.replace(/_/g, ' ')}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">{instrument.studies?.title}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {instrument.is_active ? 'Active' : 'Inactive'} · {instrument.is_mandatory ? 'Mandatory' : 'Optional'}
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="font-serif text-xl text-foreground mb-2">Nobody here yet.</p>
-          <p className="text-sm italic text-muted-foreground">They will come. Give it time.</p>
+          <p className="font-serif text-xl text-foreground mb-2">No instruments yet.</p>
+          <p className="text-sm italic text-muted-foreground">Add instruments to your studies to see them here.</p>
         </div>
       )}
     </div>
