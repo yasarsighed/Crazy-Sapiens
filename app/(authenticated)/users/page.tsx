@@ -1,32 +1,39 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
-export default async function UsersPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+export default function UsersPage() {
+  const [profiles, setProfiles] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const { data: currentUser } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-  if (currentUser?.role !== 'admin') redirect('/dashboard')
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('*')
-    .order('created_at', { ascending: false })
+      setProfiles(data || [])
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  if (loading) return <div className="p-6 lg:p-8">Loading...</div>
 
   return (
     <div className="p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="font-serif text-2xl text-foreground">Users</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {profiles?.length ? `${profiles.length} humans on the platform` : 'No users yet.'}
+          {profiles.length ? `${profiles.length} humans on the platform` : 'No users yet.'}
         </p>
       </div>
 
@@ -36,7 +43,7 @@ export default async function UsersPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {profiles?.map((profile: any) => (
+            {profiles.map((profile: any) => (
               <div key={profile.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="flex items-center gap-3">
                   <div
