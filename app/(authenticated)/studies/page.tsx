@@ -1,21 +1,36 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Plus } from 'lucide-react'
 
-export default async function StudiesPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+export default function StudiesPage() {
+  const [studies, setStudies] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const { data: studies } = await supabase
-    .from('studies')
-    .select('*')
-    .eq('created_by', user.id)
-    .order('created_at', { ascending: false })
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data } = await supabase
+        .from('studies')
+        .select('*')
+        .eq('created_by', user.id)
+        .order('created_at', { ascending: false })
+
+      setStudies(data || [])
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  if (loading) return <div className="p-6 lg:p-8">Loading...</div>
 
   return (
     <div className="p-6 lg:p-8">
@@ -23,7 +38,7 @@ export default async function StudiesPage() {
         <div>
           <h1 className="font-serif text-2xl text-foreground">Your studies</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {studies?.length ? `${studies.length} experiments in progress` : 'Science does not do itself.'}
+            {studies.length ? `${studies.length} experiments in progress` : 'Science does not do itself.'}
           </p>
         </div>
         <Button asChild>
@@ -34,7 +49,7 @@ export default async function StudiesPage() {
         </Button>
       </div>
 
-      {studies && studies.length > 0 ? (
+      {studies.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {studies.map((study) => (
             <Card key={study.id} className="hover:shadow-md transition-shadow">
