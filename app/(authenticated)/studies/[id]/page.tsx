@@ -1,12 +1,14 @@
 'use client'
-// v4
+
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Users, Network, Download, Share2, Plus } from 'lucide-react'
+import { ArrowLeft, Network, Download, Share2, Plus, X } from 'lucide-react'
+
+// v5
 
 export default function StudyPage() {
   const params = useParams()
@@ -15,36 +17,80 @@ export default function StudyPage() {
   const [participants, setParticipants] = useState<any[]>([])
   const [instruments, setInstruments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAddParticipant, setShowAddParticipant] = useState(false)
+  const [allProfiles, setAllProfiles] = useState<any[]>([])
+  const [search, setSearch] = useState('')
+  const [adding, setAdding] = useState(false)
+
+  async function loadData() {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: studyData } = await supabase
+      .from('studies')
+      .select('*')
+      .eq('id', studyId)
+      .single()
+    setStudy(studyData)
+
+    const { data: enrollments, error: enrollError } = await supabase
+      .from('study_enrollments')
+      .select('id, participant_id, status, profiles(full_name, email)')
+      .eq('study_id', studyId)
+    console.log('enrollments:', enrollments, 'error:', enrollError)
+    setParticipants(enrollments || [])
+
+    const { data: instrumentData } = await supabase
+      .from('study_instruments')
+      .select('*')
+      .eq('study_id', studyId)
+    setInstruments(instrumentData || [])
+
+    setLoading(false)
+  }
 
   useEffect(() => {
-    async function load() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: studyData } = await supabase
-        .from('studies')
-        .select('*')
-        .eq('id', studyId)
-        .single()
-      setStudy(studyData)
-
-      const { data: enrollments } = await supabase
-        .from('study_enrollments')
-        .select('*, profiles(full_name, email)')
-        .eq('study_id', studyId)
-      setParticipants(enrollments || [])
-
-      const { data: instrumentData } = await supabase
-        .from('study_instruments')
-        .select('*')
-        .eq('study_id', studyId)
-      setInstruments(instrumentData || [])
-
-      setLoading(false)
-    }
-    load()
+    loadData()
   }, [studyId])
+
+  const openAddParticipant = async () => {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'participant')
+      .order('full_name')
+    setAllProfiles(data || [])
+    setShowAddParticipant(true)
+  }
+
+  const addParticipant = async (profileId: string) => {
+    setAdding(true)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('study_enrollments')
+      .insert({
+        study_id: studyId,
+        participant_id: profileId,
+        status: 'active',
+        enrolled_at: new Date().toISOString(),
+      })
+    if (error) {
+      alert('Error: ' + error.message)
+    } else {
+      await loadData()
+      setShowAddParticipant(false)
+    }
+    setAdding(false)
+  }
+
+  const enrolledIds = participants.map(p => p.participant_id)
+  const filteredProfiles = allProfiles.filter(p =>
+    !enrolledIds.includes(p.id) &&
+    (p.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+     p.email?.toLowerCase().includes(search.toLowerCase()))
+  )
 
   if (loading) return <div className="p-6 lg:p-8">Loading...</div>
   if (!study) return <div className="p-6 lg:p-8">Study not found.</div>
@@ -63,11 +109,9 @@ export default function StudyPage() {
               <p className="text-sm text-muted-foreground mt-1">{study.description}</p>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={study.status === 'active' ? 'default' : 'secondary'}>
-              {study.status}
-            </Badge>
-          </div>
+          <Badge variant={study.status === 'active' ? 'default' : 'secondary'}>
+            {study.status}
+          </Badge>
         </div>
       </div>
 
@@ -94,7 +138,7 @@ export default function StudyPage() {
             <h2 className="font-serif text-base font-semibold">
               Participants ({participants.length})
             </h2>
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" onClick={openAddParticipant}>
               <Plus className="w-4 h-4 mr-1" />
               Add
             </Button>
@@ -153,6 +197,49 @@ export default function StudyPage() {
           )}
         </div>
       </div>
+
+      {showAddParticipant && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-serif text-lg">Add participant</h2>
+              <button onClick={() => setShowAddParticipant(false)}>
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary mb-4"
+            />
+            {filteredProfiles.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No participants found. Make sure users have the participant role.
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {filteredProfiles.map((profile: any) => (
+                  <div key={profile.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                    <div>
+                      <p className="text-sm font-medium">{profile.full_name}</p>
+                      <p className="text-xs text-muted-foreground">{profile.email}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={adding}
+                      onClick={() => addParticipant(profile.id)}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
