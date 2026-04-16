@@ -22,7 +22,11 @@ export default function NewStudyPage() {
     setLoading(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      alert('Not logged in')
+      setLoading(false)
+      return
+    }
 
     const { data, error } = await supabase
       .from('studies')
@@ -37,7 +41,13 @@ export default function NewStudyPage() {
       .select()
       .single()
 
-    if (data && !error) {
+    if (error) {
+      alert('Error: ' + error.message)
+      setLoading(false)
+      return
+    }
+
+    if (data) {
       router.push(`/studies/${data.id}`)
     }
     setLoading(false)
