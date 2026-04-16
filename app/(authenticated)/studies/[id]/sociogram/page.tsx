@@ -1,242 +1,281 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { ArrowLeft, Download, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Network, Download, Share2, Plus, X } from 'lucide-react'
 
-export default function StudyPage() {
+export default function SociogramPage() {
   const params = useParams()
   const studyId = params.id as string
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [study, setStudy] = useState<any>(null)
   const [participants, setParticipants] = useState<any[]>([])
-  const [instruments, setInstruments] = useState<any[]>([])
+  const [nominations, setNominations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [showAddParticipant, setShowAddParticipant] = useState(false)
-  const [allProfiles, setAllProfiles] = useState<any[]>([])
-  const [search, setSearch] = useState('')
-  const [adding, setAdding] = useState(false)
-
-  async function loadData() {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { data: studyData } = await supabase
-      .from('studies')
-      .select('*')
-      .eq('id', studyId)
-      .single()
-    setStudy(studyData)
-
-    const { data: enrollments } = await supabase
-      .from('study_enrollments')
-      .select('*, profiles(full_name, email)')
-      .eq('study_id', studyId)
-    setParticipants(enrollments || [])
-
-    const { data: instrumentData } = await supabase
-      .from('study_instruments')
-      .select('*')
-      .eq('study_id', studyId)
-    setInstruments(instrumentData || [])
-
-    setLoading(false)
-  }
+  const [showRealNames, setShowRealNames] = useState(true)
+  const [selectedRelationship, setSelectedRelationship] = useState('all')
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null)
 
   useEffect(() => {
-    loadData()
+    async function load() {
+      const supabase = createClient()
+
+      const { data: studyData } = await supabase
+        .from('studies')
+        .select('*')
+        .eq('id', studyId)
+        .single()
+      setStudy(studyData)
+
+      const { data: sociogramData } = await supabase
+        .from('sociogram_instruments')
+        .select('*')
+        .eq('study_id', studyId)
+        .single()
+
+      if (sociogramData) {
+        const { data: participantData } = await supabase
+          .from('sociogram_participants')
+          .select('*, profiles!sociogram_participants_participant_id_fkey(full_name)')
+          .eq('sociogram_id', sociogramData.id)
+
+        const { data: nominationData } = await supabase
+          .from('sociogram_nominations')
+          .select('*, sociogram_relationship_types(label)')
+          .eq('sociogram_id', sociogramData.id)
+          .eq('is_valid', true)
+
+        const colors = ['#2D6A4F', '#457B9D', '#E9C46A', '#F4A261', '#52B788']
+        const mapped = (participantData || []).map((p: any, i: number) => ({
+          id: p.participant_id,
+          name: p.profiles?.full_name || p.anonymised_label || `P${i + 1}`,
+          color: colors[i % colors.length],
+        }))
+
+        setParticipants(mapped)
+        setNominations((nominationData || []).map((n: any) => ({
+          nominator_id: n.nominator_id,
+          nominee_id: n.nominee_id,
+          score: n.score,
+          is_negative_tie: n.is_negative_tie,
+          relationship_type: n.sociogram_relationship_types?.label || 'Unknown',
+        })))
+      }
+
+      setLoading(false)
+    }
+    load()
   }, [studyId])
 
-  const openAddParticipant = async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('role', 'participant')
-      .order('full_name')
-    setAllProfiles(data || [])
-    setShowAddParticipant(true)
-  }
+  useEffect(() => {
+    if (!canvasRef.current || participants.length === 0) return
 
-  const addParticipant = async (profileId: string) => {
-    setAdding(true)
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('study_enrollments')
-      .insert({
-        study_id: studyId,
-        participant_id: profileId,
-        status: 'active',
-        enrolled_at: new Date().toISOString(),
-      })
-    if (error) {
-      alert('Error: ' + error.message)
-    } else {
-      await loadData()
-      setShowAddParticipant(false)
-    }
-    setAdding(false)
-  }
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-  const enrolledIds = participants.map(p => p.participant_id)
-  const filteredProfiles = allProfiles.filter(p =>
-    !enrolledIds.includes(p.id) &&
-    (p.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-     p.email?.toLowerCase().includes(search.toLowerCase()))
-  )
+    const width = canvas.width
+    const height = canvas.height
+    const centerX = width / 2
+    const centerY = height / 2
+    const radius = Math.min(width, height) * 0.38
 
-  if (loading) return <div className="p-6 lg:p-8">Loading...</div>
-  if (!study) return <div className="p-6 lg:p-8">Study not found.</div>
+    const positioned = participants.map((p, i) => ({
+      ...p,
+      x: centerX + radius * Math.cos((2 * Math.PI * i) / participants.length - Math.PI / 2),
+      y: centerY + radius * Math.sin((2 * Math.PI * i) / participants.length - Math.PI / 2),
+    }))
+
+    ctx.clearRect(0, 0, width, height)
+
+    const filteredNominations = selectedRelationship === 'all'
+      ? nominations
+      : nominations.filter(n => n.relationship_type === selectedRelationship)
+
+    filteredNominations.forEach(nom => {
+      const from = positioned.find(p => p.id === nom.nominator_id)
+      const to = positioned.find(p => p.id === nom.nominee_id)
+      if (!from || !to) return
+
+      ctx.beginPath()
+      ctx.moveTo(from.x, from.y)
+      ctx.lineTo(to.x, to.y)
+      ctx.strokeStyle = nom.is_negative_tie
+        ? `rgba(230, 57, 70, ${0.3 + nom.score * 0.1})`
+        : `rgba(45, 106, 79, ${0.3 + nom.score * 0.1})`
+      ctx.lineWidth = nom.score * 0.5 + 0.5
+      ctx.stroke()
+
+      const angle = Math.atan2(to.y - from.y, to.x - from.x)
+      const arrowX = to.x - 14 * Math.cos(angle)
+      const arrowY = to.y - 14 * Math.sin(angle)
+      ctx.beginPath()
+      ctx.moveTo(arrowX, arrowY)
+      ctx.lineTo(arrowX - 8 * Math.cos(angle - Math.PI / 6), arrowY - 8 * Math.sin(angle - Math.PI / 6))
+      ctx.lineTo(arrowX - 8 * Math.cos(angle + Math.PI / 6), arrowY - 8 * Math.sin(angle + Math.PI / 6))
+      ctx.closePath()
+      ctx.fillStyle = nom.is_negative_tie ? '#E63946' : '#2D6A4F'
+      ctx.fill()
+    })
+
+    positioned.forEach(p => {
+      const inDegree = filteredNominations.filter(n => n.nominee_id === p.id).length
+      const nodeRadius = 10 + inDegree * 2
+
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, nodeRadius, 0, Math.PI * 2)
+      ctx.fillStyle = hoveredNode === p.id ? '#F4A261' : p.color
+      ctx.fill()
+      ctx.strokeStyle = '#F5F0E8'
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      if (showRealNames) {
+        ctx.fillStyle = '#1a1a1a'
+        ctx.font = '11px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText(p.name, p.x, p.y + nodeRadius + 14)
+      }
+    })
+  }, [participants, nominations, showRealNames, selectedRelationship, hoveredNode])
+
+  const relationshipTypes = ['all', ...Array.from(new Set(nominations.map(n => n.relationship_type)))]
+
+  if (loading) return <div className="p-6 lg:p-8">Loading sociogram...</div>
 
   return (
     <div className="p-6 lg:p-8">
       <div className="mb-6">
-        <Link href="/studies" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
+        <Link href={`/studies/${studyId}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
           <ArrowLeft className="w-4 h-4" />
-          Back to studies
+          Back to study
         </Link>
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="font-serif text-2xl text-foreground">{study.title}</h1>
-            {study.description && (
-              <p className="text-sm text-muted-foreground mt-1">{study.description}</p>
-            )}
+            <h1 className="font-serif text-2xl text-foreground">Sociogram</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {study?.title} — directed weighted graph of participant relationships
+            </p>
           </div>
-          <Badge variant={study.status === 'active' ? 'default' : 'secondary'}>
-            {study.status}
-          </Badge>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-3 mb-8">
-        <Button asChild>
-          <Link href={`/studies/${studyId}/sociogram`}>
-            <Network className="w-4 h-4 mr-2" />
-            View Sociogram
-          </Link>
-        </Button>
-        <Button variant="outline">
-          <Share2 className="w-4 h-4 mr-2" />
-          Share Insights
-        </Button>
-        <Button variant="outline">
-          <Download className="w-4 h-4 mr-2" />
-          Export CSV
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="border rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-serif text-base font-semibold">
-              Participants ({participants.length})
-            </h2>
-            <Button size="sm" variant="outline" onClick={openAddParticipant}>
-              <Plus className="w-4 h-4 mr-1" />
-              Add
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">
+              <Share2 className="w-4 h-4 mr-2" />
+              Share Results
+            </Button>
+            <Button variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Export PNG
             </Button>
           </div>
-          {participants.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No participants yet. They will come.</p>
-          ) : (
-            <div className="space-y-2">
-              {participants.map((enrollment: any) => (
-                <div key={enrollment.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-                    style={{ backgroundColor: '#2D6A4F' }}
-                  >
-                    {enrollment.profiles?.full_name?.charAt(0) || '?'}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{enrollment.profiles?.full_name || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">{enrollment.profiles?.email}</p>
-                  </div>
-                  <Badge variant="outline" className="ml-auto text-xs">
-                    {enrollment.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="border rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-serif text-base font-semibold">
-              Instruments ({instruments.length})
-            </h2>
-            <Button size="sm" variant="outline">
-              <Plus className="w-4 h-4 mr-1" />
-              Add
-            </Button>
-          </div>
-          {instruments.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No instruments yet. Add one to get started.</p>
-          ) : (
-            <div className="space-y-2">
-              {instruments.map((instrument: any) => (
-                <div key={instrument.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{instrument.instrument_label}</p>
-                    <p className="text-xs text-muted-foreground">{instrument.instrument_type?.replace(/_/g, ' ')}</p>
-                  </div>
-                  <Badge variant={instrument.is_active ? 'default' : 'secondary'} className="text-xs">
-                    {instrument.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
-      {showAddParticipant && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background rounded-xl p-6 w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-serif text-lg">Add participant</h2>
-              <button onClick={() => setShowAddParticipant(false)}>
-                <X className="w-4 h-4 text-muted-foreground" />
-              </button>
+      <div className="border rounded-xl p-4 mb-4 bg-card">
+        <div className="flex flex-wrap gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Relationship:</span>
+            <div className="flex gap-1 flex-wrap">
+              {relationshipTypes.map(rt => (
+                <button
+                  key={rt}
+                  onClick={() => setSelectedRelationship(rt)}
+                  className={`text-xs px-2 py-1 rounded border transition-colors ${
+                    selectedRelationship === rt
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'border-border hover:bg-muted'
+                  }`}
+                >
+                  {rt === 'all' ? 'All Types' : rt}
+                </button>
+              ))}
             </div>
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary mb-4"
-            />
-            {filteredProfiles.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No participants found. Make sure users have the participant role.
-              </p>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {filteredProfiles.map((profile: any) => (
-                  <div key={profile.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                    <div>
-                      <p className="text-sm font-medium">{profile.full_name}</p>
-                      <p className="text-xs text-muted-foreground">{profile.email}</p>
-                    </div>
-                    <Button
-                      size="sm"
-                      disabled={adding}
-                      onClick={() => addParticipant(profile.id)}
-                    >
-                      Add
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
+          </div>
+          <button
+            onClick={() => setShowRealNames(!showRealNames)}
+            className={`text-xs px-3 py-1 rounded border transition-colors ${
+              showRealNames
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'border-border hover:bg-muted'
+            }`}
+          >
+            {showRealNames ? 'Hide Names' : 'Show Names'}
+          </button>
+        </div>
+
+        <div className="flex gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-0.5 bg-green-600"></div>
+            <span className="text-xs text-muted-foreground">Positive tie</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-0.5 bg-red-500"></div>
+            <span className="text-xs text-muted-foreground">Negative tie</span>
           </div>
         </div>
-      )}
+
+        {participants.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <p className="font-serif text-xl mb-2">No sociogram data yet.</p>
+            <p className="text-sm italic text-muted-foreground">Add participants and collect nominations first.</p>
+          </div>
+        ) : (
+          <canvas
+            ref={canvasRef}
+            width={800}
+            height={600}
+            className="w-full rounded-lg bg-[#F5F0E8]"
+            onMouseMove={(e) => {
+              const canvas = canvasRef.current
+              if (!canvas) return
+              const rect = canvas.getBoundingClientRect()
+              const scaleX = canvas.width / rect.width
+              const scaleY = canvas.height / rect.height
+              const mouseX = (e.clientX - rect.left) * scaleX
+              const mouseY = (e.clientY - rect.top) * scaleY
+              const r = Math.min(canvas.width, canvas.height) * 0.38
+              const cx = canvas.width / 2
+              const cy = canvas.height / 2
+              const pos = participants.map((p, i) => ({
+                ...p,
+                x: cx + r * Math.cos((2 * Math.PI * i) / participants.length - Math.PI / 2),
+                y: cy + r * Math.sin((2 * Math.PI * i) / participants.length - Math.PI / 2),
+              }))
+              const found = pos.find(p => {
+                const dx = mouseX - p.x
+                const dy = mouseY - p.y
+                return Math.sqrt(dx * dx + dy * dy) < 16
+              })
+              setHoveredNode(found ? found.id : null)
+            }}
+          />
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="border rounded-xl p-4 text-center">
+          <p className="font-serif text-2xl font-semibold text-primary">{participants.length}</p>
+          <p className="text-xs text-muted-foreground mt-1">Participants</p>
+        </div>
+        <div className="border rounded-xl p-4 text-center">
+          <p className="font-serif text-2xl font-semibold text-primary">{nominations.length}</p>
+          <p className="text-xs text-muted-foreground mt-1">Total nominations</p>
+        </div>
+        <div className="border rounded-xl p-4 text-center">
+          <p className="font-serif text-2xl font-semibold text-primary">
+            {nominations.filter(n => !n.is_negative_tie).length}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">Positive ties</p>
+        </div>
+        <div className="border rounded-xl p-4 text-center">
+          <p className="font-serif text-2xl font-semibold text-primary">
+            {nominations.filter(n => n.is_negative_tie).length}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">Negative ties</p>
+        </div>
+      </div>
     </div>
   )
 }
