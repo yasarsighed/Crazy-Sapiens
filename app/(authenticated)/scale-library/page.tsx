@@ -1,6 +1,10 @@
 'use client'
 
+import { useState } from 'react'
+
 export default function ScaleLibraryPage() {
+  const [loaded] = useState(true)
+  if (!loaded) return null
   return (
     <div className="p-6 lg:p-8">
       <h1 className="font-serif text-2xl">Scale Library</h1>
