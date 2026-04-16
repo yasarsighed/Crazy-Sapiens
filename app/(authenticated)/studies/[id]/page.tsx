@@ -36,7 +36,7 @@ export default function StudyPage() {
 
     const { data: enrollments, error: enrollError } = await supabase
       .from('study_enrollments')
-      .select('id, participant_id, status, profiles(full_name, email)')
+      .select('id, participant_id, status, profiles!study_enrollments_participant_id_fkey(full_name, email)')
       .eq('study_id', studyId)
     console.log('enrollments:', enrollments, 'error:', enrollError)
     setParticipants(enrollments || [])
