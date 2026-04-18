@@ -84,14 +84,16 @@ export default async function DashboardPage() {
     .eq('status', 'active')
 
   const { count: totalParticipantsCount } = await supabase
-    .from('participants')
+    .from('study_enrollments')
     .select('*', { count: 'exact', head: true })
     .in('study_id', studyIds)
 
+  // Count completed enrollments as a cross-instrument proxy for responses
   const { count: responsesCount } = await supabase
-    .from('responses')
+    .from('study_enrollments')
     .select('*', { count: 'exact', head: true })
     .in('study_id', studyIds)
+    .eq('status', 'completed')
 
   const { count: alertsCount } = await supabase
     .from('clinical_alerts_log')
@@ -159,9 +161,9 @@ export default async function DashboardPage() {
           subtitle="brave souls enrolled"
         />
         <StatCard
-          title="Responses Collected"
+          title="Completed Surveys"
           value={responsesCount || 0}
-          subtitle="data points, beautifully gathered"
+          subtitle="instruments fully submitted"
         />
         <StatCard
           title="Clinical Alerts"

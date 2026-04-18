@@ -7,8 +7,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Network, Download, Share2, Plus, X } from 'lucide-react'
-
-// v5
+import { toast } from 'sonner'
 
 export default function StudyPage() {
   const params = useParams()
@@ -34,11 +33,10 @@ export default function StudyPage() {
       .single()
     setStudy(studyData)
 
-    const { data: enrollments, error: enrollError } = await supabase
+    const { data: enrollments } = await supabase
       .from('study_enrollments')
       .select('id, participant_id, status, profiles!study_enrollments_participant_id_fkey(full_name, email)')
       .eq('study_id', studyId)
-    console.log('enrollments:', enrollments, 'error:', enrollError)
     setParticipants(enrollments || [])
 
     const { data: instrumentData } = await supabase
@@ -77,8 +75,9 @@ export default function StudyPage() {
         enrolled_at: new Date().toISOString(),
       })
     if (error) {
-      alert('Error: ' + error.message)
+      toast.error('Could not add participant', { description: error.message })
     } else {
+      toast.success('Participant added to study')
       await loadData()
       setShowAddParticipant(false)
     }
