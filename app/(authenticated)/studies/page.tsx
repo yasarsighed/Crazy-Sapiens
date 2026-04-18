@@ -21,7 +21,7 @@ export default function StudiesPage() {
       const { data } = await supabase
         .from('studies')
         .select('*')
-        .eq('created_by', user.id)
+        .eq('researcher_id', user.id)
         .order('created_at', { ascending: false })
 
       setStudies(data || [])
