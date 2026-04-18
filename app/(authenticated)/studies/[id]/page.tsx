@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Network, Download, Share2, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { AddQuestionnaireDialog } from '@/components/add-questionnaire-dialog'
 
 export default function StudyPage() {
   const params = useParams()
@@ -17,6 +18,7 @@ export default function StudyPage() {
   const [instruments, setInstruments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddParticipant, setShowAddParticipant] = useState(false)
+  const [showAddQuestionnaire, setShowAddQuestionnaire] = useState(false)
   const [allProfiles, setAllProfiles] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
@@ -172,7 +174,7 @@ export default function StudyPage() {
             <h2 className="font-serif text-base font-semibold">
               Instruments ({instruments.length})
             </h2>
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" onClick={() => setShowAddQuestionnaire(true)}>
               <Plus className="w-4 h-4 mr-1" />
               Add
             </Button>
@@ -196,6 +198,13 @@ export default function StudyPage() {
           )}
         </div>
       </div>
+
+      <AddQuestionnaireDialog
+        studyId={studyId}
+        open={showAddQuestionnaire}
+        onClose={() => setShowAddQuestionnaire(false)}
+        onSuccess={loadData}
+      />
 
       {showAddParticipant && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

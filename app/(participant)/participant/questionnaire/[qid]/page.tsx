@@ -1,0 +1,418 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import {
+  BUILT_IN_SCALES,
+  getSeverityBand,
+  getMaxItemScore,
+  type BuiltInScale,
+  type SeverityBand,
+} from '@/lib/scales'
+import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
+import { cn } from '@/lib/utils'
+import { CheckCircle, AlertTriangle } from 'lucide-react'
+import { toast } from 'sonner'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ResponseOption {
+  value: number
+  label: string
+}
+
+interface QuestionnaireItem {
+  id: string
+  item_text: string
+  item_code: string
+  display_order: number
+  response_options: ResponseOption[]
+  is_clinical_flag_item: boolean
+  clinical_flag_threshold: number | null
+  clinical_flag_operator: string | null
+  clinical_flag_message: string | null
+  is_reverse_scored: boolean
+  scoring_weight: number | null
+}
+
+interface QuestionnaireInstrument {
+  id: string
+  study_id: string
+  title: string
+  instructions: string | null
+  validated_scale_name: string | null
+  is_validated_scale: boolean
+  clinical_alert_enabled: boolean
+  clinical_alert_threshold: number | null
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function QuestionnairePage() {
+  const params = useParams()
+  const qid = params.qid as string
+
+  const [questionnaire, setQuestionnaire] = useState<QuestionnaireInstrument | null>(null)
+  const [items, setItems] = useState<QuestionnaireItem[]>([])
+  const [responses, setResponses] = useState<Record<string, number>>({})
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [score, setScore] = useState(0)
+  const [severity, setSeverity] = useState<SeverityBand | null>(null)
+  const [scale, setScale] = useState<BuiltInScale | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      setUserId(user.id)
+
+      const { data: q } = await supabase
+        .from('questionnaire_instruments')
+        .select(
+          'id, study_id, title, instructions, validated_scale_name, is_validated_scale, clinical_alert_enabled, clinical_alert_threshold'
+        )
+        .eq('id', qid)
+        .single()
+
+      if (!q) {
+        setLoading(false)
+        return
+      }
+      setQuestionnaire(q)
+
+      // Match built-in scale for severity bands + response options fallback
+      if (q.validated_scale_name) {
+        const matched = BUILT_IN_SCALES.find(s => s.abbreviation === q.validated_scale_name)
+        if (matched) setScale(matched)
+      }
+
+      const { data: itemData } = await supabase
+        .from('questionnaire_items')
+        .select(
+          'id, item_text, item_code, display_order, response_options, is_clinical_flag_item, clinical_flag_threshold, clinical_flag_operator, clinical_flag_message, is_reverse_scored, scoring_weight'
+        )
+        .eq('questionnaire_id', qid)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
+
+      setItems(itemData ?? [])
+      setLoading(false)
+    }
+    load()
+  }, [qid])
+
+  // ─── Handlers ───────────────────────────────────────────────────────────────
+
+  const handleResponse = (itemId: string, value: number) => {
+    setResponses(prev => ({ ...prev, [itemId]: value }))
+  }
+
+  const answeredCount = Object.keys(responses).length
+  const totalItems = items.length
+  const progress = totalItems > 0 ? (answeredCount / totalItems) * 100 : 0
+  const allAnswered = answeredCount === totalItems && totalItems > 0
+
+  const handleSubmit = async () => {
+    if (!allAnswered || !questionnaire || !userId) return
+    setSubmitting(true)
+
+    try {
+      const supabase = createClient()
+      const maxItemScore = scale ? getMaxItemScore(scale) : 3
+
+      // Build response records with scoring
+      const responseRecords = items.map(item => {
+        const rawValue = responses[item.id] ?? 0
+        const weight = item.scoring_weight ?? 1
+        const scoredValue = item.is_reverse_scored
+          ? (maxItemScore - rawValue) * weight
+          : rawValue * weight
+
+        // Per-item clinical flag check
+        let flagTriggered = false
+        let flagMessage: string | null = null
+        if (
+          item.is_clinical_flag_item &&
+          item.clinical_flag_threshold !== null &&
+          item.clinical_flag_operator === 'gte' &&
+          rawValue >= item.clinical_flag_threshold
+        ) {
+          flagTriggered = true
+          flagMessage = item.clinical_flag_message
+        }
+
+        return {
+          questionnaire_id: qid,
+          participant_id: userId,
+          item_id: item.id,
+          raw_response: String(rawValue),
+          raw_response_numeric: rawValue,
+          scored_value: scoredValue,
+          is_reverse_scored: item.is_reverse_scored,
+          is_skipped: false,
+          clinical_flag_triggered: flagTriggered,
+          clinical_flag_message: flagMessage,
+          submitted_at: new Date().toISOString(),
+        }
+      })
+
+      // Save all responses
+      const { error: responseError } = await supabase
+        .from('questionnaire_item_responses')
+        .insert(responseRecords)
+
+      if (responseError) throw new Error(responseError.message)
+
+      // Compute total score
+      const totalScore = responseRecords.reduce((sum, r) => sum + r.scored_value, 0)
+      const totalPossible = items.length * maxItemScore
+      const severityBand = scale ? getSeverityBand(scale, totalScore) : null
+
+      // Determine if total-score alert fires
+      const totalAlertFired =
+        questionnaire.clinical_alert_enabled &&
+        questionnaire.clinical_alert_threshold !== null &&
+        totalScore >= questionnaire.clinical_alert_threshold
+
+      const itemFlags = responseRecords.filter(r => r.clinical_flag_triggered)
+      const anyAlertFired = totalAlertFired || itemFlags.length > 0
+
+      // Save scored result
+      const { data: scoredResult, error: scoreError } = await supabase
+        .from('questionnaire_scored_results')
+        .insert({
+          questionnaire_id: qid,
+          participant_id: userId,
+          total_score: totalScore,
+          total_score_possible: totalPossible,
+          score_percentage: totalPossible > 0 ? (totalScore / totalPossible) * 100 : 0,
+          severity_label: severityBand?.label ?? null,
+          severity_category: severityBand?.category ?? null,
+          items_completed: items.length,
+          items_total: items.length,
+          completion_percentage: 100,
+          is_complete: true,
+          clinical_alert_triggered: anyAlertFired,
+          clinical_alert_level: anyAlertFired
+            ? itemFlags.length > 0
+              ? 'critical'
+              : 'high'
+            : null,
+          scored_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single()
+
+      if (scoreError) throw new Error(scoreError.message)
+
+      // Fire clinical alert if needed — permanent, never deleted
+      if (anyAlertFired && scoredResult) {
+        const alertLevel = itemFlags.length > 0 ? 'critical' : 'high'
+        const alertType = itemFlags.length > 0 ? 'item_level_flag' : 'total_score_threshold'
+        const triggerDescription =
+          itemFlags.length > 0
+            ? (itemFlags[0].clinical_flag_message ??
+                'Critical item endorsed. Immediate review required.')
+            : `Total score of ${totalScore} meets or exceeds the alert threshold of ${questionnaire.clinical_alert_threshold}.`
+
+        await supabase.from('clinical_alerts_log').insert({
+          study_id: questionnaire.study_id,
+          questionnaire_id: qid,
+          participant_id: userId,
+          scored_result_id: scoredResult.id,
+          alert_level: alertLevel,
+          alert_type: alertType,
+          trigger_description: triggerDescription,
+          trigger_score: totalScore,
+          trigger_threshold: questionnaire.clinical_alert_threshold ?? 0,
+          scale_name: questionnaire.validated_scale_name ?? 'Unknown',
+          acknowledged: false,
+          resolved: false,
+          escalated: false,
+        })
+      }
+
+      setScore(totalScore)
+      setSeverity(severityBand)
+      setSubmitted(true)
+    } catch (err) {
+      toast.error('Submission failed', {
+        description: err instanceof Error ? err.message : 'Please try again.',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // ─── Render states ───────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-16 text-center">
+        <p className="text-sm text-muted-foreground">Loading questionnaire...</p>
+      </div>
+    )
+  }
+
+  if (!questionnaire) {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-16 text-center">
+        <p className="font-serif text-xl mb-2">Questionnaire not found.</p>
+        <p className="text-sm text-muted-foreground">
+          The link may be invalid or the questionnaire may have been removed.
+        </p>
+      </div>
+    )
+  }
+
+  // ─── Completion screen ───────────────────────────────────────────────────────
+
+  if (submitted) {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-16 text-center">
+        <CheckCircle
+          className="w-12 h-12 mx-auto mb-4"
+          style={{ color: severity?.color ?? '#52B788' }}
+        />
+        <h1 className="font-serif text-2xl mb-2">All done. Thank you.</h1>
+        <p className="text-sm text-muted-foreground mb-8">
+          Your responses have been recorded and shared with your researcher.
+        </p>
+
+        {scale && severity && (
+          <div
+            className="inline-block border rounded-xl px-8 py-5 mb-6"
+            style={{
+              borderColor: severity.color,
+              backgroundColor: severity.color + '18',
+            }}
+          >
+            <p className="text-3xl font-serif font-bold" style={{ color: severity.color }}>
+              {score} / {scale.scale_max}
+            </p>
+            <p className="text-sm mt-1 font-medium" style={{ color: severity.color }}>
+              {severity.label}
+            </p>
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+          Remember — scores reflect patterns over time, not your identity or character.
+          If you are concerned about your results, please speak with your researcher or a
+          mental health professional.
+        </p>
+      </div>
+    )
+  }
+
+  // ─── Survey form ─────────────────────────────────────────────────────────────
+
+  return (
+    <div className="max-w-2xl mx-auto px-6 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="font-serif text-2xl text-foreground mb-2">{questionnaire.title}</h1>
+        {questionnaire.instructions && (
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {questionnaire.instructions}
+          </p>
+        )}
+        <div className="mt-4 space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              {answeredCount} of {totalItems} answered
+            </span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+          <Progress value={progress} className="h-1.5" />
+        </div>
+      </div>
+
+      {/* Items */}
+      <div className="space-y-10">
+        {items.map((item, index) => {
+          const selected = responses[item.id]
+          const hasValue = selected !== undefined
+          // Use item's stored options, fall back to scale defaults
+          const options: ResponseOption[] =
+            item.response_options?.length > 0
+              ? item.response_options
+              : (scale?.response_options ?? [])
+
+          const flagActive =
+            item.is_clinical_flag_item &&
+            hasValue &&
+            item.clinical_flag_threshold !== null &&
+            item.clinical_flag_operator === 'gte' &&
+            selected >= item.clinical_flag_threshold
+
+          return (
+            <div key={item.id} className="space-y-3">
+              {/* Question */}
+              <div className="flex gap-3">
+                <span className="text-sm text-muted-foreground font-mono w-6 shrink-0 pt-0.5">
+                  {index + 1}.
+                </span>
+                <p className="text-sm text-foreground leading-relaxed">{item.item_text}</p>
+              </div>
+
+              {/* Response options */}
+              <div className="ml-9 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {options.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleResponse(item.id, opt.value)}
+                    className={cn(
+                      'border rounded-lg px-3 py-2.5 text-xs text-center transition-all',
+                      hasValue && selected === opt.value
+                        ? 'border-primary bg-primary text-primary-foreground font-medium'
+                        : 'border-border bg-background hover:border-primary hover:bg-primary/5'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Clinical flag warning — shown in real time */}
+              {flagActive && (
+                <div className="ml-9 flex items-start gap-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+                  <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
+                  <p className="text-xs text-destructive leading-relaxed">
+                    If you are having thoughts of hurting yourself, please reach out to a
+                    mental health professional or call a crisis helpline immediately.
+                  </p>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Submit */}
+      <div className="mt-12 pb-8 space-y-3">
+        {!allAnswered && totalItems > 0 && (
+          <p className="text-xs text-muted-foreground text-center">
+            Please answer all {totalItems} questions before submitting.
+          </p>
+        )}
+        <Button
+          onClick={handleSubmit}
+          disabled={!allAnswered || submitting}
+          className="w-full"
+          size="lg"
+        >
+          {submitting ? 'Submitting...' : 'Submit responses'}
+        </Button>
+      </div>
+    </div>
+  )
+}
