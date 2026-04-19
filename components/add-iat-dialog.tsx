@@ -78,9 +78,13 @@ export function AddIatDialog({
       const { data: iat, error: iatError } = await supabase
         .from('iat_instruments')
         .insert({
-          study_id:    studyId,
-          title:       label.trim(),
-          description: notes.trim() || `Death/Suicide IAT — Self vs Other × Death vs Life. ${DEATH_SUICIDE_IAT.citation}`,
+          study_id:         studyId,
+          title:            label.trim(),
+          description:      notes.trim() || `Death/Suicide IAT — Self vs Other × Death vs Life. ${DEATH_SUICIDE_IAT.citation}`,
+          concept_a_label:  DEATH_SUICIDE_IAT.targetA,           // 'Self'
+          concept_b_label:  DEATH_SUICIDE_IAT.targetB,           // 'Other'
+          attribute_a_label: DEATH_SUICIDE_IAT.attributeNegative, // 'Death / Suicide'
+          attribute_b_label: DEATH_SUICIDE_IAT.attributePositive, // 'Life'
         })
         .select('id')
         .single()
