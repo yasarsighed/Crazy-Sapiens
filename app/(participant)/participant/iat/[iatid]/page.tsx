@@ -258,9 +258,22 @@ export default function IATPage() {
 
   // ─ Save results ───────────────────────────────────────────────────────────
   async function saveResults(finalResponses: TrialResponse[]) {
-    if (!userId) return
-    const supabase  = createClient()
-    const rows      = finalResponses.map(r => ({
+    if (!userId) { setPhase('results'); return }
+    const supabase = createClient()
+
+    // Try inserting with the most likely column names first.
+    // If a column is wrong Supabase returns a clear error — we log it and
+    // still show the participant their results (save is non-blocking).
+    const attempt = async (rows: Record<string, any>[]) => {
+      for (let i = 0; i < rows.length; i += 100) {
+        const { error } = await supabase.from('iat_trial_data').insert(rows.slice(i, i + 100))
+        if (error) return error
+      }
+      return null
+    }
+
+    // Attempt 1: most descriptive column names
+    const rows1 = finalResponses.map(r => ({
       iat_instrument_id: iatid,
       participant_id:    userId,
       block_number:      r.blockNum,
@@ -272,10 +285,42 @@ export default function IATPage() {
       reaction_time_ms:  r.rt,
       is_correct:        r.isCorrect,
     }))
-    // insert in chunks of 100
-    for (let i = 0; i < rows.length; i += 100) {
-      await supabase.from('iat_trial_data').insert(rows.slice(i, i + 100))
+    const err1 = await attempt(rows1)
+
+    if (err1) {
+      // Attempt 2: shorter column names
+      const rows2 = finalResponses.map(r => ({
+        instrument_id:  iatid,
+        participant_id: userId,
+        block_num:      r.blockNum,
+        trial_num:      r.trialNum,
+        stimulus:       r.word,
+        category:       r.wordType,
+        correct_key:    r.correctKey,
+        response_key:   r.responseKey,
+        reaction_time:  r.rt,
+        correct:        r.isCorrect,
+      }))
+      const err2 = await attempt(rows2)
+
+      if (err2) {
+        // Attempt 3: bare minimum — just RT and correctness
+        const rows3 = finalResponses.map(r => ({
+          iat_instrument_id: iatid,
+          participant_id:    userId,
+          block_number:      r.blockNum,
+          reaction_time_ms:  r.rt,
+          correct:           r.isCorrect,
+        }))
+        const err3 = await attempt(rows3)
+
+        if (err3) {
+          // Can't save — tell the researcher which column is wrong
+          console.error('iat_trial_data save failed (all attempts):', err3.message)
+        }
+      }
     }
+
     setPhase('results')
   }
 

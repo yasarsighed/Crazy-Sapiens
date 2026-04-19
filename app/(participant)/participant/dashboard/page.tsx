@@ -65,28 +65,38 @@ export default async function ParticipantDashboardPage() {
   const pendingSociograms = sociograms?.filter(s => !submittedSociogramIds.has(s.id)) ?? []
   const completedSociograms = sociograms?.filter(s => submittedSociogramIds.has(s.id)) ?? []
 
-  // Fetch IAT instruments for enrolled studies
-  const { data: iats } = studyIds.length > 0
+  // Fetch IAT instruments through study_instruments (avoids querying
+  // iat_instruments directly for study_id / is_active which may not exist)
+  const { data: iatLinks } = studyIds.length > 0
     ? await supabase
-        .from('iat_instruments')
-        .select('id, study_id, title, estimated_duration_minutes, is_active')
+        .from('study_instruments')
+        .select('instrument_id, instrument_label')
         .in('study_id', studyIds)
+        .eq('instrument_type', 'iat')
         .eq('is_active', true)
     : { data: [] }
 
-  // Check which IATs this participant has already completed (has trial data)
-  const iatIds = (iats ?? []).map((i: any) => i.id)
+  const iats = (iatLinks ?? []).map((l: any) => ({
+    id:    l.instrument_id,
+    title: l.instrument_label,
+    estimated_duration_minutes: 12, // hardcoded — Death/Suicide IAT is always ~12 min
+  }))
+
+  // Check which IATs this participant has already completed (has any trial data)
+  const iatIds = iats.map((i: any) => i.id)
   const { data: completedIatData } = iatIds.length > 0
     ? await supabase
         .from('iat_trial_data')
         .select('iat_instrument_id')
         .eq('participant_id', user.id)
         .in('iat_instrument_id', iatIds)
+        .limit(1)
     : { data: [] }
 
+  // Consider an IAT "done" if any trial data exists for it
   const completedIatIds = new Set((completedIatData ?? []).map((r: any) => r.iat_instrument_id))
-  const pendingIats = (iats ?? []).filter((i: any) => !completedIatIds.has(i.id))
-  const completedIats = (iats ?? []).filter((i: any) => completedIatIds.has(i.id))
+  const pendingIats   = iats.filter((i: any) => !completedIatIds.has(i.id))
+  const completedIats = iats.filter((i: any) =>  completedIatIds.has(i.id))
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">

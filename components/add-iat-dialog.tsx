@@ -71,48 +71,26 @@ export function AddIatDialog({
     }
 
     try {
-      // 1. Build a minimal insert — only columns confirmed in the DB type.
-      //    The stimuli are hardcoded in the participant IAT page so we don't
-      //    need to store them here. We try progressively wider inserts and
-      //    fall back if columns are missing.
-      const baseInsert: Record<string, any> = {
-        title: label.trim(),
-        description: [
-          `Type: ${DEATH_SUICIDE_IAT.key}`,
-          `Targets: ${DEATH_SUICIDE_IAT.targetA} vs ${DEATH_SUICIDE_IAT.targetB}`,
-          `Attributes: ${DEATH_SUICIDE_IAT.attributeNegative} vs ${DEATH_SUICIDE_IAT.attributePositive}`,
-          notes.trim() || '',
-        ].filter(Boolean).join(' | '),
+      // 1. Insert into iat_instruments.
+      //    Only use the columns confirmed by the TypeScript IATTest type.
+      //    Stimuli are hardcoded in the participant page — no need to store them.
+      //    study_id / is_active / attribute_negative caused errors → excluded.
+      const { data: iat, error: iatError } = await supabase
+        .from('iat_instruments')
+        .insert({
+          title:              label.trim(),
+          description:        notes.trim() || `Death/Suicide IAT — Self vs Other × Death vs Life. ${DEATH_SUICIDE_IAT.citation}`,
+          researcher_id:      user.id,
+          category_a:         DEATH_SUICIDE_IAT.targetA,         // 'Self'
+          category_b:         DEATH_SUICIDE_IAT.targetB,         // 'Other'
+          attribute_positive: DEATH_SUICIDE_IAT.attributePositive, // 'Life'
+        })
+        .select('id')
+        .single()
+
+      if (iatError || !iat) {
+        throw new Error(iatError?.message ?? 'Failed to create IAT instrument')
       }
-
-      // Try adding researcher FK — first as created_by, then researcher_id
-      const withCreatedBy  = { ...baseInsert, study_id: studyId, created_by: user.id,    is_active: true }
-      const withResearcherId = { ...baseInsert, study_id: studyId, researcher_id: user.id, is_active: true }
-
-      let iat: { id: string } | null = null
-
-      // Attempt 1: created_by
-      const res1 = await supabase.from('iat_instruments').insert(withCreatedBy).select('id').single()
-      if (!res1.error) {
-        iat = res1.data
-      } else if (res1.error.message.includes('researcher_id') || res1.error.message.includes('created_by') || res1.error.message.includes('study_id')) {
-        // Attempt 2: researcher_id
-        const res2 = await supabase.from('iat_instruments').insert(withResearcherId).select('id').single()
-        if (!res2.error) {
-          iat = res2.data
-        } else if (res2.error.message.includes('study_id')) {
-          // Attempt 3: no study_id (some schemas store it only in study_instruments)
-          const res3 = await supabase.from('iat_instruments').insert({ ...baseInsert, researcher_id: user.id, is_active: true }).select('id').single()
-          if (!res3.error) iat = res3.data
-          else throw new Error(res3.error.message)
-        } else {
-          throw new Error(res2.error.message)
-        }
-      } else {
-        throw new Error(res1.error.message)
-      }
-
-      if (!iat) throw new Error('Failed to create IAT instrument')
 
       // 2. Create study_instruments record
       const { error: siError } = await supabase
