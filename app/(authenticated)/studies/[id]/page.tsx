@@ -6,9 +6,16 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Network, Download, Share2, Plus, X } from 'lucide-react'
+import { ArrowLeft, Network, Download, Share2, Plus, X, ChevronDown, ClipboardList, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { AddQuestionnaireDialog } from '@/components/add-questionnaire-dialog'
+import { AddSociogramDialog } from '@/components/add-sociogram-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export default function StudyPage() {
   const params = useParams()
@@ -19,6 +26,7 @@ export default function StudyPage() {
   const [loading, setLoading] = useState(true)
   const [showAddParticipant, setShowAddParticipant] = useState(false)
   const [showAddQuestionnaire, setShowAddQuestionnaire] = useState(false)
+  const [showAddSociogram, setShowAddSociogram] = useState(false)
   const [allProfiles, setAllProfiles] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
@@ -174,10 +182,25 @@ export default function StudyPage() {
             <h2 className="font-serif text-base font-semibold">
               Instruments ({instruments.length})
             </h2>
-            <Button size="sm" variant="outline" onClick={() => setShowAddQuestionnaire(true)}>
-              <Plus className="w-4 h-4 mr-1" />
-              Add
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add
+                  <ChevronDown className="w-3 h-3 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowAddQuestionnaire(true)}>
+                  <ClipboardList className="w-4 h-4 mr-2 text-[#457B9D]" />
+                  Questionnaire
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowAddSociogram(true)}>
+                  <Users className="w-4 h-4 mr-2 text-[#2D6A4F]" />
+                  Sociogram
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           {instruments.length === 0 ? (
             <p className="text-sm text-muted-foreground italic">No instruments yet. Add one to get started.</p>
@@ -203,6 +226,13 @@ export default function StudyPage() {
         studyId={studyId}
         open={showAddQuestionnaire}
         onClose={() => setShowAddQuestionnaire(false)}
+        onSuccess={loadData}
+      />
+
+      <AddSociogramDialog
+        studyId={studyId}
+        open={showAddSociogram}
+        onClose={() => setShowAddSociogram(false)}
         onSuccess={loadData}
       />
 

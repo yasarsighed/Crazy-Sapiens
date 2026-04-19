@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ClipboardList, CheckCircle, Clock } from 'lucide-react'
+import { ClipboardList, CheckCircle, Clock, Users } from 'lucide-react'
 
 export default async function ParticipantDashboardPage() {
   const supabase = await createClient()
@@ -44,23 +44,46 @@ export default async function ParticipantDashboardPage() {
   const pending = questionnaires?.filter(q => !completedIds.has(q.id)) ?? []
   const completed = questionnaires?.filter(q => completedIds.has(q.id)) ?? []
 
+  // Fetch sociograms for enrolled studies
+  const { data: sociograms } = studyIds.length > 0
+    ? await supabase
+        .from('sociogram_instruments')
+        .select('id, study_id, title, status')
+        .in('study_id', studyIds)
+        .eq('status', 'active')
+    : { data: [] }
+
+  // Check which sociograms this participant has already submitted
+  const { data: submittedSociograms } = await supabase
+    .from('sociogram_participants')
+    .select('sociogram_id')
+    .eq('participant_id', user.id)
+    .eq('has_submitted', true)
+
+  const submittedSociogramIds = new Set(submittedSociograms?.map(s => s.sociogram_id) ?? [])
+
+  const pendingSociograms = sociograms?.filter(s => !submittedSociogramIds.has(s.id)) ?? []
+  const completedSociograms = sociograms?.filter(s => submittedSociogramIds.has(s.id)) ?? []
+
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
       <div className="mb-8">
         <h1 className="font-serif text-2xl text-foreground mb-1">Your instruments</h1>
         <p className="text-sm text-muted-foreground">
-          {pending.length > 0
-            ? `${pending.length} pending. Take your time — there are no wrong answers.`
+          {pending.length + pendingSociograms.length > 0
+            ? `${pending.length + pendingSociograms.length} pending. Take your time — there are no wrong answers.`
             : 'All done. Science thanks you.'}
         </p>
       </div>
 
       {/* Pending */}
-      {pending.length > 0 && (
+      {(pending.length > 0 || pendingSociograms.length > 0) && (
         <div className="space-y-3 mb-8">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             To complete
           </h2>
+
+          {/* Pending questionnaires */}
           {pending.map(q => (
             <div
               key={q.id}
@@ -88,11 +111,30 @@ export default async function ParticipantDashboardPage() {
               </Button>
             </div>
           ))}
+
+          {/* Pending sociograms */}
+          {pendingSociograms.map(s => (
+            <div
+              key={s.id}
+              className="border border-border rounded-xl p-4 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-start gap-3 min-w-0">
+                <Users className="w-4 h-4 text-[#2D6A4F] shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{s.title}</p>
+                  <Badge variant="outline" className="text-[10px] mt-1">Sociogram</Badge>
+                </div>
+              </div>
+              <Button asChild size="sm">
+                <Link href={`/participant/sociogram/${s.id}`}>Begin</Link>
+              </Button>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Completed */}
-      {completed.length > 0 && (
+      {(completed.length > 0 || completedSociograms.length > 0) && (
         <div className="space-y-3">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Completed
@@ -104,16 +146,24 @@ export default async function ParticipantDashboardPage() {
             >
               <CheckCircle className="w-4 h-4 text-[#52B788] shrink-0" />
               <p className="text-sm text-foreground">{q.title}</p>
-              <Badge variant="outline" className="ml-auto text-[10px]">
-                Done
-              </Badge>
+              <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
+            </div>
+          ))}
+          {completedSociograms.map(s => (
+            <div
+              key={s.id}
+              className="border border-border rounded-xl p-4 flex items-center gap-3 opacity-60"
+            >
+              <CheckCircle className="w-4 h-4 text-[#52B788] shrink-0" />
+              <p className="text-sm text-foreground">{s.title}</p>
+              <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
             </div>
           ))}
         </div>
       )}
 
       {/* Not enrolled in anything */}
-      {studyIds.length === 0 && (
+      {studyIds.length === 0 && pending.length === 0 && pendingSociograms.length === 0 && (
         <div className="text-center py-16">
           <p className="font-serif text-xl mb-2">You are not enrolled in any studies.</p>
           <p className="text-sm text-muted-foreground">
