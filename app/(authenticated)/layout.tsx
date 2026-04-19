@@ -23,6 +23,11 @@ export default async function AuthenticatedLayout({
     .eq('id', user.id)
     .single()
 
+  // Participants have their own portal — send them there
+  if (profile?.role === 'participant') {
+    redirect('/participant/dashboard')
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Sidebar profile={profile as Profile | null} />

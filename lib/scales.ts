@@ -117,14 +117,14 @@ export const PHQ9: BuiltInScale = {
     },
     {
       code: 'PHQ9_8',
-      text: 'Moving or speaking so slowly that other people could have noticed — or the opposite, being so fidgety or restless that you have been moving around a lot more than usual',
+      text: 'Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual',
       is_reverse_scored: false,
       is_clinical_flag_item: false,
       display_order: 8,
     },
     {
       code: 'PHQ9_9',
-      text: 'Thoughts that you would be better off dead, or of hurting yourself in some way',
+      text: 'Thoughts that you would be better off dead or of hurting yourself in some way',
       is_reverse_scored: false,
       is_clinical_flag_item: true,
       clinical_flag_threshold: 1,
@@ -194,7 +194,7 @@ export const GAD7: BuiltInScale = {
     },
     {
       code: 'GAD7_5',
-      text: "Being so restless that it's hard to sit still",
+      text: 'Being so restless that it is hard to sit still',
       is_reverse_scored: false,
       is_clinical_flag_item: false,
       display_order: 5,
@@ -208,7 +208,7 @@ export const GAD7: BuiltInScale = {
     },
     {
       code: 'GAD7_7',
-      text: 'Feeling afraid as if something awful might happen',
+      text: 'Feeling afraid, as if something awful might happen',
       is_reverse_scored: false,
       is_clinical_flag_item: false,
       display_order: 7,
