@@ -16,7 +16,7 @@ export default function AnalysisPage() {
       const { data: studies } = await supabase
         .from('studies')
         .select('id')
-        .eq('researcher_id', user.id)
+        .eq('created_by', user.id)
 
       const studyIds = studies?.map((s: any) => s.id) || []
 

@@ -55,7 +55,7 @@ export default async function DashboardPage() {
   const { data: studies } = await supabase
     .from('studies')
     .select('*')
-    .eq('researcher_id', user.id)
+    .eq('created_by', user.id)
     .order('created_at', { ascending: false })
     .limit(5)
 
@@ -80,7 +80,7 @@ export default async function DashboardPage() {
   const { count: activeStudiesCount } = await supabase
     .from('studies')
     .select('*', { count: 'exact', head: true })
-    .eq('researcher_id', user.id)
+    .eq('created_by', user.id)
     .eq('status', 'active')
 
   const { count: totalParticipantsCount } = await supabase

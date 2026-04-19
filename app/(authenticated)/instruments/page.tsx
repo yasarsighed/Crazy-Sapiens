@@ -11,7 +11,7 @@ export default async function InstrumentsPage() {
   const { data: studies } = await supabase
     .from('studies')
     .select('id')
-    .eq('researcher_id', user.id)
+    .eq('created_by', user.id)
 
   const studyIds = studies?.map(s => s.id) || []
 
