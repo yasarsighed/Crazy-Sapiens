@@ -24,7 +24,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -34,7 +34,23 @@ export default function LoginPage() {
         return
       }
 
-      router.push('/dashboard')
+      // Redirect based on role — participants go to their own portal
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+
+        if (profile?.role === 'participant') {
+          router.push('/participant/dashboard')
+        } else {
+          router.push('/dashboard')
+        }
+      } else {
+        router.push('/dashboard')
+      }
+
       router.refresh()
     } catch {
       setError('An unexpected error occurred')
