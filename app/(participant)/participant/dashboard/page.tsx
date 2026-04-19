@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ClipboardList, CheckCircle, Clock, Users } from 'lucide-react'
+import { ClipboardList, CheckCircle, Clock, Users, Timer } from 'lucide-react'
 
 export default async function ParticipantDashboardPage() {
   const supabase = await createClient()
@@ -65,19 +65,42 @@ export default async function ParticipantDashboardPage() {
   const pendingSociograms = sociograms?.filter(s => !submittedSociogramIds.has(s.id)) ?? []
   const completedSociograms = sociograms?.filter(s => submittedSociogramIds.has(s.id)) ?? []
 
+  // Fetch IAT instruments for enrolled studies
+  const { data: iats } = studyIds.length > 0
+    ? await supabase
+        .from('iat_instruments')
+        .select('id, study_id, title, estimated_duration_minutes, is_active')
+        .in('study_id', studyIds)
+        .eq('is_active', true)
+    : { data: [] }
+
+  // Check which IATs this participant has already completed (has trial data)
+  const iatIds = (iats ?? []).map((i: any) => i.id)
+  const { data: completedIatData } = iatIds.length > 0
+    ? await supabase
+        .from('iat_trial_data')
+        .select('iat_instrument_id')
+        .eq('participant_id', user.id)
+        .in('iat_instrument_id', iatIds)
+    : { data: [] }
+
+  const completedIatIds = new Set((completedIatData ?? []).map((r: any) => r.iat_instrument_id))
+  const pendingIats = (iats ?? []).filter((i: any) => !completedIatIds.has(i.id))
+  const completedIats = (iats ?? []).filter((i: any) => completedIatIds.has(i.id))
+
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
       <div className="mb-8">
         <h1 className="font-serif text-2xl text-foreground mb-1">Your instruments</h1>
         <p className="text-sm text-muted-foreground">
-          {pending.length + pendingSociograms.length > 0
-            ? `${pending.length + pendingSociograms.length} pending. Take your time — there are no wrong answers.`
+          {pending.length + pendingSociograms.length + pendingIats.length > 0
+            ? `${pending.length + pendingSociograms.length + pendingIats.length} pending. Take your time — there are no wrong answers.`
             : 'All done. Science thanks you.'}
         </p>
       </div>
 
       {/* Pending */}
-      {(pending.length > 0 || pendingSociograms.length > 0) && (
+      {(pending.length > 0 || pendingSociograms.length > 0 || pendingIats.length > 0) && (
         <div className="space-y-3 mb-8">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             To complete
@@ -130,11 +153,38 @@ export default async function ParticipantDashboardPage() {
               </Button>
             </div>
           ))}
+
+          {/* Pending IATs */}
+          {pendingIats.map((iat: any) => (
+            <div
+              key={iat.id}
+              className="border border-border rounded-xl p-4 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-start gap-3 min-w-0">
+                <Timer className="w-4 h-4 text-[#F4A261] shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{iat.title}</p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <Badge variant="outline" className="text-[10px] border-[#F4A261] text-[#F4A261]">IAT</Badge>
+                    {iat.estimated_duration_minutes && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        ~{iat.estimated_duration_minutes} min
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <Button asChild size="sm" className="bg-[#F4A261] hover:bg-[#e8934a] text-white border-0">
+                <Link href={`/participant/iat/${iat.id}`}>Begin</Link>
+              </Button>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Completed */}
-      {(completed.length > 0 || completedSociograms.length > 0) && (
+      {(completed.length > 0 || completedSociograms.length > 0 || completedIats.length > 0) && (
         <div className="space-y-3">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Completed
@@ -159,11 +209,21 @@ export default async function ParticipantDashboardPage() {
               <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
             </div>
           ))}
+          {completedIats.map((iat: any) => (
+            <div
+              key={iat.id}
+              className="border border-border rounded-xl p-4 flex items-center gap-3 opacity-60"
+            >
+              <CheckCircle className="w-4 h-4 text-[#52B788] shrink-0" />
+              <p className="text-sm text-foreground">{iat.title}</p>
+              <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Not enrolled in anything */}
-      {studyIds.length === 0 && pending.length === 0 && pendingSociograms.length === 0 && (
+      {studyIds.length === 0 && pending.length === 0 && pendingSociograms.length === 0 && pendingIats.length === 0 && (
         <div className="text-center py-16">
           <p className="font-serif text-xl mb-2">You are not enrolled in any studies.</p>
           <p className="text-sm text-muted-foreground">

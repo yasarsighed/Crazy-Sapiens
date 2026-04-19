@@ -6,10 +6,11 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Network, Download, Share2, Plus, X, ChevronDown, ClipboardList, Users } from 'lucide-react'
+import { ArrowLeft, Network, Download, Share2, Plus, X, ChevronDown, ClipboardList, Users, Timer, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { AddQuestionnaireDialog } from '@/components/add-questionnaire-dialog'
 import { AddSociogramDialog } from '@/components/add-sociogram-dialog'
+import { AddIatDialog } from '@/components/add-iat-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,7 @@ export default function StudyPage() {
   const [showAddParticipant, setShowAddParticipant] = useState(false)
   const [showAddQuestionnaire, setShowAddQuestionnaire] = useState(false)
   const [showAddSociogram, setShowAddSociogram] = useState(false)
+  const [showAddIat, setShowAddIat] = useState(false)
   const [allProfiles, setAllProfiles] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
@@ -199,6 +201,10 @@ export default function StudyPage() {
                   <Users className="w-4 h-4 mr-2 text-[#2D6A4F]" />
                   Sociogram
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowAddIat(true)}>
+                  <Timer className="w-4 h-4 mr-2 text-[#F4A261]" />
+                  IAT
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -206,17 +212,47 @@ export default function StudyPage() {
             <p className="text-sm text-muted-foreground italic">No instruments yet. Add one to get started.</p>
           ) : (
             <div className="space-y-2">
-              {instruments.map((instrument: any) => (
-                <div key={instrument.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{instrument.instrument_label}</p>
-                    <p className="text-xs text-muted-foreground">{instrument.instrument_type?.replace(/_/g, ' ')}</p>
+              {instruments.map((instrument: any) => {
+                const typeAccent =
+                  instrument.instrument_type === 'questionnaire'
+                    ? '#457B9D'
+                    : instrument.instrument_type === 'iat'
+                    ? '#F4A261'
+                    : '#2D6A4F'
+
+                const resultsHref =
+                  instrument.instrument_type === 'questionnaire'
+                    ? `/studies/${studyId}/questionnaire/${instrument.instrument_id}`
+                    : instrument.instrument_type === 'iat'
+                    ? `/studies/${studyId}/iat/${instrument.instrument_id}`
+                    : `/studies/${studyId}/sociogram`
+
+                return (
+                  <div
+                    key={instrument.id}
+                    className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                    style={{ borderLeft: `3px solid ${typeAccent}`, paddingLeft: '10px' }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{instrument.instrument_label}</p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {instrument.instrument_type?.replace(/_/g, ' ')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant={instrument.is_active ? 'default' : 'secondary'} className="text-xs">
+                        {instrument.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                      <Link
+                        href={resultsHref}
+                        className="flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        Results <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </div>
                   </div>
-                  <Badge variant={instrument.is_active ? 'default' : 'secondary'} className="text-xs">
-                    {instrument.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -233,6 +269,13 @@ export default function StudyPage() {
         studyId={studyId}
         open={showAddSociogram}
         onClose={() => setShowAddSociogram(false)}
+        onSuccess={loadData}
+      />
+
+      <AddIatDialog
+        studyId={studyId}
+        open={showAddIat}
+        onClose={() => setShowAddIat(false)}
         onSuccess={loadData}
       />
 
