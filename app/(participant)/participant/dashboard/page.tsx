@@ -65,38 +65,33 @@ export default async function ParticipantDashboardPage() {
   const pendingSociograms = sociograms?.filter(s => !submittedSociogramIds.has(s.id)) ?? []
   const completedSociograms = sociograms?.filter(s => submittedSociogramIds.has(s.id)) ?? []
 
-  // Fetch IAT instruments through study_instruments (avoids querying
-  // iat_instruments directly for study_id / is_active which may not exist)
-  const { data: iatLinks } = studyIds.length > 0
+  // Fetch IAT instruments directly from iat_instruments (same pattern as
+  // questionnaire_instruments and sociogram_instruments — avoids RLS on study_instruments)
+  const { data: iats } = studyIds.length > 0
     ? await supabase
-        .from('study_instruments')
-        .select('instrument_id, instrument_label')
+        .from('iat_instruments')
+        .select('id, study_id, title')
         .in('study_id', studyIds)
-        .eq('instrument_type', 'iat')
-        .eq('is_active', true)
     : { data: [] }
 
-  const iats = (iatLinks ?? []).map((l: any) => ({
-    id:    l.instrument_id,
-    title: l.instrument_label,
-    estimated_duration_minutes: 12, // hardcoded — Death/Suicide IAT is always ~12 min
-  }))
-
-  // Check which IATs this participant has already completed (has any trial data)
-  const iatIds = iats.map((i: any) => i.id)
+  // Check which IATs this participant has already completed.
+  // Query iat_trial_log — if any rows exist for this participant+instrument, it's done.
+  const iatIds = (iats ?? []).map((i: any) => i.id)
   const { data: completedIatData } = iatIds.length > 0
     ? await supabase
         .from('iat_trial_log')
-        .select('iat_instrument_id')
+        .select('instrument_id')
         .eq('participant_id', user.id)
-        .in('iat_instrument_id', iatIds)
-        .limit(1)
+        .in('instrument_id', iatIds)
+        .limit(iatIds.length)
     : { data: [] }
 
-  // Consider an IAT "done" if any trial data exists for it
-  const completedIatIds = new Set((completedIatData ?? []).map((r: any) => r.iat_instrument_id))
-  const pendingIats   = iats.filter((i: any) => !completedIatIds.has(i.id))
-  const completedIats = iats.filter((i: any) =>  completedIatIds.has(i.id))
+  // Fall back to checking iat_instrument_id column name if instrument_id returns nothing
+  const completedIatIds = new Set(
+    (completedIatData ?? []).map((r: any) => r.instrument_id ?? r.iat_instrument_id)
+  )
+  const pendingIats   = (iats ?? []).filter((i: any) => !completedIatIds.has(i.id))
+  const completedIats = (iats ?? []).filter((i: any) =>  completedIatIds.has(i.id))
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">

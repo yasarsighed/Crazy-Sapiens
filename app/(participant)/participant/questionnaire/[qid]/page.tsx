@@ -164,10 +164,13 @@ export default function QuestionnairePage() {
         }
       })
 
-      // Save all responses
+      // Save all responses — upsert so retries don't hit the unique constraint
       const { error: responseError } = await supabase
         .from('questionnaire_item_responses')
-        .insert(responseRecords)
+        .upsert(responseRecords, {
+          onConflict: 'questionnaire_id,participant_id,item_id',
+          ignoreDuplicates: false,
+        })
 
       if (responseError) throw new Error(responseError.message)
 
@@ -185,10 +188,10 @@ export default function QuestionnairePage() {
       const itemFlags = responseRecords.filter(r => r.clinical_flag_triggered)
       const anyAlertFired = totalAlertFired || itemFlags.length > 0
 
-      // Save scored result
+      // Save scored result — upsert in case a previous attempt saved responses but not the result
       const { data: scoredResult, error: scoreError } = await supabase
         .from('questionnaire_scored_results')
-        .insert({
+        .upsert({
           questionnaire_id: qid,
           participant_id: userId,
           total_score: totalScore,
