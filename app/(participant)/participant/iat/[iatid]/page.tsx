@@ -266,7 +266,7 @@ export default function IATPage() {
     // still show the participant their results (save is non-blocking).
     const attempt = async (rows: Record<string, any>[]) => {
       for (let i = 0; i < rows.length; i += 100) {
-        const { error } = await supabase.from('iat_trial_data').insert(rows.slice(i, i + 100))
+        const { error } = await supabase.from('iat_trial_log').insert(rows.slice(i, i + 100))
         if (error) return error
       }
       return null
@@ -316,7 +316,7 @@ export default function IATPage() {
 
         if (err3) {
           // Can't save — tell the researcher which column is wrong
-          console.error('iat_trial_data save failed (all attempts):', err3.message)
+          console.error('iat_trial_log save failed (all attempts):', err3.message)
         }
       }
     }

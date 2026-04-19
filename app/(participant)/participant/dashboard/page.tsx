@@ -86,7 +86,7 @@ export default async function ParticipantDashboardPage() {
   const iatIds = iats.map((i: any) => i.id)
   const { data: completedIatData } = iatIds.length > 0
     ? await supabase
-        .from('iat_trial_data')
+        .from('iat_trial_log')
         .select('iat_instrument_id')
         .eq('participant_id', user.id)
         .in('iat_instrument_id', iatIds)
