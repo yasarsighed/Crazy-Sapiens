@@ -81,7 +81,6 @@ export function AddIatDialog({
           study_id:    studyId,
           title:       label.trim(),
           description: notes.trim() || `Death/Suicide IAT — Self vs Other × Death vs Life. ${DEATH_SUICIDE_IAT.citation}`,
-          researcher_id: user.id,
         })
         .select('id')
         .single()
