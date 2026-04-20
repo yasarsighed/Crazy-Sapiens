@@ -253,14 +253,25 @@ export default function SociogramNominationPage() {
         throw new Error('Your participant record no longer exists. Please refresh the page.')
       }
 
+      // Build a lookup from sociogram_participants.id → auth user id
+      // The FK on nominator_id/nominee_id references auth.users(id), not sociogram_participants(id)
+      const authIdBySocId: Record<string, string> = {}
+      for (const p of participants) {
+        authIdBySocId[p.id] = p.participant_id  // participant_id = auth.users.id
+      }
+      // Include self (current user) in the map
+      if (myParticipantId) authIdBySocId[myParticipantId] = userId
+
       const allNominations: object[] = []
       for (const type of relationshipTypes) {
         const typeState = nominations[type.id]
         for (const nomineeId of typeState.nominees) {
+          const nomineeAuthId = authIdBySocId[nomineeId]
+          if (!nomineeAuthId) continue  // skip if we can't resolve auth id
           allNominations.push({
             sociogram_id: sid,
-            nominator_id: myParticipantId,
-            nominee_id: nomineeId,
+            nominator_id: userId,           // auth.users.id of current user
+            nominee_id: nomineeAuthId,       // auth.users.id of nominee
             relationship_type_id: type.id,
             score: typeState.scores[nomineeId] ?? null,
             is_negative_tie: type.is_negative_dimension,

@@ -9,6 +9,7 @@ import { ArrowLeft, Users } from 'lucide-react'
 
 interface DbParticipant {
   id: string
+  participant_id: string   // auth.users.id — used as nominator_id/nominee_id in nominations
   display_name: string
 }
 
@@ -119,7 +120,7 @@ export default function SociogramResultsPage() {
       const [partRes, nomRes, relRes, subRes] = await Promise.all([
         supabase
           .from('sociogram_participants')
-          .select('id, display_name')
+          .select('id, participant_id, display_name')
           .eq('sociogram_id', sociogram.id)
           .eq('is_active', true),
         supabase
@@ -150,10 +151,12 @@ export default function SociogramResultsPage() {
         return
       }
 
-      // Build node index
+      // Build node index — keyed by BOTH sociogram_participants.id AND participant_id (auth UID)
+      // Nominations store auth UIDs (participant_id) in nominator_id/nominee_id columns
       const nodeIdxById: Record<string, number> = {}
       const nodes: VizNode[] = participants.map((p, i) => {
-        nodeIdxById[p.id] = i
+        nodeIdxById[p.id] = i             // sociogram_participants.id (legacy)
+        nodeIdxById[p.participant_id] = i  // auth.users.id (current — what nominations store)
         return {
           id: i,
           name: p.display_name,
