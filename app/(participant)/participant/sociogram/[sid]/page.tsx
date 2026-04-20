@@ -236,10 +236,15 @@ export default function SociogramNominationPage() {
         }
       }
 
-      if (allNominations.length > 0) {
+      // Safety filter: never insert self-nominations (guard against DB constraint)
+      const safeNominations = allNominations.filter(
+        (n: any) => n.nominator_id !== n.nominee_id
+      )
+
+      if (safeNominations.length > 0) {
         const { error: nomError } = await supabase
           .from('sociogram_nominations')
-          .insert(allNominations)
+          .insert(safeNominations)
         if (nomError) throw new Error(nomError.message)
       }
 

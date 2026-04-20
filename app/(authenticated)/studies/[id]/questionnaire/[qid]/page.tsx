@@ -25,7 +25,7 @@ function buildDistribution(
   const counts: Record<string, number> = {}
   for (const band of bands) counts[band] = 0
   for (const r of results) {
-    const b = r.severity_band ?? 'Unknown'
+    const b = r.severity_label ?? 'Unknown'
     counts[b] = (counts[b] ?? 0) + 1
   }
   return Object.entries(counts).map(([band, count]) => ({
@@ -74,7 +74,7 @@ export default async function QuestionnaireResultsPage({
   const { data: results } = await supabase
     .from('questionnaire_scored_results')
     .select(
-      'participant_id, total_score, severity_band, submitted_at, is_complete'
+      'participant_id, total_score, severity_label, severity_category, submitted_at, is_complete'
     )
     .eq('questionnaire_id', qid)
     .order('submitted_at', { ascending: false })
