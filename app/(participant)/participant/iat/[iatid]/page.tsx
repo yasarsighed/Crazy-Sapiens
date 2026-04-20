@@ -355,51 +355,70 @@ export default function IATPage() {
 
   // ─ Save results ───────────────────────────────────────────────────────────
   async function saveResults(finalResponses: TrialResponse[], dScore: number | null) {
-    if (!userId) { setPhase('results'); return }
-    const supabase = createClient()
-    const sessionId = crypto.randomUUID()
+    // Always navigate to results — saving is best-effort and must never block the participant
+    const SAVE_TIMEOUT_MS = 12_000
 
-    const rows = finalResponses.map(r => ({
-      iat_id:               iatid,
-      participant_id:       userId,
-      session_id:           sessionId,
-      block_number:         r.blockNum,
-      trial_number:         r.trialNum,
-      stimulus_text:        r.word,
-      stimulus_category:    r.wordType,
-      correct_key:          r.correctKey,
-      pressed_key:          r.responseKey,
-      response_time_ms:     r.rt,
-      is_correct:           r.isCorrect,
-      is_too_fast:          r.rt < 300,
-      excluded_from_scoring: ![3, 4, 6, 7].includes(r.blockNum),
-    }))
+    async function doSave() {
+      if (!userId) return
+      const supabase = createClient()
+      const sessionId = crypto.randomUUID()
 
-    try {
+      const rows = finalResponses.map(r => ({
+        iat_id:               iatid,
+        participant_id:       userId,
+        session_id:           sessionId,
+        block_number:         r.blockNum,
+        trial_number:         r.trialNum,
+        stimulus_text:        r.word,
+        stimulus_category:    r.wordType,
+        correct_key:          r.correctKey,
+        pressed_key:          r.responseKey,
+        response_time_ms:     r.rt,
+        is_correct:           r.isCorrect,
+        is_too_fast:          r.rt < 300,
+        excluded_from_scoring: ![3, 4, 6, 7].includes(r.blockNum),
+      }))
+
+      // Insert in batches of 100 (Supabase row limit per request)
       for (let i = 0; i < rows.length; i += 100) {
         const { error } = await supabase.from('iat_trial_log').insert(rows.slice(i, i + 100))
-        if (error) throw error
+        if (error) {
+          // RLS or DB error — data not saved. Researcher will see incomplete record.
+          console.error('iat_trial_log insert failed:', error.message)
+          break
+        }
       }
+
+      // Save computed D-score (non-fatal — table may not exist yet)
+      if (dScore !== null) {
+        try {
+          await supabase.from('iat_session_results').insert({
+            iat_id:        iatid,
+            participant_id: userId,
+            session_id:    sessionId,
+            d_score:       dScore,
+            computed_at:   new Date().toISOString(),
+          })
+        } catch {
+          // iat_session_results table may not exist — D-score recomputable from trial log
+        }
+      }
+    }
+
+    try {
+      // Race the save against a timeout so a slow/hanging network never blocks the results screen
+      await Promise.race([
+        doSave(),
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error('Save timed out after 12 s')), SAVE_TIMEOUT_MS)
+        ),
+      ])
     } catch (err) {
-      console.error('iat_trial_log save failed:', err instanceof Error ? err.message : String(err))
+      // Save timed out or failed — participant still sees results
+      console.warn('IAT data save incomplete:', err instanceof Error ? err.message : String(err))
+    } finally {
+      setPhase('results')
     }
-
-    // Attempt to save computed D-score to a summary table (non-fatal if table doesn't exist)
-    if (dScore !== null) {
-      try {
-        await supabase.from('iat_session_results').insert({
-          iat_id:        iatid,
-          participant_id: userId,
-          session_id:    sessionId,
-          d_score:       dScore,
-          computed_at:   new Date().toISOString(),
-        })
-      } catch {
-        // Table may not exist — D-score can always be recomputed from trial log
-      }
-    }
-
-    setPhase('results')
   }
 
   // ─ Derived values ────────────────────────────────────────────────────────

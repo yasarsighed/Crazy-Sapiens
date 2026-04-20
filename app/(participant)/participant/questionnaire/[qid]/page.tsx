@@ -94,6 +94,28 @@ export default function QuestionnairePage() {
         if (matched) setScale(matched)
       }
 
+      // Check if already submitted (prevent accidental re-submission)
+      const { data: existingResult } = await supabase
+        .from('questionnaire_scored_results')
+        .select('id, total_score, severity_label')
+        .eq('questionnaire_id', qid)
+        .eq('participant_id', user.id)
+        .eq('is_complete', true)
+        .maybeSingle()
+
+      if (existingResult) {
+        // Find severity colour from scale
+        const matched = q.validated_scale_name
+          ? BUILT_IN_SCALES.find(s => s.abbreviation === q.validated_scale_name)
+          : null
+        const existingBand = matched ? getSeverityBand(matched, existingResult.total_score) : null
+        setScore(existingResult.total_score)
+        setSeverity(existingBand)
+        setSubmitted(true)
+        setLoading(false)
+        return
+      }
+
       const { data: itemData } = await supabase
         .from('questionnaire_items')
         .select(

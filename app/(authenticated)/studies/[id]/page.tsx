@@ -169,7 +169,14 @@ export default function StudyPage() {
             </Link>
           </Button>
         )}
-        <Button variant="outline" disabled>
+        <Button
+          variant="outline"
+          onClick={() => {
+            const a = document.createElement('a')
+            a.href = `/api/export/${studyId}`
+            a.click()
+          }}
+        >
           <Download className="w-4 h-4 mr-2" />
           Export CSV
         </Button>
