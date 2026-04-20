@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ArrowLeft, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { AcknowledgeAlertButton } from '@/components/acknowledge-alert-button'
 
 // Severity band → colour
 function severityColor(band: string | null): string {
@@ -94,8 +95,9 @@ export default async function QuestionnaireResultsPage({
   const { data: alerts } = participantIds.length > 0
     ? await supabase
         .from('clinical_alerts_log')
-        .select('participant_id, severity, acknowledged, created_at')
+        .select('id, participant_id, severity, acknowledged, created_at, questionnaire_id')
         .in('participant_id', participantIds)
+        .eq('questionnaire_id', qid)
     : { data: [] }
 
   const alertsByParticipant: Record<string, any[]> = {}
@@ -298,15 +300,23 @@ export default async function QuestionnaireResultsPage({
                         </td>
                         <td className="py-3">
                           {participantAlerts.length > 0 ? (
-                            <span
-                              className={`inline-flex items-center gap-1 text-xs ${
-                                hasUnack ? 'text-destructive font-medium' : 'text-muted-foreground'
-                              }`}
-                            >
-                              <AlertTriangle className="w-3 h-3" />
-                              {participantAlerts.length}
-                              {hasUnack ? ' (!!)' : ' (ack)'}
-                            </span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className={`inline-flex items-center gap-1 text-xs ${
+                                  hasUnack ? 'text-destructive font-medium' : 'text-muted-foreground'
+                                }`}
+                              >
+                                <AlertTriangle className="w-3 h-3" />
+                                {participantAlerts.length}
+                                {hasUnack ? ' (!!)' : ' (ack)'}
+                              </span>
+                              {hasUnack && (
+                                <AcknowledgeAlertButton
+                                  participantId={result.participant_id}
+                                  questionnaireId={qid}
+                                />
+                              )}
+                            </div>
                           ) : (
                             <CheckCircle className="w-3.5 h-3.5 text-[#52B788]" />
                           )}
