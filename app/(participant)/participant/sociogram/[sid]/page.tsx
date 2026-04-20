@@ -105,7 +105,7 @@ export default function SociogramNominationPage() {
       setNominations(initialNominations)
 
       // Find current user's sociogram_participant record
-      const { data: myRecord } = await supabase
+      let { data: myRecord } = await supabase
         .from('sociogram_participants')
         .select('id, has_submitted')
         .eq('sociogram_id', sid)
@@ -117,6 +117,32 @@ export default function SociogramNominationPage() {
         setLoading(false)
         return
       }
+
+      // Auto-enroll: if no record exists yet, create one
+      if (!myRecord) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', user.id)
+          .single()
+
+        const displayName = profile?.full_name ?? profile?.email ?? user.id
+
+        const { data: newRecord } = await supabase
+          .from('sociogram_participants')
+          .insert({
+            sociogram_id:    sid,
+            participant_id:  user.id,
+            display_name:    displayName,
+            is_active:       true,
+            has_submitted:   false,
+          })
+          .select('id')
+          .single()
+
+        myRecord = newRecord
+      }
+
       setMyParticipantId(myRecord?.id ?? null)
 
       // Load all other participants to nominate from
