@@ -66,6 +66,7 @@ export default function SociogramNominationPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [enrollmentError, setEnrollmentError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -128,7 +129,7 @@ export default function SociogramNominationPage() {
 
         const displayName = profile?.full_name ?? profile?.email ?? user.id
 
-        const { data: newRecord, error: enrollError } = await supabase
+        const { data: newRecord, error: enrollErr } = await supabase
           .from('sociogram_participants')
           .insert({
             sociogram_id:    sid,
@@ -140,13 +141,27 @@ export default function SociogramNominationPage() {
           .select('id')
           .single()
 
-        if (enrollError) {
-          console.error('Auto-enroll failed:', enrollError.message)
+        if (enrollErr) {
+          console.error('Auto-enroll failed:', enrollErr.message)
+          // Most likely cause: missing RLS INSERT policy on sociogram_participants.
+          // The researcher needs to run the RLS SQL fix in Supabase.
+          setEnrollmentError(
+            'Could not register you for this sociogram. ' +
+            'Please ask your researcher to add you directly, or try refreshing the page.'
+          )
+          setLoading(false)
+          return
         }
         myRecord = newRecord
       }
 
-      setMyParticipantId(myRecord?.id ?? null)
+      if (!myRecord?.id) {
+        setEnrollmentError('Your participant record could not be found. Please try refreshing.')
+        setLoading(false)
+        return
+      }
+
+      setMyParticipantId(myRecord.id)
 
       // Load all other participants to nominate from
       const { data: allParticipants } = await supabase
@@ -211,12 +226,32 @@ export default function SociogramNominationPage() {
   // ─── Submit ──────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
-    if (!config || !myParticipantId || !userId) return
+    if (!config || !userId) return
+
+    // Hard guard: participant record must exist before we can write nominations
+    if (!myParticipantId) {
+      toast.error('Registration incomplete', {
+        description: 'Your participant record could not be found. Please refresh and try again.',
+      })
+      return
+    }
+
     setSubmitting(true)
 
     try {
       const supabase = createClient()
       const now = new Date().toISOString()
+
+      // Verify participant record still exists — prevents FK violation if record was deleted
+      const { data: verifyRecord } = await supabase
+        .from('sociogram_participants')
+        .select('id')
+        .eq('id', myParticipantId)
+        .single()
+
+      if (!verifyRecord) {
+        throw new Error('Your participant record no longer exists. Please refresh the page.')
+      }
 
       const allNominations: object[] = []
       for (const type of relationshipTypes) {
@@ -245,7 +280,7 @@ export default function SociogramNominationPage() {
         const { error: nomError } = await supabase
           .from('sociogram_nominations')
           .insert(safeNominations)
-        if (nomError) throw new Error(nomError.message)
+        if (nomError) throw new Error(`Nominations failed: ${nomError.message}`)
       }
 
       // Mark participant as submitted
@@ -279,6 +314,23 @@ export default function SociogramNominationPage() {
     return (
       <div className="max-w-2xl mx-auto px-6 py-16 text-center">
         <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    )
+  }
+
+  if (enrollmentError) {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-16 text-center">
+        <p className="font-serif text-xl mb-2">Registration error</p>
+        <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+          {enrollmentError}
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-6 text-sm underline text-primary"
+        >
+          Refresh page
+        </button>
       </div>
     )
   }
@@ -502,7 +554,7 @@ export default function SociogramNominationPage() {
         )}
         <Button
           onClick={handleSubmit}
-          disabled={completedCount < relationshipTypes.length || submitting}
+          disabled={!myParticipantId || completedCount < relationshipTypes.length || submitting}
           className="w-full"
           size="lg"
         >
