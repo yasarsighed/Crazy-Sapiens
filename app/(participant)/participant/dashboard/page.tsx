@@ -75,20 +75,19 @@ export default async function ParticipantDashboardPage() {
     : { data: [] }
 
   // Check which IATs this participant has already completed.
-  // Query iat_trial_log — if any rows exist for this participant+instrument, it's done.
+  // Query iat_trial_log — if any rows exist for this participant+iat, it's done.
   const iatIds = (iats ?? []).map((i: any) => i.id)
   const { data: completedIatData } = iatIds.length > 0
     ? await supabase
         .from('iat_trial_log')
-        .select('instrument_id')
+        .select('iat_id')
         .eq('participant_id', user.id)
-        .in('instrument_id', iatIds)
+        .in('iat_id', iatIds)
         .limit(iatIds.length)
     : { data: [] }
 
-  // Fall back to checking iat_instrument_id column name if instrument_id returns nothing
   const completedIatIds = new Set(
-    (completedIatData ?? []).map((r: any) => r.instrument_id ?? r.iat_instrument_id)
+    (completedIatData ?? []).map((r: any) => r.iat_id)
   )
   const pendingIats   = (iats ?? []).filter((i: any) => !completedIatIds.has(i.id))
   const completedIats = (iats ?? []).filter((i: any) =>  completedIatIds.has(i.id))
