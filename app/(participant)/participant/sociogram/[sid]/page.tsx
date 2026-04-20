@@ -128,7 +128,7 @@ export default function SociogramNominationPage() {
 
         const displayName = profile?.full_name ?? profile?.email ?? user.id
 
-        const { data: newRecord } = await supabase
+        const { data: newRecord, error: enrollError } = await supabase
           .from('sociogram_participants')
           .insert({
             sociogram_id:    sid,
@@ -140,6 +140,9 @@ export default function SociogramNominationPage() {
           .select('id')
           .single()
 
+        if (enrollError) {
+          console.error('Auto-enroll failed:', enrollError.message)
+        }
         myRecord = newRecord
       }
 
