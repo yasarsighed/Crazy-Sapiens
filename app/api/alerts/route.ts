@@ -21,19 +21,22 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}))
-  const { participantId, questionnaireId } = body
+  const { participantId, questionnaireId, notes } = body
 
   if (!participantId || !questionnaireId) {
     return NextResponse.json({ error: 'participantId and questionnaireId required' }, { status: 400 })
   }
 
+  const updatePayload: Record<string, any> = {
+    acknowledged: true,
+    acknowledged_by: user.id,
+    acknowledged_at: new Date().toISOString(),
+  }
+  if (notes) updatePayload.acknowledged_notes = notes
+
   const { error } = await supabase
     .from('clinical_alerts_log')
-    .update({
-      acknowledged: true,
-      acknowledged_by: user.id,
-      acknowledged_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('participant_id', participantId)
     .eq('questionnaire_id', questionnaireId)
     .eq('acknowledged', false)

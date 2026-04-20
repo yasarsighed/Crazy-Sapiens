@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ClipboardList, CheckCircle, Clock, Users, Timer, FlaskConical } from 'lucide-react'
+import { ClipboardList, CheckCircle, Clock, Users, Timer, FlaskConical, Trophy } from 'lucide-react'
+import { LeaveStudyButton } from '@/components/leave-study-button'
 
 export default async function ParticipantDashboardPage() {
   const supabase = await createClient()
@@ -13,17 +14,24 @@ export default async function ParticipantDashboardPage() {
   // Fetch active enrollments
   const { data: enrollments } = await supabase
     .from('study_enrollments')
-    .select('study_id, status')
+    .select('study_id, status, consented_at')
     .eq('participant_id', user.id)
     .eq('status', 'active')
 
   const studyIds = enrollments?.map(e => e.study_id) ?? []
 
-  // Fetch study names for grouping
+  // Track which studies have been consented to
+  const consentedStudyIds = new Set(
+    (enrollments ?? []).filter(e => e.consented_at).map(e => e.study_id)
+  )
+
+  // Fetch study names and consent text for grouping
   const { data: studyDetails } = studyIds.length > 0
-    ? await supabase.from('studies').select('id, title').in('id', studyIds)
+    ? await supabase.from('studies').select('id, title, consent_text').in('id', studyIds)
     : { data: [] }
-  const studyNameById = Object.fromEntries((studyDetails ?? []).map(s => [s.id, s.title as string]))
+  const studyById = Object.fromEntries(
+    (studyDetails ?? []).map(s => [s.id, s as { id: string; title: string; consent_text: string | null }])
+  )
 
   // Fetch active questionnaires
   const { data: questionnaires } = studyIds.length > 0
@@ -74,31 +82,46 @@ export default async function ParticipantDashboardPage() {
   const iatIds = (iats ?? []).map((i: any) => i.id)
   const { data: completedIatData } = iatIds.length > 0
     ? await supabase
-        .from('iat_trial_log')
+        .from('iat_session_results')
         .select('iat_id')
         .eq('participant_id', user.id)
         .in('iat_id', iatIds)
-        .limit(iatIds.length)
     : { data: [] }
   const completedIatIds = new Set((completedIatData ?? []).map((r: any) => r.iat_id))
   const pendingIat   = (iats ?? []).filter((i: any) => !completedIatIds.has(i.id))
   const completedIat = (iats ?? []).filter((i: any) =>  completedIatIds.has(i.id))
 
   // Total pending count
-  const totalPending  = pendingQ.length  + pendingSoc.length  + pendingIat.length
+  const totalPending   = pendingQ.length  + pendingSoc.length  + pendingIat.length
   const totalCompleted = completedQ.length + completedSoc.length + completedIat.length
 
-  // Build per-study pending map for grouped display
+  // Build per-study pending/completed maps
   const studyPendingMap: Record<string, {
     questionnaires: typeof pendingQ,
     sociograms: typeof pendingSoc,
     iats: typeof pendingIat,
+    completedCount: number,
+    totalCount: number,
   }> = {}
+
   for (const studyId of studyIds) {
+    const studyPendingQ   = pendingQ.filter(q => q.study_id === studyId)
+    const studyPendingSoc = pendingSoc.filter(s => s.study_id === studyId)
+    const studyPendingI   = pendingIat.filter((i: any) => i.study_id === studyId)
+    const studyCompQ      = completedQ.filter(q => q.study_id === studyId)
+    const studyCompSoc    = completedSoc.filter(s => s.study_id === studyId)
+    const studyCompI      = completedIat.filter((i: any) => i.study_id === studyId)
+    const allInStudy      = [
+      ...(questionnaires ?? []).filter(q => q.study_id === studyId),
+      ...(sociograms ?? []).filter(s => s.study_id === studyId),
+      ...(iats ?? []).filter((i: any) => i.study_id === studyId),
+    ]
     studyPendingMap[studyId] = {
-      questionnaires: pendingQ.filter(q => q.study_id === studyId),
-      sociograms:     pendingSoc.filter(s => s.study_id === studyId),
-      iats:           pendingIat.filter((i: any) => i.study_id === studyId),
+      questionnaires: studyPendingQ,
+      sociograms:     studyPendingSoc,
+      iats:           studyPendingI,
+      completedCount: studyCompQ.length + studyCompSoc.length + studyCompI.length,
+      totalCount:     allInStudy.length,
     }
   }
 
@@ -123,30 +146,46 @@ export default async function ParticipantDashboardPage() {
         </div>
       )}
 
-      {/* Pending — grouped by study */}
-      {totalPending > 0 && (
-        <div className="space-y-8 mb-8">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            To complete
-          </h2>
+      {/* Per-study sections */}
+      {studyIds.map(studyId => {
+        const study = studyById[studyId]
+        const { questionnaires: qs, sociograms: ss, iats: is, completedCount, totalCount } = studyPendingMap[studyId]
+        const hasConsented = consentedStudyIds.has(studyId)
+        const pendingCount = qs.length + ss.length + is.length
+        const isAllDone = pendingCount === 0 && totalCount > 0 && completedCount === totalCount
 
-          {studyIds.map(studyId => {
-            const { questionnaires: qs, sociograms: ss, iats: is } = studyPendingMap[studyId]
-            if (qs.length + ss.length + is.length === 0) return null
+        return (
+          <div key={studyId} className="mb-8">
+            {/* Study header */}
+            <div className="flex items-center gap-2 pb-2 border-b border-border mb-4">
+              <FlaskConical className="w-3.5 h-3.5 text-muted-foreground" />
+              <p className="text-sm font-semibold text-foreground">
+                {study?.title ?? 'Study'}
+              </p>
+              {pendingCount > 0 && (
+                <Badge variant="outline" className="text-[10px] ml-auto">
+                  {pendingCount} remaining
+                </Badge>
+              )}
+            </div>
 
-            return (
-              <div key={studyId} className="space-y-3">
-                {/* Study header */}
-                <div className="flex items-center gap-2 pb-1 border-b border-border">
-                  <FlaskConical className="w-3.5 h-3.5 text-muted-foreground" />
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    {studyNameById[studyId] ?? 'Study'}
+            {/* Study complete card */}
+            {isAllDone && (
+              <div className="border border-[#52B788]/30 bg-[#52B788]/5 rounded-xl p-5 flex items-center gap-4 mb-3">
+                <Trophy className="w-8 h-8 text-[#52B788] shrink-0" />
+                <div>
+                  <p className="font-serif text-base font-semibold text-foreground">All done — thank you!</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    You have completed all instruments in this study.
+                    Your contributions support meaningful research.
                   </p>
-                  <Badge variant="outline" className="text-[10px] ml-auto">
-                    {qs.length + ss.length + is.length} remaining
-                  </Badge>
                 </div>
+              </div>
+            )}
 
+            {/* Pending instruments */}
+            {pendingCount > 0 && (
+              <div className="space-y-3 mb-2">
                 {/* Questionnaires */}
                 {qs.map(q => (
                   <div
@@ -203,6 +242,7 @@ export default async function ParticipantDashboardPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{iat.title}</p>
                         <Badge variant="outline" className="text-[10px] mt-1 border-[#F4A261] text-[#F4A261]">IAT</Badge>
+                        <p className="text-xs text-amber-600 mt-1">⌨ Requires physical keyboard</p>
                       </div>
                     </div>
                     <Button asChild size="sm" className="bg-[#F4A261] hover:bg-[#e8934a] text-white border-0">
@@ -211,40 +251,40 @@ export default async function ParticipantDashboardPage() {
                   </div>
                 ))}
               </div>
-            )
-          })}
-        </div>
-      )}
+            )}
 
-      {/* Completed */}
-      {totalCompleted > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Completed
-          </h2>
-          {completedQ.map(q => (
-            <div key={q.id} className="border border-border rounded-xl p-4 flex items-center gap-3 opacity-60">
-              <CheckCircle className="w-4 h-4 text-[#52B788] shrink-0" />
-              <p className="text-sm text-foreground">{q.title}</p>
-              <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
-            </div>
-          ))}
-          {completedSoc.map(s => (
-            <div key={s.id} className="border border-border rounded-xl p-4 flex items-center gap-3 opacity-60">
-              <CheckCircle className="w-4 h-4 text-[#52B788] shrink-0" />
-              <p className="text-sm text-foreground">{s.title}</p>
-              <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
-            </div>
-          ))}
-          {completedIat.map((iat: any) => (
-            <div key={iat.id} className="border border-border rounded-xl p-4 flex items-center gap-3 opacity-60">
-              <CheckCircle className="w-4 h-4 text-[#52B788] shrink-0" />
-              <p className="text-sm text-foreground">{iat.title}</p>
-              <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
-            </div>
-          ))}
-        </div>
-      )}
+            {/* Completed items for this study */}
+            {completedCount > 0 && (
+              <div className="space-y-2 mt-3">
+                {completedQ.filter(q => q.study_id === studyId).map(q => (
+                  <div key={q.id} className="flex items-center gap-3 py-1.5 opacity-60">
+                    <CheckCircle className="w-3.5 h-3.5 text-[#52B788] shrink-0" />
+                    <p className="text-xs text-foreground">{q.title}</p>
+                    <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
+                  </div>
+                ))}
+                {completedSoc.filter(s => s.study_id === studyId).map(s => (
+                  <div key={s.id} className="flex items-center gap-3 py-1.5 opacity-60">
+                    <CheckCircle className="w-3.5 h-3.5 text-[#52B788] shrink-0" />
+                    <p className="text-xs text-foreground">{s.title}</p>
+                    <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
+                  </div>
+                ))}
+                {completedIat.filter((i: any) => i.study_id === studyId).map((iat: any) => (
+                  <div key={iat.id} className="flex items-center gap-3 py-1.5 opacity-60">
+                    <CheckCircle className="w-3.5 h-3.5 text-[#52B788] shrink-0" />
+                    <p className="text-xs text-foreground">{iat.title}</p>
+                    <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Leave study */}
+            <LeaveStudyButton studyId={studyId} studyTitle={study?.title ?? 'this study'} />
+          </div>
+        )
+      })}
     </div>
   )
 }

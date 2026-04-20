@@ -406,7 +406,7 @@ export default function SociogramResultsPage() {
       })
       .attr('text-anchor', 'middle')
       .attr('y', (d: any) => rScale(d.id, vd.indegree, vd.nodes) + 13)
-      .attr('font-size', '9.5px').attr('font-weight', '700')
+      .attr('font-size', '11px').attr('font-weight', '700')
       .attr('font-family', 'Plus Jakarta Sans, sans-serif')
       .attr('fill', '#3D3028').attr('pointer-events', 'none')
 
@@ -523,7 +523,7 @@ export default function SociogramResultsPage() {
         {/* Relationship type filters */}
         {vizData && vizData.relTypes.length > 0 && (
           <div className="px-4 py-3 border-b border-[#E8E0D5]">
-            <p className="text-[9px] font-bold text-[#8B7355] uppercase tracking-wider mb-2">Relationships</p>
+            <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider mb-2">Relationships</p>
             {vizData.relTypes.map(rt => {
               const cfg = vizData.edgeCfg[rt.id]
               const active = activeRelTypes.has(rt.id)
@@ -548,7 +548,7 @@ export default function SociogramResultsPage() {
         {/* Most connected */}
         {topNodes.length > 0 && (
           <div className="px-4 py-3 border-b border-[#E8E0D5]">
-            <p className="text-[9px] font-bold text-[#8B7355] uppercase tracking-wider mb-2">Most Connected</p>
+            <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider mb-2">Most Connected</p>
             {topNodes.map((n, i) => (
               <button
                 key={n.id}
@@ -559,7 +559,7 @@ export default function SociogramResultsPage() {
                   {i + 1}
                 </span>
                 <span className="flex-1 font-medium text-[#3D3028] truncate text-left">{n.name}</span>
-                <span className="text-[9px] font-semibold text-[#2D6A4F]">{vizData?.indegree[n.id] ?? 0}</span>
+                <span className="text-[11px] font-semibold text-[#2D6A4F]">{vizData?.indegree[n.id] ?? 0}</span>
               </button>
             ))}
           </div>
@@ -567,7 +567,7 @@ export default function SociogramResultsPage() {
 
         {/* View options */}
         <div className="px-4 py-3">
-          <p className="text-[9px] font-bold text-[#8B7355] uppercase tracking-wider mb-2">View</p>
+          <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider mb-2">View</p>
           <label className="flex items-center gap-2 cursor-pointer py-1">
             <div
               onClick={() => setShowLabels(p => !p)}
@@ -580,12 +580,12 @@ export default function SociogramResultsPage() {
             </div>
             <span className="text-[11px] text-[#3D3028] font-medium">Show name labels</span>
           </label>
-          <p className="text-[9px] text-[#8B7355] mt-2">Double-click a node to pin it</p>
-          <p className="text-[9px] text-[#8B7355]">Click to focus · Scroll to zoom</p>
+          <p className="text-[11px] text-[#8B7355] mt-2">Double-click a node to pin it</p>
+          <p className="text-[11px] text-[#8B7355]">Click to focus · Scroll to zoom</p>
         </div>
 
         <div className="mt-auto px-4 py-3 border-t border-[#E8E0D5]">
-          <p className="text-[9px] text-[#B5A898] leading-relaxed">
+          <p className="text-[11px] text-[#B5A898] leading-relaxed">
             {vizData?.submittedCount}/{vizData?.participantCount} participants submitted
           </p>
         </div>
@@ -600,7 +600,7 @@ export default function SociogramResultsPage() {
           <div className="flex items-center bg-white border border-[#E8E0D5] rounded-xl shadow-sm overflow-hidden">
             <button onClick={() => zoomBy(1.35)} className="w-8 h-8 flex items-center justify-center text-[#8B7355] hover:bg-[#F5F0E8] hover:text-[#2D6A4F] transition-all text-base">+</button>
             <div className="w-px h-5 bg-[#E8E0D5]" />
-            <button onClick={zoomFit} className="px-2.5 h-8 text-[9px] font-bold text-[#8B7355] hover:bg-[#F5F0E8] hover:text-[#2D6A4F] transition-all tracking-wider">FIT</button>
+            <button onClick={zoomFit} className="px-2.5 h-8 text-[11px] font-bold text-[#8B7355] hover:bg-[#F5F0E8] hover:text-[#2D6A4F] transition-all tracking-wider">FIT</button>
             <div className="w-px h-5 bg-[#E8E0D5]" />
             <button onClick={() => zoomBy(0.74)} className="w-8 h-8 flex items-center justify-center text-[#8B7355] hover:bg-[#F5F0E8] hover:text-[#2D6A4F] transition-all text-base">−</button>
           </div>
@@ -614,13 +614,13 @@ export default function SociogramResultsPage() {
         <div className="absolute top-3 left-3 flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur border border-[#E8E0D5] rounded-lg px-2.5 py-1.5 shadow-sm">
             <span className={`w-1.5 h-1.5 rounded-full ${settled ? 'bg-[#2D6A4F]' : 'bg-[#F4A261]'}`} />
-            <span className="text-[9px] text-[#8B7355]">{settled ? 'Layout ready' : 'Computing layout…'}</span>
+            <span className="text-[11px] text-[#8B7355]">{settled ? 'Layout ready' : 'Computing layout…'}</span>
           </div>
           {focusNode !== null && vizData && (
             <div className="flex items-center gap-2 bg-white/90 backdrop-blur border border-[#2D6A4F]/30 rounded-lg px-2.5 py-1.5 shadow-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-[#2D6A4F]" />
-              <span className="text-[9px] font-semibold text-[#2D6A4F]">{vizData.nodes[focusNode]?.name}</span>
-              <button onClick={() => setFocusNode(null)} className="text-[9px] text-[#8B7355] hover:text-[#3D3028] ml-0.5">✕</button>
+              <span className="text-[11px] font-semibold text-[#2D6A4F]">{vizData.nodes[focusNode]?.name}</span>
+              <button onClick={() => setFocusNode(null)} className="text-[11px] text-[#8B7355] hover:text-[#3D3028] ml-0.5">✕</button>
             </div>
           )}
         </div>
@@ -635,7 +635,7 @@ export default function SociogramResultsPage() {
                   {[8, 12, 16, 20, 24].map(s => (
                     <div key={s} className="rounded-full bg-[#2D6A4F] opacity-60" style={{ width: s / 3 * 2, height: s / 3 * 2 }} />
                   ))}
-                  <span className="text-[9px] text-[#8B7355] ml-1">= centrality</span>
+                  <span className="text-[11px] text-[#8B7355] ml-1">= centrality</span>
                 </div>
               </div>
               <div className="w-px h-8 bg-[#E8E0D5]" />
@@ -645,7 +645,7 @@ export default function SociogramResultsPage() {
                   {[1, 2, 3].map(s => (
                     <div key={s} className="bg-[#2D6A4F] opacity-60 rounded" style={{ width: 16, height: s * 1.5 }} />
                   ))}
-                  <span className="text-[9px] text-[#8B7355] ml-1">= tie strength</span>
+                  <span className="text-[11px] text-[#8B7355] ml-1">= tie strength</span>
                 </div>
               </div>
             </div>
@@ -665,7 +665,7 @@ export default function SociogramResultsPage() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-[#3D3028]">{tipNode.name}</p>
-                  <p className="text-[9px] text-[#8B7355]">In-degree: {vizData.indegree[tipNode.id]}</p>
+                  <p className="text-[11px] text-[#8B7355]">In-degree: {vizData.indegree[tipNode.id]}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-1.5">

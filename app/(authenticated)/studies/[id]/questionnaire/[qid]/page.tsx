@@ -275,12 +275,12 @@ export default async function QuestionnaireResultsPage({
                           <span className="font-serif text-lg font-semibold">{result.total_score ?? '—'}</span>
                         </td>
                         <td className="py-3 pr-4">
-                          {result.severity_band ? (
+                          {result.severity_label ? (
                             <span
                               className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                              style={{ backgroundColor: severityColor(result.severity_band) }}
+                              style={{ backgroundColor: severityColor(result.severity_label) }}
                             >
-                              {result.severity_band}
+                              {result.severity_label}
                             </span>
                           ) : (
                             <span className="text-muted-foreground text-xs">—</span>

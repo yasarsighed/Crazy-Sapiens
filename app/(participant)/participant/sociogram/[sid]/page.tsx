@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { CheckCircle, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
+import { ConsentScreen } from '@/components/consent-screen'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,9 @@ export default function SociogramNominationPage() {
   const [submitted, setSubmitted] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [enrollmentError, setEnrollmentError] = useState<string | null>(null)
+  const [needsConsent, setNeedsConsent] = useState(false)
+  const [consentText, setConsentText] = useState<string | null>(null)
+  const [studyId, setStudyId] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -86,6 +90,27 @@ export default function SociogramNominationPage() {
 
       if (!cfg) { setLoading(false); return }
       setConfig(cfg)
+      setStudyId(cfg.study_id)
+
+      // Consent check
+      const { data: enrollment } = await supabase
+        .from('study_enrollments')
+        .select('consented_at')
+        .eq('study_id', cfg.study_id)
+        .eq('participant_id', user.id)
+        .maybeSingle()
+
+      if (!enrollment?.consented_at) {
+        const { data: studyData } = await supabase
+          .from('studies')
+          .select('consent_text')
+          .eq('id', cfg.study_id)
+          .single()
+        setConsentText(studyData?.consent_text ?? null)
+        setNeedsConsent(true)
+        setLoading(false)
+        return
+      }
 
       // Load active relationship types
       const { data: types } = await supabase
@@ -326,6 +351,20 @@ export default function SociogramNominationPage() {
       <div className="max-w-2xl mx-auto px-6 py-16 text-center">
         <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
+    )
+  }
+
+  if (needsConsent && studyId) {
+    return (
+      <ConsentScreen
+        studyId={studyId}
+        consentText={consentText}
+        onConsent={() => {
+          setNeedsConsent(false)
+          // Re-trigger load by refreshing (simplest since load is idempotent)
+          window.location.reload()
+        }}
+      />
     )
   }
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { ConsentScreen } from '@/components/consent-screen'
 
 // ─── Stimuli (Millner et al. 2019 + Greenwald 2003) ─────────────────────────
 // 5 words per category is standard. Each word appears ~equally often per block.
@@ -203,7 +204,7 @@ function interpretDScore(d: number): { label: string; detail: string; color: str
 }
 
 // ─── Phase ───────────────────────────────────────────────────────────────────
-type Phase = 'loading' | 'already_done' | 'intro' | 'block_intro' | 'fixation' | 'stimulus' | 'error_feedback' | 'block_end' | 'saving' | 'results'
+type Phase = 'loading' | 'consent' | 'mobile_warning' | 'already_done' | 'intro' | 'block_intro' | 'fixation' | 'stimulus' | 'error_feedback' | 'block_end' | 'saving' | 'results'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function IATPage() {
@@ -220,6 +221,8 @@ export default function IATPage() {
   const [userId,        setUserId]        = useState<string | null>(null)
   const [blockErrors,   setBlockErrors]   = useState(0)   // errors in current block
   const [blockTotal,    setBlockTotal]    = useState(0)    // trials in current block so far
+  const [consentText,   setConsentText]   = useState<string | null>(null)
+  const [studyId,       setStudyId]       = useState<string | null>(null)
 
   // Refs for event handlers (never stale)
   const responsesRef   = useRef<TrialResponse[]>([])
@@ -248,6 +251,36 @@ export default function IATPage() {
         .eq('id', iatid)
         .single()
       setInstrument(instr)
+
+      if (instr?.study_id) {
+        setStudyId(instr.study_id)
+
+        // Check consent
+        const { data: enrollment } = await supabase
+          .from('study_enrollments')
+          .select('consented_at')
+          .eq('study_id', instr.study_id)
+          .eq('participant_id', user.id)
+          .maybeSingle()
+
+        if (!enrollment?.consented_at) {
+          const { data: studyData } = await supabase
+            .from('studies')
+            .select('consent_text')
+            .eq('id', instr.study_id)
+            .single()
+          setConsentText(studyData?.consent_text ?? null)
+          setPhase('consent')
+          return
+        }
+      }
+
+      // Mobile / touch-only device warning — IAT requires physical keyboard
+      const isTouchOnly = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+      if (isTouchOnly) {
+        setPhase('mobile_warning')
+        return
+      }
 
       // Check if already completed (any trial log rows for this participant+IAT)
       const { data: existingTrials } = await supabase
@@ -437,6 +470,47 @@ export default function IATPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <p className="text-muted-foreground text-sm">Loading IAT…</p>
+      </div>
+    )
+  }
+
+  if (phase === 'consent' && studyId) {
+    return (
+      <ConsentScreen
+        studyId={studyId}
+        consentText={consentText}
+        onConsent={() => {
+          // After consent, check for mobile then proceed
+          const isTouchOnly = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+          if (isTouchOnly) { setPhase('mobile_warning'); return }
+          const generated = generateTrials()
+          setTrials(generated)
+          trialsRef.current = generated
+          setPhase('intro')
+        }}
+      />
+    )
+  }
+
+  if (phase === 'mobile_warning') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-6">
+        <div className="max-w-md w-full text-center">
+          <p className="text-4xl mb-4">📱</p>
+          <h1 className="font-serif text-2xl text-foreground mb-3">Physical keyboard required</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+            The Implicit Association Test (IAT) requires fast, accurate key presses using{' '}
+            <kbd className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">E</kbd> and{' '}
+            <kbd className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">I</kbd> keys.
+            Touch-screen input cannot capture the precise reaction times needed for valid results.
+          </p>
+          <p className="text-sm text-muted-foreground mb-6">
+            Please return to this task on a device with a physical keyboard (laptop or desktop computer).
+          </p>
+          <Button variant="outline" onClick={() => router.push('/participant/dashboard')}>
+            Back to dashboard
+          </Button>
+        </div>
       </div>
     )
   }
@@ -660,90 +734,65 @@ export default function IATPage() {
     )
   }
 
-  // ─── Results ──────────────────────────────────────────────────────────────
+  // ─── Results / Debrief ────────────────────────────────────────────────────
+  // Per Greenwald et al. (2003) and IAT administration guidelines: individual
+  // D-scores should not be shown to participants without proper debrief context.
+  // We show the researcher's custom debrief if set; otherwise a standard debrief.
   if (phase === 'results') {
-    const d     = dResult?.d ?? null
-    const interp = d !== null ? interpretDScore(d) : null
+    const customDebrief = instrument?.debrief_text?.trim()
+    const dataNote = dResult?.excluded
+      ? 'Note: Your data could not be scored due to response patterns (e.g., very fast responses).'
+      : null
 
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-6 py-12">
         <div className="max-w-md w-full">
-          <h1 className="font-serif text-2xl text-foreground text-center mb-8">Your IAT result</h1>
+          <div className="text-center mb-8">
+            <p className="text-4xl mb-3">✓</p>
+            <h1 className="font-serif text-2xl text-foreground mb-2">Thank you for completing the IAT</h1>
+            <p className="text-sm text-muted-foreground">Your responses have been saved.</p>
+          </div>
 
-          {d !== null && interp ? (
-            <>
-              {/* D-score display */}
-              <div
-                className="rounded-2xl p-6 text-center mb-5"
-                style={{ backgroundColor: interp.color + '18', border: `1px solid ${interp.color}40` }}
-              >
-                <p className="font-serif text-7xl font-bold mb-1" style={{ color: interp.color }}>
-                  {d.toFixed(2)}
-                </p>
-                <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">
-                  D-score (Greenwald et al., 2003)
-                </p>
-                <p className="font-semibold text-sm mb-1" style={{ color: interp.color }}>
-                  {interp.label}
-                </p>
-                <p className="text-xs text-muted-foreground leading-relaxed">{interp.detail}</p>
-
-                {interp.clinical && (
-                  <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-800 text-left">
-                    <strong>Clinical note:</strong> A strong Self–Death score warrants follow-up
-                    alongside self-report measures. This does not directly diagnose suicidal intent.
-                  </div>
-                )}
-              </div>
-
-              {/* Scale */}
-              <div className="border border-border rounded-xl p-4 mb-5 text-xs text-muted-foreground">
-                <p className="font-medium text-foreground text-sm mb-3">D-score reference scale</p>
-                <div className="space-y-1.5">
-                  {[
-                    ['&lt; 0',         'Leans toward Life',       '#52B788'],
-                    ['0 – 0.15',       'Little association',      '#888888'],
-                    ['0.15 – 0.35',    'Slight Self–Death',       '#E9C46A'],
-                    ['0.35 – 0.65',    'Moderate Self–Death',     '#F4A261'],
-                    ['&gt; 0.65',      'Strong Self–Death',       '#E63946'],
-                  ].map(([range, label, color]) => (
-                    <div
-                      key={range}
-                      className="flex items-center gap-2 p-1.5 rounded-lg"
-                      style={{ backgroundColor: d !== null && isInRange(d, range as string) ? color + '20' : undefined }}
-                    >
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: color }}
-                      />
-                      <span className="font-mono text-foreground w-24 shrink-0"
-                        dangerouslySetInnerHTML={{ __html: range }}
-                      />
-                      <span style={{ color }}>{label}</span>
-                      {d !== null && isInRange(d, range as string) && (
-                        <span className="ml-auto text-[10px] font-bold" style={{ color }}>← you</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
+          {customDebrief ? (
+            <div className="border border-border rounded-xl p-5 mb-5 bg-muted/20">
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                {customDebrief}
+              </p>
+            </div>
           ) : (
-            <div className="border border-border rounded-xl p-6 text-center mb-5">
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                {dResult?.reason ?? 'Your D-score could not be computed.'}
-                <br />
-                Your trial data has been saved for your researcher — they can review the raw response times.
+            <div className="border border-border rounded-xl p-5 mb-5 space-y-3">
+              <h2 className="font-serif text-base font-semibold">About the IAT</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                The Implicit Association Test measures the speed of associations between concepts.
+                It reflects automatic patterns that develop over a lifetime of exposure — not your
+                conscious beliefs, values, or intentions.
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                IAT scores have limited predictive value at the individual level and should
+                always be interpreted alongside other measures by a qualified researcher.
+                A result in any direction is not a diagnosis.
+              </p>
+              <p className="text-sm font-medium text-foreground">
+                You are more than your reaction time.
               </p>
             </div>
           )}
 
-          <p className="text-xs text-muted-foreground italic text-center mb-6">
-            This reflects automatic associations, not your conscious beliefs or character.
-            IAT results are one data point, not a verdict. You are more than your reaction time.
-          </p>
+          {dataNote && (
+            <div className="border border-amber-200 bg-amber-50 rounded-xl p-4 mb-5">
+              <p className="text-xs text-amber-900 leading-relaxed">{dataNote}</p>
+            </div>
+          )}
 
-          <Button variant="outline" className="w-full" onClick={() => router.push('/participant/dashboard')}>
+          <div className="border border-border rounded-xl p-4 mb-6">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <strong className="text-foreground">If you have concerns</strong> about your
+              wellbeing after completing this task, please contact your researcher or reach out
+              to a mental health support service. In a crisis, call your local emergency services.
+            </p>
+          </div>
+
+          <Button className="w-full" onClick={() => router.push('/participant/dashboard')}>
             Back to dashboard
           </Button>
         </div>

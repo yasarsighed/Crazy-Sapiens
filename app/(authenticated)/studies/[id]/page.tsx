@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, Network, Download, Plus, X, ChevronDown,
-  ClipboardList, Users, Timer, ExternalLink, Trash2,
+  ClipboardList, Users, Timer, ExternalLink, Trash2, Link2, FileText,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AddQuestionnaireDialog } from '@/components/add-questionnaire-dialog'
@@ -43,6 +43,10 @@ export default function StudyPage() {
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [showConsentEditor, setShowConsentEditor] = useState(false)
+  const [consentText, setConsentText] = useState('')
+  const [savingConsent, setSavingConsent] = useState(false)
+  const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
 
   async function loadData() {
     const supabase = createClient()
@@ -55,6 +59,7 @@ export default function StudyPage() {
       .eq('id', studyId)
       .single()
     setStudy(studyData)
+    setConsentText(studyData?.consent_text ?? '')
 
     const { data: enrollments } = await supabase
       .from('study_enrollments')
@@ -126,6 +131,31 @@ export default function StudyPage() {
     setDeleting(null)
   }
 
+  const saveConsentText = async () => {
+    setSavingConsent(true)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('studies')
+      .update({ consent_text: consentText.trim() || null })
+      .eq('id', studyId)
+    if (error) {
+      toast.error('Failed to save consent text', { description: error.message })
+    } else {
+      toast.success('Consent text saved')
+      setShowConsentEditor(false)
+      await loadData()
+    }
+    setSavingConsent(false)
+  }
+
+  const copyInviteLink = () => {
+    const url = `${window.location.origin}/participant/join/${studyId}`
+    navigator.clipboard.writeText(url).then(() => {
+      setInviteLinkCopied(true)
+      setTimeout(() => setInviteLinkCopied(false), 2000)
+    })
+  }
+
   const enrolledIds = participants.map(p => p.participant_id)
   const filteredProfiles = allProfiles.filter(p =>
     !enrolledIds.includes(p.id) &&
@@ -180,7 +210,41 @@ export default function StudyPage() {
           <Download className="w-4 h-4 mr-2" />
           Export CSV
         </Button>
+        <Button variant="outline" onClick={copyInviteLink}>
+          <Link2 className="w-4 h-4 mr-2" />
+          {inviteLinkCopied ? 'Copied!' : 'Copy invite link'}
+        </Button>
+        <Button variant="outline" onClick={() => setShowConsentEditor(v => !v)}>
+          <FileText className="w-4 h-4 mr-2" />
+          {study?.consent_text ? 'Edit consent text' : 'Add consent text'}
+        </Button>
       </div>
+
+      {/* Consent text editor */}
+      {showConsentEditor && (
+        <div className="border border-border rounded-xl p-5 mb-6">
+          <h2 className="font-serif text-base font-semibold mb-1">Informed consent text</h2>
+          <p className="text-xs text-muted-foreground mb-3">
+            Participants will read this before their first instrument. Leave blank to use the default
+            consent statement. Plain text only — formatting is preserved.
+          </p>
+          <textarea
+            value={consentText}
+            onChange={e => setConsentText(e.target.value)}
+            rows={8}
+            placeholder="Paste or type your study-specific consent statement here…"
+            className="w-full border border-border rounded-lg px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-y mb-3"
+          />
+          <div className="flex gap-2">
+            <Button size="sm" onClick={saveConsentText} disabled={savingConsent}>
+              {savingConsent ? 'Saving…' : 'Save consent text'}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowConsentEditor(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

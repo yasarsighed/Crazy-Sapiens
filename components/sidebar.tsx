@@ -34,44 +34,49 @@ interface SidebarProps {
 }
 
 const mainNavItems = [
-  { 
-    href: '/dashboard', 
-    label: 'Dashboard', 
+  {
+    href: '/dashboard',
+    label: 'Dashboard',
     icon: LayoutDashboard,
     tooltip: 'The big picture',
+    stub: false,
   },
-  { 
-    href: '/studies', 
-    label: 'Studies', 
+  {
+    href: '/studies',
+    label: 'Studies',
     icon: FlaskConical,
     tooltip: 'Your experiments',
+    stub: false,
   },
-  { 
-    href: '/participants', 
-    label: 'Participants', 
+  {
+    href: '/participants',
+    label: 'Participants',
     icon: Users,
     tooltip: 'The brave ones',
+    stub: false,
   },
-  { 
-    href: '/instruments', 
-    label: 'Instruments', 
+  {
+    href: '/instruments',
+    label: 'Instruments',
     icon: FileText,
     tooltip: null,
+    stub: false,
   },
-  { 
-    href: '/analysis', 
-    label: 'Analysis', 
+  {
+    href: '/analysis',
+    label: 'Analysis',
     icon: BarChart3,
-    tooltip: 'Where data becomes insight',
+    tooltip: 'Cross-study statistics',
+    stub: false,
   },
 ]
 
 const advancedNavItems = [
-  { href: '/users', label: 'Users', icon: UserCog },
-  { href: '/supervisors', label: 'Supervisors', icon: Shield },
-  { href: '/settings', label: 'Settings', icon: Settings },
-  { href: '/audit-log', label: 'Audit Log', icon: ClipboardList },
-  { href: '/scale-library', label: 'Scale Library', icon: Library },
+  { href: '/users',         label: 'Users',         icon: UserCog,     stub: false },
+  { href: '/audit-log',     label: 'Audit Log',     icon: ClipboardList, stub: false },
+  { href: '/scale-library', label: 'Scale Library', icon: Library,     stub: false },
+  { href: '/supervisors',   label: 'Supervisors',   icon: Shield,      stub: true },
+  { href: '/settings',      label: 'Settings',      icon: Settings,    stub: true },
 ]
 
 function getInitials(name: string | null): string {
@@ -131,25 +136,25 @@ export function Sidebar({ profile }: SidebarProps) {
           {mainNavItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
             const Icon = item.icon
-            
+
             const linkContent = (
               <Link
                 href={item.href}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors relative',
-                  isActive 
-                    ? 'bg-primary/10 text-primary font-medium' 
+                  isActive
+                    ? 'bg-primary/10 text-primary font-medium'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
               >
                 {isActive && (
-                  <div 
+                  <div
                     className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
                     style={{ backgroundColor: researcherColor }}
                   />
                 )}
                 <Icon className="w-4 h-4 shrink-0" />
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
               </Link>
             )
 
@@ -187,20 +192,34 @@ export function Sidebar({ profile }: SidebarProps) {
               {advancedNavItems.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
                 const Icon = item.icon
-                
+
+                if (item.stub) {
+                  return (
+                    <div
+                      key={item.href}
+                      className="flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-muted-foreground/50 cursor-not-allowed select-none"
+                      title="Coming soon"
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="flex-1">{item.label}</span>
+                      <span className="text-[9px] border border-muted-foreground/30 rounded px-1 py-px">Soon</span>
+                    </div>
+                  )
+                }
+
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={cn(
                       'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors relative',
-                      isActive 
-                        ? 'bg-primary/10 text-primary font-medium' 
+                      isActive
+                        ? 'bg-primary/10 text-primary font-medium'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     )}
                   >
                     {isActive && (
-                      <div 
+                      <div
                         className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
                         style={{ backgroundColor: researcherColor }}
                       />

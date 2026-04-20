@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { CheckCircle, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
+import { ConsentScreen } from '@/components/consent-screen'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,12 @@ export default function QuestionnairePage() {
   const [severity, setSeverity] = useState<SeverityBand | null>(null)
   const [scale, setScale] = useState<BuiltInScale | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  // Consent gate
+  const [needsConsent, setNeedsConsent] = useState(false)
+  const [consentText, setConsentText] = useState<string | null>(null)
+  const [studyId, setStudyId] = useState<string | null>(null)
+  // PHQ-9 permanent flag: once an item is flagged during the session it stays flagged
+  const [everFlaggedItems, setEverFlaggedItems] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     async function load() {
@@ -87,11 +94,32 @@ export default function QuestionnairePage() {
         return
       }
       setQuestionnaire(q)
+      setStudyId(q.study_id)
 
       // Match built-in scale for severity bands + response options fallback
       if (q.validated_scale_name) {
         const matched = BUILT_IN_SCALES.find(s => s.abbreviation === q.validated_scale_name)
         if (matched) setScale(matched)
+      }
+
+      // Check consent for this study
+      const { data: enrollment } = await supabase
+        .from('study_enrollments')
+        .select('consented_at')
+        .eq('study_id', q.study_id)
+        .eq('participant_id', user.id)
+        .maybeSingle()
+
+      if (!enrollment?.consented_at) {
+        const { data: studyData } = await supabase
+          .from('studies')
+          .select('consent_text')
+          .eq('id', q.study_id)
+          .single()
+        setConsentText(studyData?.consent_text ?? null)
+        setNeedsConsent(true)
+        setLoading(false)
+        return
       }
 
       // Check if already submitted (prevent accidental re-submission)
@@ -135,6 +163,16 @@ export default function QuestionnairePage() {
 
   const handleResponse = (itemId: string, value: number) => {
     setResponses(prev => ({ ...prev, [itemId]: value }))
+    // Permanently track items that have ever crossed the clinical threshold
+    const item = items.find(i => i.id === itemId)
+    if (
+      item?.is_clinical_flag_item &&
+      item.clinical_flag_threshold !== null &&
+      item.clinical_flag_operator === 'gte' &&
+      value >= item.clinical_flag_threshold
+    ) {
+      setEverFlaggedItems(prev => new Set([...prev, itemId]))
+    }
   }
 
   const answeredCount = Object.keys(responses).length
@@ -287,6 +325,16 @@ export default function QuestionnairePage() {
     )
   }
 
+  if (needsConsent && studyId) {
+    return (
+      <ConsentScreen
+        studyId={studyId}
+        consentText={consentText}
+        onConsent={() => setNeedsConsent(false)}
+      />
+    )
+  }
+
   if (!questionnaire) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-16 text-center">
@@ -372,12 +420,15 @@ export default function QuestionnairePage() {
               ? item.response_options
               : (scale?.response_options ?? [])
 
+          // Show crisis warning if item was EVER flagged this session (permanent — survives answer changes)
           const flagActive =
-            item.is_clinical_flag_item &&
-            hasValue &&
-            item.clinical_flag_threshold !== null &&
-            item.clinical_flag_operator === 'gte' &&
-            selected >= item.clinical_flag_threshold
+            item.is_clinical_flag_item && (
+              everFlaggedItems.has(item.id) ||
+              (hasValue &&
+                item.clinical_flag_threshold !== null &&
+                item.clinical_flag_operator === 'gte' &&
+                selected >= item.clinical_flag_threshold)
+            )
 
           return (
             <div key={item.id} className="space-y-3">
