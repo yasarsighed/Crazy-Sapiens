@@ -7,10 +7,9 @@ import { StatCard } from '@/components/stat-card'
 import { StudyCard } from '@/components/study-card'
 import { ClinicalAlert } from '@/components/clinical-alert'
 import { EmptyState } from '@/components/empty-state'
-import { HelpCircle, Plus, ExternalLink, Library, Mail, ClipboardList } from 'lucide-react'
+import { HelpCircle, Plus, ExternalLink, Library, Mail, ClipboardList, ShieldAlert } from 'lucide-react'
 import type { Profile, Study, ClinicalAlert as ClinicalAlertType } from '@/types/database'
 
-// Greeting messages that rotate
 const greetings = [
   (name: string) => `Good morning, ${name}. The data won&apos;t collect itself.`,
   (name: string) => `Welcome back, ${name}. Your participants missed you. Probably.`,
@@ -22,14 +21,8 @@ function getGreeting(name: string): string {
   const hour = new Date().getHours()
   const randomIndex = Math.floor(Math.random() * greetings.length)
   let greeting = greetings[randomIndex](name)
-  
-  // Adjust greeting based on time of day
-  if (hour >= 12 && hour < 17) {
-    greeting = greeting.replace('Good morning', 'Good afternoon')
-  } else if (hour >= 17 || hour < 5) {
-    greeting = greeting.replace('Good morning', 'Good evening')
-  }
-  
+  if (hour >= 12 && hour < 17) greeting = greeting.replace('Good morning', 'Good afternoon')
+  else if (hour >= 17 || hour < 5) greeting = greeting.replace('Good morning', 'Good evening')
   return greeting
 }
 
@@ -40,35 +33,59 @@ function getFirstName(fullName: string | null): string {
 
 export default async function DashboardPage() {
   const supabase = await createClient()
-  
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Fetch profile
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single()
 
-  // Fetch studies for this researcher
-  const { data: studies } = await supabase
+  const isAdmin = profile?.role === 'admin'
+
+  // Fetch studies — admin sees all, researchers see their own
+  let studiesQuery = supabase
     .from('studies')
     .select('*')
-    .eq('created_by', user.id)
     .order('created_at', { ascending: false })
     .limit(5)
+  if (!isAdmin) studiesQuery = studiesQuery.eq('created_by', user.id)
+  const { data: studies } = await studiesQuery
 
-  // Fetch study instruments for the studies
   const studyIds = studies?.map(s => s.id) || []
-  const { data: studyInstruments } = studyIds.length > 0 
-    ? await supabase
-        .from('study_instruments')
-        .select('*')
-        .in('study_id', studyIds)
-    : { data: [] }
 
-  // Fetch clinical alerts (unacknowledged)
+  // Fetch instruments from all 3 type-specific tables directly
+  // (avoids relying on study_instruments which may have RLS issues)
+  const [qInstrData, socInstrData, iatInstrData] = await Promise.all([
+    studyIds.length > 0
+      ? supabase.from('questionnaire_instruments').select('id, study_id').in('study_id', studyIds)
+      : Promise.resolve({ data: [] as { id: string; study_id: string }[] }),
+    studyIds.length > 0
+      ? supabase.from('sociogram_instruments').select('id, study_id').in('study_id', studyIds)
+      : Promise.resolve({ data: [] as { id: string; study_id: string }[] }),
+    studyIds.length > 0
+      ? supabase.from('iat_instruments').select('id, study_id').in('study_id', studyIds)
+      : Promise.resolve({ data: [] as { id: string; study_id: string }[] }),
+  ])
+
+  // Build instrumentsByStudy for StudyCard badges
+  const instrumentsByStudy: Record<string, Array<{ type: 'questionnaire' | 'iat' | 'sociogram' }>> = {}
+  for (const i of (qInstrData.data || [])) {
+    if (!instrumentsByStudy[i.study_id]) instrumentsByStudy[i.study_id] = []
+    instrumentsByStudy[i.study_id].push({ type: 'questionnaire' })
+  }
+  for (const i of (socInstrData.data || [])) {
+    if (!instrumentsByStudy[i.study_id]) instrumentsByStudy[i.study_id] = []
+    instrumentsByStudy[i.study_id].push({ type: 'sociogram' })
+  }
+  for (const i of (iatInstrData.data || [])) {
+    if (!instrumentsByStudy[i.study_id]) instrumentsByStudy[i.study_id] = []
+    instrumentsByStudy[i.study_id].push({ type: 'iat' })
+  }
+
+  // Fetch clinical alerts
   const { data: clinicalAlerts } = await supabase
     .from('clinical_alerts_log')
     .select('*')
@@ -76,31 +93,37 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: false })
     .limit(5)
 
-  // Fetch dashboard stats
-  const { count: activeStudiesCount } = await supabase
+  // --- Stats ---
+  let activeStudiesCountQuery = supabase
     .from('studies')
     .select('*', { count: 'exact', head: true })
-    .eq('created_by', user.id)
     .eq('status', 'active')
+  if (!isAdmin) activeStudiesCountQuery = activeStudiesCountQuery.eq('created_by', user.id)
+  const { count: activeStudiesCount } = await activeStudiesCountQuery
 
-  const { count: totalParticipantsCount } = await supabase
-    .from('study_enrollments')
-    .select('*', { count: 'exact', head: true })
-    .in('study_id', studyIds)
+  const { count: totalParticipantsCount } = studyIds.length > 0
+    ? await supabase
+        .from('study_enrollments')
+        .select('*', { count: 'exact', head: true })
+        .in('study_id', studyIds)
+    : { count: 0 }
 
-  // Count completed enrollments as a cross-instrument proxy for responses
-  const { count: responsesCount } = await supabase
-    .from('study_enrollments')
-    .select('*', { count: 'exact', head: true })
-    .in('study_id', studyIds)
-    .eq('status', 'completed')
+  // Completed surveys: count actual questionnaire completions
+  const qIds = (qInstrData.data || []).map(q => q.id)
+  const { count: responsesCount } = qIds.length > 0
+    ? await supabase
+        .from('questionnaire_scored_results')
+        .select('*', { count: 'exact', head: true })
+        .in('questionnaire_id', qIds)
+        .eq('is_complete', true)
+    : { count: 0 }
 
   const { count: alertsCount } = await supabase
     .from('clinical_alerts_log')
     .select('*', { count: 'exact', head: true })
     .eq('acknowledged', false)
 
-  // Fetch other researchers on the platform
+  // Other researchers on platform
   const { data: researchers } = await supabase
     .from('profiles')
     .select('*')
@@ -108,7 +131,7 @@ export default async function DashboardPage() {
     .neq('id', user.id)
     .limit(5)
 
-  // Fetch recent activity
+  // Recent activity
   const { data: recentActivity } = await supabase
     .from('activity_logs')
     .select('*')
@@ -119,38 +142,40 @@ export default async function DashboardPage() {
   const greeting = getGreeting(firstName)
   const researcherColor = profile?.researcher_color || '#2D6A4F'
 
-  // Group instruments by study
-  const instrumentsByStudy = (studyInstruments || []).reduce((acc, inst) => {
-    if (!acc[inst.study_id]) acc[inst.study_id] = []
-    acc[inst.study_id].push({ type: inst.instrument_type })
-    return acc
-  }, {} as Record<string, Array<{ type: 'questionnaire' | 'iat' | 'sociogram' }>>)
-
   return (
     <div className="p-6 lg:p-8">
       {/* Top bar */}
       <div className="flex items-center justify-between mb-8">
-        <h1 
-          className="font-serif text-2xl text-foreground"
-          dangerouslySetInnerHTML={{ __html: greeting }}
-        />
+        <div>
+          <h1
+            className="font-serif text-2xl text-foreground"
+            dangerouslySetInnerHTML={{ __html: greeting }}
+          />
+          {isAdmin && (
+            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+              <ShieldAlert className="w-3 h-3" /> Admin view — showing all studies
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="text-muted-foreground">
             <HelpCircle className="w-5 h-5" />
           </Button>
-          <Button asChild>
-            <Link href="/studies/new">
-              <Plus className="w-4 h-4 mr-2" />
-              New study
-            </Link>
-          </Button>
+          {!isAdmin && (
+            <Button asChild>
+              <Link href="/studies/new">
+                <Plus className="w-4 h-4 mr-2" />
+                New study
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
-          title="Active Studies"
+          title={isAdmin ? 'All Active Studies' : 'Active Studies'}
           value={activeStudiesCount || 0}
           subtitle="experiments in progress"
           variant="researcher-color"
@@ -163,7 +188,7 @@ export default async function DashboardPage() {
         <StatCard
           title="Completed Surveys"
           value={responsesCount || 0}
-          subtitle="instruments fully submitted"
+          subtitle="questionnaires submitted"
         />
         <StatCard
           title="Clinical Alerts"
@@ -177,13 +202,15 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
         {/* Left column */}
         <div className="space-y-6">
-          {/* Your studies */}
+          {/* Studies */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="font-serif text-base">Your studies</CardTitle>
-                <Link 
-                  href="/studies" 
+                <CardTitle className="font-serif text-base">
+                  {isAdmin ? 'All studies' : 'Your studies'}
+                </CardTitle>
+                <Link
+                  href="/studies"
                   className="text-xs text-primary hover:underline flex items-center gap-1"
                 >
                   View all <ExternalLink className="w-3 h-3" />
@@ -204,10 +231,7 @@ export default async function DashboardPage() {
                   />
                 ))
               ) : (
-                <EmptyState
-                  title="No studies yet."
-                  subtitle="Science does not do itself."
-                />
+                <EmptyState title="No studies yet." subtitle="Science does not do itself." />
               )}
             </CardContent>
           </Card>
@@ -222,8 +246,8 @@ export default async function DashboardPage() {
                 <div className="space-y-3">
                   {researchers.map((researcher: Profile) => (
                     <div key={researcher.id} className="flex items-center gap-3">
-                      <div 
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium"
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
                         style={{ backgroundColor: researcher.researcher_color || '#2D6A4F' }}
                       >
                         {researcher.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
@@ -233,19 +257,15 @@ export default async function DashboardPage() {
                           {researcher.full_name || 'Researcher'}
                         </p>
                       </div>
-                      <div 
-                        className="w-4 h-4 rounded"
+                      <div
+                        className="w-4 h-4 rounded shrink-0"
                         style={{ backgroundColor: researcher.researcher_color || '#2D6A4F' }}
-                        title="Researcher color"
                       />
                     </div>
                   ))}
                 </div>
               ) : (
-                <EmptyState
-                  title="No other researchers yet."
-                  subtitle="You are the pioneer."
-                />
+                <EmptyState title="No other researchers yet." subtitle="You are the pioneer." />
               )}
             </CardContent>
           </Card>
@@ -294,7 +314,7 @@ export default async function DashboardPage() {
                     <div key={activity.id} className="flex items-start gap-2">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
                         activity.action_type === 'enrollment' ? 'bg-success' :
-                        activity.action_type === 'alert' ? 'bg-destructive' :
+                        activity.action_type === 'alert'      ? 'bg-destructive' :
                         activity.action_type === 'completion' ? 'bg-primary' :
                         'bg-accent-yellow'
                       }`} />
@@ -310,10 +330,7 @@ export default async function DashboardPage() {
                   ))}
                 </div>
               ) : (
-                <EmptyState
-                  title="No activity yet."
-                  subtitle="The calm before the data storm."
-                />
+                <EmptyState title="No activity yet." subtitle="The calm before the data storm." />
               )}
             </CardContent>
           </Card>
@@ -324,21 +341,21 @@ export default async function DashboardPage() {
               <CardTitle className="font-serif text-base">Quick links</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Link 
+              <Link
                 href="/scale-library"
                 className="flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors text-sm"
               >
                 <Library className="w-4 h-4 text-muted-foreground" />
                 <span>Scale library</span>
               </Link>
-              <Link 
+              <Link
                 href="/invitations"
                 className="flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors text-sm"
               >
                 <Mail className="w-4 h-4 text-muted-foreground" />
                 <span>Manage invitations</span>
               </Link>
-              <Link 
+              <Link
                 href="/audit-log"
                 className="flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors text-sm"
               >
