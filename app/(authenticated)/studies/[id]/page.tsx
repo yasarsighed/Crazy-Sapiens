@@ -108,6 +108,16 @@ export default function StudyPage() {
     if (error) {
       toast.error('Could not add participant', { description: error.message })
     } else {
+      fetch('/api/activity/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'enrollment',
+          entity: 'participant',
+          entityId: profileId,
+          details: { study_id: studyId },
+        }),
+      }).catch(() => {})
       toast.success('Participant added to study')
       await loadData()
       setShowAddParticipant(false)
@@ -143,6 +153,16 @@ export default function StudyPage() {
       toast.error('Failed to remove instrument', { description: error.message })
     } else {
       await supabase.from('study_instruments').delete().eq('instrument_id', id)
+      fetch('/api/activity/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'instrument_deleted',
+          entity: type,
+          entityId: id,
+          details: { title, study_id: studyId },
+        }),
+      }).catch(() => {})
       toast.success('Instrument removed')
       await loadData()
     }

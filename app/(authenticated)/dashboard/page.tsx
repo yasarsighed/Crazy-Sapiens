@@ -131,12 +131,15 @@ export default async function DashboardPage() {
     .neq('id', user.id)
     .limit(5)
 
-  // Recent activity
-  const { data: recentActivity } = await supabase
+  // Recent activity — scoped to current user unless admin
+  const activityBaseQuery = supabase
     .from('activity_logs')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(8)
+  const { data: recentActivity } = isAdmin
+    ? await activityBaseQuery
+    : await activityBaseQuery.eq('user_id', user.id)
 
   const firstName = getFirstName(profile?.full_name)
   const greeting = getGreeting(firstName)

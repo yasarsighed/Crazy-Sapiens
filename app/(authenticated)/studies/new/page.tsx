@@ -39,6 +39,17 @@ export default function NewStudyPage() {
 
       if (error) throw error
 
+      fetch('/api/activity/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'study_created',
+          entity: 'study',
+          entityId: study.id,
+          details: { title: title.trim() },
+        }),
+      }).catch(() => {})
+
       toast.success('Study created!', {
         description: 'Add participants and instruments to get started.',
       })
