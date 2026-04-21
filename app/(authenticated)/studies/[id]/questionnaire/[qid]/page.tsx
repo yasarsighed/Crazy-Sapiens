@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Eye, MessageSquare } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AcknowledgeAlertButton } from '@/components/acknowledge-alert-button'
@@ -95,7 +95,7 @@ export default async function QuestionnaireResultsPage({
   const { data: alerts } = participantIds.length > 0
     ? await supabase
         .from('clinical_alerts_log')
-        .select('id, participant_id, severity, acknowledged, created_at, questionnaire_id')
+        .select('id, participant_id, severity, acknowledged, acknowledged_notes, created_at, questionnaire_id')
         .in('participant_id', participantIds)
         .eq('questionnaire_id', qid)
     : { data: [] }
@@ -252,7 +252,8 @@ export default async function QuestionnaireResultsPage({
                     <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Score</th>
                     <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Severity</th>
                     <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Submitted</th>
-                    <th className="text-left py-2 text-xs text-muted-foreground font-medium">Alerts</th>
+                    <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Alerts</th>
+                    <th className="text-left py-2 text-xs text-muted-foreground font-medium"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -260,6 +261,7 @@ export default async function QuestionnaireResultsPage({
                     const profile = profileMap[result.participant_id]
                     const participantAlerts = alertsByParticipant[result.participant_id] ?? []
                     const hasUnack = participantAlerts.some((a: any) => !a.acknowledged)
+                    const ackedAlert = participantAlerts.find((a: any) => a.acknowledged && a.acknowledged_notes)
                     return (
                       <tr
                         key={`${result.participant_id}-${i}`}
@@ -298,28 +300,47 @@ export default async function QuestionnaireResultsPage({
                               : '—'}
                           </p>
                         </td>
-                        <td className="py-3">
+                        <td className="py-3 pr-4">
                           {participantAlerts.length > 0 ? (
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span
-                                className={`inline-flex items-center gap-1 text-xs ${
-                                  hasUnack ? 'text-destructive font-medium' : 'text-muted-foreground'
-                                }`}
-                              >
-                                <AlertTriangle className="w-3 h-3" />
-                                {participantAlerts.length}
-                                {hasUnack ? ' (!!)' : ' (ack)'}
-                              </span>
-                              {hasUnack && (
-                                <AcknowledgeAlertButton
-                                  participantId={result.participant_id}
-                                  questionnaireId={qid}
-                                />
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span
+                                  className={`inline-flex items-center gap-1 text-xs ${
+                                    hasUnack ? 'text-destructive font-medium' : 'text-[#52B788]'
+                                  }`}
+                                >
+                                  <AlertTriangle className="w-3 h-3" />
+                                  {hasUnack ? `${participantAlerts.filter((a:any) => !a.acknowledged).length} unacknowledged` : 'Acknowledged'}
+                                </span>
+                                {hasUnack && (
+                                  <AcknowledgeAlertButton
+                                    participantId={result.participant_id}
+                                    questionnaireId={qid}
+                                  />
+                                )}
+                              </div>
+                              {/* Show follow-up notes if acknowledged */}
+                              {ackedAlert?.acknowledged_notes && (
+                                <div className="flex items-start gap-1.5 mt-1">
+                                  <MessageSquare className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
+                                  <p className="text-[11px] text-muted-foreground italic leading-relaxed">
+                                    {ackedAlert.acknowledged_notes}
+                                  </p>
+                                </div>
                               )}
                             </div>
                           ) : (
                             <CheckCircle className="w-3.5 h-3.5 text-[#52B788]" />
                           )}
+                        </td>
+                        <td className="py-3">
+                          <Link
+                            href={`/studies/${studyId}/questionnaire/${qid}/participant/${result.participant_id}`}
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors border border-border rounded px-2 py-1"
+                          >
+                            <Eye className="w-3 h-3" />
+                            Responses
+                          </Link>
                         </td>
                       </tr>
                     )

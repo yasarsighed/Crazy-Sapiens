@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { EditDebriefButton } from '@/components/edit-debrief-button'
 
 // ─── D-score bands (Greenwald 2003 + Millner 2019) ───────────────────────────
 interface DScoreBand {
@@ -455,19 +456,26 @@ export default async function IATResultsPage({
         </CardContent>
       </Card>
 
-      {/* Custom debrief preview */}
-      {instrument.debrief_text && (
-        <Card className="mt-6">
-          <CardHeader className="pb-2">
-            <CardTitle className="font-serif text-base">Participant debrief text (preview)</CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Custom debrief — preview + inline editor */}
+      <Card className="mt-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="font-serif text-base flex items-center justify-between gap-3">
+            <span>Participant debrief text</span>
+            <EditDebriefButton iatId={iid} initialText={instrument.debrief_text ?? null} />
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {instrument.debrief_text ? (
             <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
               {instrument.debrief_text}
             </p>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-sm text-muted-foreground italic">
+              No custom debrief set. The standard evidence-based debrief will be shown to participants.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Methodological note */}
       <div className="mt-6 p-4 bg-muted/40 rounded-xl">

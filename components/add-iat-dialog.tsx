@@ -53,6 +53,7 @@ export function AddIatDialog({
 }: AddIatDialogProps) {
   const [label, setLabel] = useState('Death/Suicide IAT')
   const [notes, setNotes] = useState('')
+  const [debriefText, setDebriefText] = useState('')
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
@@ -78,13 +79,14 @@ export function AddIatDialog({
       const { data: iat, error: iatError } = await supabase
         .from('iat_instruments')
         .insert({
-          study_id:         studyId,
-          title:            label.trim(),
-          description:      notes.trim() || `Death/Suicide IAT — Self vs Other × Death vs Life. ${DEATH_SUICIDE_IAT.citation}`,
-          concept_a_label:  DEATH_SUICIDE_IAT.targetA,           // 'Self'
-          concept_b_label:  DEATH_SUICIDE_IAT.targetB,           // 'Other'
+          study_id:          studyId,
+          title:             label.trim(),
+          description:       notes.trim() || `Death/Suicide IAT — Self vs Other × Death vs Life. ${DEATH_SUICIDE_IAT.citation}`,
+          concept_a_label:   DEATH_SUICIDE_IAT.targetA,           // 'Self'
+          concept_b_label:   DEATH_SUICIDE_IAT.targetB,           // 'Other'
           attribute_a_label: DEATH_SUICIDE_IAT.attributeNegative, // 'Death / Suicide'
           attribute_b_label: DEATH_SUICIDE_IAT.attributePositive, // 'Life'
+          ...(debriefText.trim() ? { debrief_text: debriefText.trim() } : {}),
         })
         .select('id')
         .single()
@@ -129,6 +131,7 @@ export function AddIatDialog({
   const handleClose = () => {
     setLabel('Death/Suicide IAT')
     setNotes('')
+    setDebriefText('')
     onClose()
   }
 
@@ -220,6 +223,24 @@ export function AddIatDialog({
               rows={2}
               placeholder="e.g. Administered at T1, pre-intervention..."
             />
+          </div>
+
+          {/* Debrief text */}
+          <div className="space-y-2">
+            <Label htmlFor="iat-debrief">
+              Participant debrief text{' '}
+              <span className="text-muted-foreground font-normal">(optional)</span>
+            </Label>
+            <Textarea
+              id="iat-debrief"
+              value={debriefText}
+              onChange={e => setDebriefText(e.target.value)}
+              rows={3}
+              placeholder="Shown to participants after completing the IAT instead of the default debrief. Explain what the IAT measures in plain language, reassure the participant, and clarify that implicit associations do not determine behaviour…"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              If left blank, a standard evidence-based debrief is shown automatically.
+            </p>
           </div>
 
           <div className="flex gap-3 pt-1">
