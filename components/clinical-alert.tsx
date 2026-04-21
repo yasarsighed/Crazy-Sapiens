@@ -42,7 +42,7 @@ export function ClinicalAlert({
   onAcknowledge,
   className 
 }: ClinicalAlertProps) {
-  const styles = severityStyles[severity]
+  const styles = severityStyles[severity] ?? severityStyles.low
   
   return (
     <div className={cn(
