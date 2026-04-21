@@ -207,7 +207,6 @@ export default function QuestionnairePage() {
     setSubmitError(null)
 
     try {
-      const supabase = createClient()
       const maxItemScore = scale ? getMaxItemScore(scale) : 3
 
       // ── Build response records ─────────────────────────────────────────────
@@ -245,32 +244,6 @@ export default function QuestionnairePage() {
         }
       })
 
-      // ── Save item responses ────────────────────────────────────────────────
-      // Strategy: try upsert with onConflict first (needs DB unique constraint).
-      // If constraint missing, fall back to plain INSERT — the already-submitted
-      // guard at page load prevents true duplicates in normal flow.
-      let responseError: any = null
-
-      const upsertResult = await supabase
-        .from('questionnaire_item_responses')
-        .upsert(responseRecords, {
-          onConflict: 'questionnaire_id,participant_id,item_id',
-          ignoreDuplicates: false,
-        })
-      responseError = upsertResult.error
-
-      if (responseError) {
-        if (responseError.message?.includes('unique constraint') || responseError.code === '42P10') {
-          // Constraint doesn't exist — fall back to INSERT
-          const insertResult = await supabase
-            .from('questionnaire_item_responses')
-            .insert(responseRecords)
-          responseError = insertResult.error
-        }
-      }
-
-      if (responseError) throw new Error(`Could not save responses: ${responseError.message}`)
-
       // ── Compute score ──────────────────────────────────────────────────────
       const totalScore = responseRecords.reduce((sum, r) => sum + r.scored_value, 0)
       const totalPossible = items.length * maxItemScore
@@ -284,8 +257,6 @@ export default function QuestionnairePage() {
       const itemFlags = responseRecords.filter(r => r.clinical_flag_triggered)
       const anyAlertFired = totalAlertFired || itemFlags.length > 0
 
-      // ── Save scored result ─────────────────────────────────────────────────
-      // Try upsert with onConflict, fall back to INSERT
       const scoredPayload = {
         questionnaire_id: qid,
         participant_id: userId,
@@ -306,58 +277,38 @@ export default function QuestionnairePage() {
         submitted_at: new Date().toISOString(),
       }
 
-      let scoredResult: any = null
-      let scoreError: any = null
-
-      const upsertScore = await supabase
-        .from('questionnaire_scored_results')
-        .upsert(scoredPayload, { onConflict: 'questionnaire_id,participant_id' })
-        .select('id')
-        .single()
-
-      if (upsertScore.error) {
-        if (upsertScore.error.message?.includes('unique constraint') || upsertScore.error.code === '42P10') {
-          const insertScore = await supabase
-            .from('questionnaire_scored_results')
-            .insert(scoredPayload)
-            .select('id')
-            .single()
-          scoredResult = insertScore.data
-          scoreError = insertScore.error
-        } else {
-          scoreError = upsertScore.error
-        }
-      } else {
-        scoredResult = upsertScore.data
-      }
-
-      if (scoreError) throw new Error(`Could not save score: ${scoreError.message}`)
-
-      // ── Fire clinical alert ────────────────────────────────────────────────
-      if (anyAlertFired && scoredResult) {
+      let alertPayload: object | null = null
+      if (anyAlertFired) {
         const alertLevel = itemFlags.length > 0 ? 'critical' : 'high'
         const alertType = itemFlags.length > 0 ? 'item_level_flag' : 'total_score_threshold'
-        const triggerDescription =
-          itemFlags.length > 0
-            ? (itemFlags[0].clinical_flag_message ?? 'Critical item endorsed. Immediate review required.')
-            : `Total score of ${totalScore} meets or exceeds the alert threshold of ${questionnaire.clinical_alert_threshold}.`
-
-        // Non-fatal — alert insert failure does not block completion
-        await supabase.from('clinical_alerts_log').insert({
+        alertPayload = {
           study_id: questionnaire.study_id,
           questionnaire_id: qid,
           participant_id: userId,
-          scored_result_id: scoredResult.id,
           alert_level: alertLevel,
           alert_type: alertType,
-          trigger_description: triggerDescription,
+          trigger_description: itemFlags.length > 0
+            ? (itemFlags[0].clinical_flag_message ?? 'Critical item endorsed. Immediate review required.')
+            : `Total score of ${totalScore} meets or exceeds the alert threshold of ${questionnaire.clinical_alert_threshold}.`,
           trigger_score: totalScore,
           trigger_threshold: questionnaire.clinical_alert_threshold ?? 0,
           scale_name: questionnaire.validated_scale_name ?? 'Unknown',
           acknowledged: false,
           resolved: false,
           escalated: false,
-        }).then(() => {}).catch(() => {})
+        }
+      }
+
+      // ── Submit via server route (bypasses RLS) ─────────────────────────────
+      const submitRes = await fetch(`/api/questionnaire/${qid}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ responseRecords, scoredPayload, alertPayload }),
+      })
+
+      if (!submitRes.ok) {
+        const err = await submitRes.json().catch(() => ({ error: 'Unknown server error' }))
+        throw new Error(err.error ?? 'Could not save score')
       }
 
       setScore(totalScore)

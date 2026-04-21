@@ -163,6 +163,13 @@ export default async function IATResultsPage({
   const maxD   = validScores.length ? Math.max(...validScores) : null
   const excluded = participantStats.filter(p => p.excluded).length
 
+  // Percentile helper
+  const sortedForPercentile = [...validScores].sort((a, b) => a - b)
+  function percentileRank(d: number): number {
+    const below = sortedForPercentile.filter(x => x < d).length
+    return Math.round((below / sortedForPercentile.length) * 100)
+  }
+
   // Distribution
   const distribution = D_SCORE_BANDS.map(band => ({
     band,
@@ -247,6 +254,33 @@ export default async function IATResultsPage({
           </Card>
         ))}
       </div>
+
+      {/* Interpretation guide */}
+      <Card className="mb-6">
+        <CardHeader className="pb-3">
+          <CardTitle className="font-serif text-base">D-score interpretation guide</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-xs">
+            {D_SCORE_BANDS.map(band => (
+              <div key={band.label} className="rounded-lg p-3 border" style={{ borderColor: band.color + '60', backgroundColor: band.color + '12' }}>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: band.color }} />
+                  <span className="font-semibold" style={{ color: band.color }}>{band.short.replace(' ⚑', '')}</span>
+                  {band.clinical && <span className="text-destructive font-bold">⚑</span>}
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">{band.label}</p>
+                {band.clinical && (
+                  <p className="text-[10px] text-destructive mt-1 font-medium">Prioritise clinical follow-up</p>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-3">
+            Positive D = faster Self–Death associations. These are implicit, automatic preferences — not conscious intent. Always combine with validated self-report (SBQ-R, PHQ-9 item 9) and structured assessment (Columbia Protocol).
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
 
@@ -349,6 +383,7 @@ export default async function IATResultsPage({
                     <th className="text-right py-2 pr-3 text-xs text-muted-foreground font-medium">RT (comp.)</th>
                     <th className="text-right py-2 pr-3 text-xs text-muted-foreground font-medium">RT (incomp.)</th>
                     <th className="text-right py-2 pr-3 text-xs text-muted-foreground font-medium">Errors</th>
+                    <th className="text-right py-2 pr-3 text-xs text-muted-foreground font-medium">Percentile</th>
                     <th className="text-right py-2 text-xs text-muted-foreground font-medium">Trials</th>
                   </tr>
                 </thead>
@@ -422,6 +457,13 @@ export default async function IATResultsPage({
                         <td className="py-3 pr-3 text-right">
                           <span className={`font-mono text-xs ${ps.errorRate !== null && ps.errorRate > 0.3 ? 'text-amber-600 font-medium' : 'text-muted-foreground'}`}>
                             {ps.errorRate !== null ? `${(ps.errorRate * 100).toFixed(0)}%` : '—'}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-3 text-right">
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {ps.dScore !== null && validScores.length > 1
+                              ? `${percentileRank(ps.dScore)}th`
+                              : '—'}
                           </span>
                         </td>
                         <td className="py-3 text-right">

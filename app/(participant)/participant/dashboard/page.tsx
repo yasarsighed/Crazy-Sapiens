@@ -3,13 +3,32 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ClipboardList, CheckCircle, Clock, Users, Timer, FlaskConical, Trophy } from 'lucide-react'
+import { ClipboardList, CheckCircle, Clock, Users, Timer, FlaskConical, Trophy, User } from 'lucide-react'
 import { LeaveStudyButton } from '@/components/leave-study-button'
+
+function getInitials(name: string | null) {
+  if (!name) return '?'
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
+function greeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
 
 export default async function ParticipantDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  // Fetch profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, avatar_url')
+    .eq('id', user.id)
+    .maybeSingle()
 
   // Fetch active enrollments
   const { data: enrollments } = await supabase
@@ -19,41 +38,38 @@ export default async function ParticipantDashboardPage() {
     .eq('status', 'active')
 
   const studyIds = enrollments?.map(e => e.study_id) ?? []
-
-  // Track which studies have been consented to
   const consentedStudyIds = new Set(
     (enrollments ?? []).filter(e => e.consented_at).map(e => e.study_id)
   )
 
-  // Fetch study names and consent text for grouping
+  // Fetch study details + researcher info
   const { data: studyDetails } = studyIds.length > 0
-    ? await supabase.from('studies').select('id, title, consent_text').in('id', studyIds)
+    ? await supabase
+        .from('studies')
+        .select('id, title, description, created_by, profiles!studies_created_by_fkey(full_name, researcher_color, avatar_url)')
+        .in('id', studyIds)
     : { data: [] }
+
   const studyById = Object.fromEntries(
-    (studyDetails ?? []).map(s => [s.id, s as { id: string; title: string; consent_text: string | null }])
+    (studyDetails ?? []).map((s: any) => [s.id, s])
   )
 
-  // Fetch active questionnaires
+  // Fetch instruments
   const { data: questionnaires } = studyIds.length > 0
     ? await supabase
         .from('questionnaire_instruments')
-        .select('id, study_id, title, instructions, estimated_duration_minutes, validated_scale_name, status')
+        .select('id, study_id, title, estimated_duration_minutes, validated_scale_name, status')
         .in('study_id', studyIds)
         .eq('status', 'active')
     : { data: [] }
 
-  // Completed questionnaires
   const { data: completedResults } = await supabase
     .from('questionnaire_scored_results')
     .select('questionnaire_id')
     .eq('participant_id', user.id)
     .eq('is_complete', true)
-  const completedIds = new Set(completedResults?.map(r => r.questionnaire_id) ?? [])
+  const completedQIds = new Set(completedResults?.map(r => r.questionnaire_id) ?? [])
 
-  const pendingQ   = questionnaires?.filter(q => !completedIds.has(q.id)) ?? []
-  const completedQ = questionnaires?.filter(q =>  completedIds.has(q.id)) ?? []
-
-  // Fetch active sociograms
   const { data: sociograms } = studyIds.length > 0
     ? await supabase
         .from('sociogram_instruments')
@@ -62,24 +78,17 @@ export default async function ParticipantDashboardPage() {
         .eq('status', 'active')
     : { data: [] }
 
-  // Submitted sociograms
   const { data: submittedSociograms } = await supabase
     .from('sociogram_participants')
     .select('sociogram_id')
     .eq('participant_id', user.id)
     .eq('has_submitted', true)
-  const submittedSociogramIds = new Set(submittedSociograms?.map(s => s.sociogram_id) ?? [])
+  const submittedSocIds = new Set(submittedSociograms?.map(s => s.sociogram_id) ?? [])
 
-  const pendingSoc   = sociograms?.filter(s => !submittedSociogramIds.has(s.id)) ?? []
-  const completedSoc = sociograms?.filter(s =>  submittedSociogramIds.has(s.id)) ?? []
-
-  // Fetch IATs
   const { data: iats } = studyIds.length > 0
     ? await supabase.from('iat_instruments').select('id, study_id, title').in('study_id', studyIds)
     : { data: [] }
 
-  // Completed IATs — check BOTH session_results (D-score saved) AND trial_log (any trials = attempted)
-  // The trial_log is the ground truth; session_results can be absent if the save timed out.
   const iatIds = (iats ?? []).map((i: any) => i.id)
   const [{ data: completedIatSessions }, { data: completedIatTrials }] = await Promise.all([
     iatIds.length > 0
@@ -91,205 +100,242 @@ export default async function ParticipantDashboardPage() {
   ])
   const completedIatIds = new Set([
     ...(completedIatSessions ?? []).map((r: any) => r.iat_id),
-    ...(completedIatTrials  ?? []).map((r: any) => r.iat_id),
+    ...(completedIatTrials ?? []).map((r: any) => r.iat_id),
   ])
-  const pendingIat   = (iats ?? []).filter((i: any) => !completedIatIds.has(i.id))
-  const completedIat = (iats ?? []).filter((i: any) =>  completedIatIds.has(i.id))
 
-  // Total pending count
-  const totalPending   = pendingQ.length  + pendingSoc.length  + pendingIat.length
-  const totalCompleted = completedQ.length + completedSoc.length + completedIat.length
+  // Build per-study instrument maps
+  type StudyData = {
+    pendingQ: typeof questionnaires extends null ? never[] : NonNullable<typeof questionnaires>
+    pendingSoc: typeof sociograms extends null ? never[] : NonNullable<typeof sociograms>
+    pendingIat: any[]
+    completedQ: NonNullable<typeof questionnaires>
+    completedSoc: NonNullable<typeof sociograms>
+    completedIat: any[]
+    totalCount: number
+    completedCount: number
+  }
 
-  // Build per-study pending/completed maps
-  const studyPendingMap: Record<string, {
-    questionnaires: typeof pendingQ,
-    sociograms: typeof pendingSoc,
-    iats: typeof pendingIat,
-    completedCount: number,
-    totalCount: number,
-  }> = {}
-
-  for (const studyId of studyIds) {
-    const studyPendingQ   = pendingQ.filter(q => q.study_id === studyId)
-    const studyPendingSoc = pendingSoc.filter(s => s.study_id === studyId)
-    const studyPendingI   = pendingIat.filter((i: any) => i.study_id === studyId)
-    const studyCompQ      = completedQ.filter(q => q.study_id === studyId)
-    const studyCompSoc    = completedSoc.filter(s => s.study_id === studyId)
-    const studyCompI      = completedIat.filter((i: any) => i.study_id === studyId)
-    const allInStudy      = [
-      ...(questionnaires ?? []).filter(q => q.study_id === studyId),
-      ...(sociograms ?? []).filter(s => s.study_id === studyId),
-      ...(iats ?? []).filter((i: any) => i.study_id === studyId),
-    ]
-    studyPendingMap[studyId] = {
-      questionnaires: studyPendingQ,
-      sociograms:     studyPendingSoc,
-      iats:           studyPendingI,
-      completedCount: studyCompQ.length + studyCompSoc.length + studyCompI.length,
-      totalCount:     allInStudy.length,
+  const studyMap: Record<string, StudyData> = {}
+  for (const sid of studyIds) {
+    const allQ = (questionnaires ?? []).filter(q => q.study_id === sid)
+    const allS = (sociograms ?? []).filter(s => s.study_id === sid)
+    const allI = (iats ?? []).filter((i: any) => i.study_id === sid)
+    const pQ = allQ.filter(q => !completedQIds.has(q.id))
+    const pS = allS.filter(s => !submittedSocIds.has(s.id))
+    const pI = allI.filter((i: any) => !completedIatIds.has(i.id))
+    const cQ = allQ.filter(q => completedQIds.has(q.id))
+    const cS = allS.filter(s => submittedSocIds.has(s.id))
+    const cI = allI.filter((i: any) => completedIatIds.has(i.id))
+    studyMap[sid] = {
+      pendingQ: pQ as any, pendingSoc: pS as any, pendingIat: pI,
+      completedQ: cQ as any, completedSoc: cS as any, completedIat: cI,
+      totalCount: allQ.length + allS.length + allI.length,
+      completedCount: cQ.length + cS.length + cI.length,
     }
   }
 
+  const grandTotalPending = studyIds.reduce((acc, sid) => {
+    const d = studyMap[sid]
+    return acc + d.pendingQ.length + d.pendingSoc.length + d.pendingIat.length
+  }, 0)
+
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
-      <div className="mb-8">
-        <h1 className="font-serif text-2xl text-foreground mb-1">Your instruments</h1>
-        <p className="text-sm text-muted-foreground">
-          {totalPending > 0
-            ? `${totalPending} pending. Take your time — there are no wrong answers.`
-            : 'All done. Science thanks you.'}
-        </p>
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+
+      {/* Welcome header */}
+      <div className="flex items-center gap-4 mb-8">
+        {profile?.avatar_url ? (
+          <img src={profile.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-border shrink-0" />
+        ) : (
+          <div className="w-12 h-12 rounded-full bg-[#2D6A4F] flex items-center justify-center text-white font-medium text-lg shrink-0">
+            {getInitials(profile?.full_name ?? null)}
+          </div>
+        )}
+        <div>
+          <h1 className="font-serif text-2xl text-foreground">
+            {greeting()}{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}.
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {grandTotalPending > 0
+              ? `You have ${grandTotalPending} pending instrument${grandTotalPending > 1 ? 's' : ''}. Take your time.`
+              : studyIds.length > 0
+                ? 'All instruments completed. Science thanks you.'
+                : 'You are not enrolled in any studies yet.'}
+          </p>
+        </div>
+        <Link href="/participant/profile" className="ml-auto">
+          <Button variant="outline" size="sm">
+            <User className="w-3.5 h-3.5 mr-1.5" /> Profile
+          </Button>
+        </Link>
       </div>
 
       {/* No enrollment state */}
       {studyIds.length === 0 && (
-        <div className="text-center py-16">
-          <p className="font-serif text-xl mb-2">You are not enrolled in any studies.</p>
-          <p className="text-sm text-muted-foreground">
-            Your researcher will send you an invitation link when you are added.
+        <div className="text-center py-20 border border-dashed border-border rounded-2xl">
+          <FlaskConical className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+          <p className="font-serif text-xl mb-2">Not enrolled in any studies</p>
+          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+            Your researcher will send you an invite link. Check your email or ask them directly.
           </p>
         </div>
       )}
 
-      {/* Per-study sections */}
-      {studyIds.map(studyId => {
-        const study = studyById[studyId]
-        const { questionnaires: qs, sociograms: ss, iats: is, completedCount, totalCount } = studyPendingMap[studyId]
-        const hasConsented = consentedStudyIds.has(studyId)
-        const pendingCount = qs.length + ss.length + is.length
-        const isAllDone = pendingCount === 0 && totalCount > 0 && completedCount === totalCount
+      {/* Per-study cards */}
+      <div className="space-y-6">
+        {studyIds.map(sid => {
+          const study = studyById[sid] as any
+          const { pendingQ, pendingSoc, pendingIat, completedQ, completedSoc, completedIat, totalCount, completedCount } = studyMap[sid]
+          const pendingCount = pendingQ.length + pendingSoc.length + pendingIat.length
+          const isAllDone = totalCount > 0 && completedCount === totalCount
+          const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+          const researcher = study?.profiles
 
-        return (
-          <div key={studyId} className="mb-8">
-            {/* Study header */}
-            <div className="flex items-center gap-2 pb-2 border-b border-border mb-4">
-              <FlaskConical className="w-3.5 h-3.5 text-muted-foreground" />
-              <p className="text-sm font-semibold text-foreground">
-                {study?.title ?? 'Study'}
-              </p>
-              {pendingCount > 0 && (
-                <Badge variant="outline" className="text-[10px] ml-auto">
-                  {pendingCount} remaining
-                </Badge>
-              )}
-            </div>
-
-            {/* Study complete card */}
-            {isAllDone && (
-              <div className="border border-[#52B788]/30 bg-[#52B788]/5 rounded-xl p-5 flex items-center gap-4 mb-3">
-                <Trophy className="w-8 h-8 text-[#52B788] shrink-0" />
-                <div>
-                  <p className="font-serif text-base font-semibold text-foreground">All done — thank you!</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    You have completed all instruments in this study.
-                    Your contributions support meaningful research.
-                  </p>
+          return (
+            <div key={sid} className="border border-border rounded-2xl overflow-hidden">
+              {/* Study header */}
+              <div className="p-5 border-b border-border bg-muted/30">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <FlaskConical className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <h2 className="font-serif text-base font-semibold text-foreground truncate">{study?.title ?? 'Study'}</h2>
+                      {researcher && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          {researcher.avatar_url ? (
+                            <img src={researcher.avatar_url} alt="" className="w-4 h-4 rounded-full object-cover" />
+                          ) : (
+                            <div
+                              className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px]"
+                              style={{ backgroundColor: researcher.researcher_color ?? '#2D6A4F' }}
+                            >
+                              {getInitials(researcher.full_name)}
+                            </div>
+                          )}
+                          <span className="text-xs text-muted-foreground">{researcher.full_name}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {totalCount > 0 && (
+                    <div className="text-right shrink-0">
+                      <p className="text-xs font-medium text-foreground">{completedCount}/{totalCount}</p>
+                      <p className="text-[10px] text-muted-foreground">complete</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
 
-            {/* Pending instruments */}
-            {pendingCount > 0 && (
-              <div className="space-y-3 mb-2">
-                {/* Questionnaires */}
-                {qs.map(q => (
-                  <div
-                    key={q.id}
-                    className="border border-border rounded-xl p-4 flex items-center justify-between gap-4"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <ClipboardList className="w-4 h-4 text-[#457B9D] shrink-0 mt-0.5" />
+                {/* Progress bar */}
+                {totalCount > 0 && (
+                  <div className="mt-3">
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${progressPct}%`,
+                          backgroundColor: isAllDone ? '#52B788' : (researcher?.researcher_color ?? '#2D6A4F'),
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Instruments */}
+              <div className="p-5 space-y-3">
+                {/* All done */}
+                {isAllDone && (
+                  <div className="flex items-center gap-3 p-4 bg-[#52B788]/10 border border-[#52B788]/30 rounded-xl">
+                    <Trophy className="w-5 h-5 text-[#52B788] shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">All done — thank you!</p>
+                      <p className="text-xs text-muted-foreground">Your contributions support meaningful research.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pending questionnaires */}
+                {pendingQ.map((q: any) => (
+                  <div key={q.id} className="flex items-center justify-between gap-3 p-3 border border-[#457B9D]/30 bg-[#457B9D]/5 rounded-xl">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <ClipboardList className="w-4 h-4 text-[#457B9D] shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{q.title}</p>
-                        {q.validated_scale_name && (
-                          <Badge variant="outline" className="text-[10px] mt-1">{q.validated_scale_name}</Badge>
-                        )}
-                        {q.estimated_duration_minutes && (
-                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />~{q.estimated_duration_minutes} min
-                          </p>
-                        )}
+                        <p className="text-sm font-medium truncate">{q.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          {q.validated_scale_name && (
+                            <span className="text-[10px] text-muted-foreground">{q.validated_scale_name}</span>
+                          )}
+                          {q.estimated_duration_minutes && (
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                              <Clock className="w-2.5 h-2.5" />~{q.estimated_duration_minutes} min
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <Button asChild size="sm">
+                    <Button asChild size="sm" className="shrink-0">
                       <Link href={`/participant/questionnaire/${q.id}`}>Begin</Link>
                     </Button>
                   </div>
                 ))}
 
-                {/* Sociograms */}
-                {ss.map(s => (
-                  <div
-                    key={s.id}
-                    className="border border-border rounded-xl p-4 flex items-center justify-between gap-4"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <Users className="w-4 h-4 text-[#2D6A4F] shrink-0 mt-0.5" />
+                {/* Pending sociograms */}
+                {pendingSoc.map((s: any) => (
+                  <div key={s.id} className="flex items-center justify-between gap-3 p-3 border border-[#2D6A4F]/30 bg-[#2D6A4F]/5 rounded-xl">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Users className="w-4 h-4 text-[#2D6A4F] shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{s.title}</p>
-                        <Badge variant="outline" className="text-[10px] mt-1">Sociogram</Badge>
+                        <p className="text-sm font-medium truncate">{s.title}</p>
+                        <p className="text-[10px] text-muted-foreground">Peer nomination network</p>
                       </div>
                     </div>
-                    <Button asChild size="sm">
+                    <Button asChild size="sm" className="shrink-0 bg-[#2D6A4F] hover:bg-[#235a41] text-white border-0">
                       <Link href={`/participant/sociogram/${s.id}`}>Begin</Link>
                     </Button>
                   </div>
                 ))}
 
-                {/* IATs */}
-                {is.map((iat: any) => (
-                  <div
-                    key={iat.id}
-                    className="border border-border rounded-xl p-4 flex items-center justify-between gap-4"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <Timer className="w-4 h-4 text-[#F4A261] shrink-0 mt-0.5" />
+                {/* Pending IATs */}
+                {pendingIat.map((iat: any) => (
+                  <div key={iat.id} className="flex items-center justify-between gap-3 p-3 border border-[#F4A261]/30 bg-[#F4A261]/5 rounded-xl">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Timer className="w-4 h-4 text-[#F4A261] shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{iat.title}</p>
-                        <Badge variant="outline" className="text-[10px] mt-1 border-[#F4A261] text-[#F4A261]">IAT</Badge>
-                        <p className="text-xs text-amber-600 mt-1">⌨ Requires physical keyboard</p>
+                        <p className="text-sm font-medium truncate">{iat.title}</p>
+                        <p className="text-[10px] text-amber-600">Requires physical keyboard</p>
                       </div>
                     </div>
-                    <Button asChild size="sm" className="bg-[#F4A261] hover:bg-[#e8934a] text-white border-0">
+                    <Button asChild size="sm" className="shrink-0 bg-[#F4A261] hover:bg-[#e8934a] text-white border-0">
                       <Link href={`/participant/iat/${iat.id}`}>Begin</Link>
                     </Button>
                   </div>
                 ))}
-              </div>
-            )}
 
-            {/* Completed items for this study */}
-            {completedCount > 0 && (
-              <div className="space-y-2 mt-3">
-                {completedQ.filter(q => q.study_id === studyId).map(q => (
-                  <div key={q.id} className="flex items-center gap-3 py-1.5 opacity-60">
+                {/* Completed items */}
+                {[...completedQ.map((q: any) => ({ ...q, _type: 'questionnaire' })),
+                  ...completedSoc.map((s: any) => ({ ...s, _type: 'sociogram' })),
+                  ...completedIat.map((i: any) => ({ ...i, _type: 'iat' }))
+                ].filter(i => i.study_id === sid).map((item: any) => (
+                  <div key={item.id} className="flex items-center gap-3 py-2 px-3 opacity-50">
                     <CheckCircle className="w-3.5 h-3.5 text-[#52B788] shrink-0" />
-                    <p className="text-xs text-foreground">{q.title}</p>
-                    <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
+                    <p className="text-xs text-foreground flex-1 truncate">{item.title}</p>
+                    <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-px">Done</span>
                   </div>
                 ))}
-                {completedSoc.filter(s => s.study_id === studyId).map(s => (
-                  <div key={s.id} className="flex items-center gap-3 py-1.5 opacity-60">
-                    <CheckCircle className="w-3.5 h-3.5 text-[#52B788] shrink-0" />
-                    <p className="text-xs text-foreground">{s.title}</p>
-                    <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
-                  </div>
-                ))}
-                {completedIat.filter((i: any) => i.study_id === studyId).map((iat: any) => (
-                  <div key={iat.id} className="flex items-center gap-3 py-1.5 opacity-60">
-                    <CheckCircle className="w-3.5 h-3.5 text-[#52B788] shrink-0" />
-                    <p className="text-xs text-foreground">{iat.title}</p>
-                    <Badge variant="outline" className="ml-auto text-[10px]">Done</Badge>
-                  </div>
-                ))}
-              </div>
-            )}
 
-            {/* Leave study */}
-            <LeaveStudyButton studyId={studyId} studyTitle={study?.title ?? 'this study'} />
-          </div>
-        )
-      })}
+                {totalCount === 0 && (
+                  <p className="text-sm text-muted-foreground italic text-center py-4">No instruments added yet.</p>
+                )}
+              </div>
+
+              {/* Leave study footer */}
+              <div className="px-5 pb-4 border-t border-border pt-3">
+                <LeaveStudyButton studyId={sid} studyTitle={study?.title ?? 'this study'} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

@@ -61,18 +61,19 @@ export default async function ParticipantResponsesPage({
   // Fetch items (ordered)
   const { data: items } = await supabase
     .from('questionnaire_items')
-    .select('id, item_text, item_order, scale_min, scale_max, scale_min_label, scale_max_label, reverse_scored')
+    .select('id, item_text, display_order, is_reverse_scored, scoring_weight, is_clinical_flag_item, clinical_flag_threshold')
     .eq('questionnaire_id', qid)
-    .order('item_order', { ascending: true })
+    .eq('is_active', true)
+    .order('display_order', { ascending: true })
 
   // Fetch this participant's item responses
   const { data: responses } = await supabase
     .from('questionnaire_item_responses')
-    .select('item_id, response_value, scored_value')
+    .select('item_id, raw_response, raw_response_numeric, scored_value, clinical_flag_triggered, clinical_flag_message')
     .eq('questionnaire_id', qid)
     .eq('participant_id', pid)
 
-  const responseByItemId: Record<string, { response_value: number; scored_value: number | null }> = {}
+  const responseByItemId: Record<string, { raw_response: string; raw_response_numeric: number | null; scored_value: number | null; clinical_flag_triggered: boolean; clinical_flag_message: string | null }> = {}
   for (const r of responses ?? []) {
     responseByItemId[r.item_id] = r
   }
@@ -96,7 +97,7 @@ export default async function ParticipantResponsesPage({
   const hasUnacknowledgedAlert = (alerts ?? []).some((a: any) => !a.acknowledged)
 
   const itemsList = items ?? []
-  const answeredCount = itemsList.filter(item => responseByItemId[item.id] !== undefined).length
+  const answeredCount = itemsList.filter((item: any) => responseByItemId[item.id] !== undefined).length
 
   return (
     <div className="p-6 lg:p-8 max-w-3xl">
@@ -250,74 +251,50 @@ export default async function ParticipantResponsesPage({
               {itemsList.map((item: any, idx: number) => {
                 const response = responseByItemId[item.id]
                 const answered = response !== undefined
-                const value = response?.response_value
-                const scored = response?.scored_value
-
-                // Build a simple visual scale
-                const scaleMin = item.scale_min ?? 0
-                const scaleMax = item.scale_max ?? 3
-                const scaleRange = scaleMax - scaleMin
-                const pct = answered && value !== null
-                  ? ((value - scaleMin) / Math.max(scaleRange, 1)) * 100
-                  : null
+                const rawValue = response?.raw_response_numeric ?? null
+                const scored = response?.scored_value ?? null
+                const flagged = response?.clinical_flag_triggered
 
                 return (
                   <div
                     key={item.id}
                     className={`rounded-xl p-4 border ${
-                      answered ? 'border-border' : 'border-dashed border-muted-foreground/30 opacity-60'
+                      flagged
+                        ? 'border-destructive/30 bg-destructive/5'
+                        : answered
+                          ? 'border-border'
+                          : 'border-dashed border-muted-foreground/30 opacity-60'
                     }`}
                   >
-                    <div className="flex items-start gap-3 mb-3">
-                      <span className="text-xs text-muted-foreground shrink-0 mt-0.5 w-5 text-right">
-                        {idx + 1}.
-                      </span>
+                    <div className="flex items-start gap-3 mb-2">
+                      <span className="text-xs text-muted-foreground shrink-0 mt-0.5 w-5 text-right font-mono">{idx + 1}.</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground leading-relaxed">{item.item_text}</p>
-                        {item.reverse_scored && (
-                          <Badge variant="outline" className="text-[10px] mt-1">Reverse scored</Badge>
-                        )}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {item.is_reverse_scored && (
+                            <Badge variant="outline" className="text-[10px]">Reverse scored</Badge>
+                          )}
+                          {item.is_clinical_flag_item && (
+                            <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600">Clinical flag item</Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     {answered ? (
-                      <div className="ml-8">
-                        {/* Response scale visual */}
-                        <div className="flex items-center gap-3 mb-1.5">
-                          {item.scale_min_label && (
-                            <span className="text-[11px] text-muted-foreground shrink-0 w-20 text-right">
-                              {item.scale_min_label}
-                            </span>
-                          )}
-                          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden relative">
-                            {pct !== null && (
-                              <div
-                                className="h-full bg-[#457B9D] rounded-full"
-                                style={{ width: `${pct}%` }}
-                              />
-                            )}
-                          </div>
-                          {item.scale_max_label && (
-                            <span className="text-[11px] text-muted-foreground shrink-0 w-20">
-                              {item.scale_max_label}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 ml-0">
-                          {item.scale_min_label ? (
-                            <span className="text-[11px] text-muted-foreground w-20 text-right shrink-0" />
-                          ) : null}
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-semibold text-foreground">
-                              {value}
-                            </span>
-                            {scored !== null && scored !== value && (
-                              <span className="text-xs text-muted-foreground">
-                                (scored: {scored})
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                      <div className="ml-8 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-muted text-foreground font-medium">
+                          Response: {response.raw_response}
+                        </span>
+                        {scored !== null && rawValue !== null && scored !== rawValue && (
+                          <span>Scored: <strong>{scored}</strong></span>
+                        )}
+                        {flagged && (
+                          <span className="flex items-center gap-1 text-destructive font-medium">
+                            <AlertTriangle className="w-3 h-3" /> Flag triggered
+                            {response.clinical_flag_message && <span className="font-normal">— {response.clinical_flag_message}</span>}
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <div className="ml-8">

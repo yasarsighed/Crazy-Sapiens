@@ -5,6 +5,7 @@ import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Eye, MessageSquare } from
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AcknowledgeAlertButton } from '@/components/acknowledge-alert-button'
+import { BUILT_IN_SCALES } from '@/lib/scales'
 
 // Severity band → colour
 function severityColor(band: string | null): string {
@@ -115,11 +116,13 @@ export default async function QuestionnaireResultsPage({
   const maxScore = scores.length ? Math.max(...scores) : null
   const minScore = scores.length ? Math.min(...scores) : null
 
-  // Known severity band orders
-  const PHQ9_BANDS = ['Minimal', 'Mild', 'Moderate', 'Moderately Severe', 'Severe']
-  const GAD7_BANDS = ['Minimal', 'Mild', 'Moderate', 'Severe']
-  const scaleName = questionnaire.validated_scale_name?.toUpperCase()
-  const bandOrder = scaleName === 'PHQ-9' ? PHQ9_BANDS : scaleName === 'GAD-7' ? GAD7_BANDS : []
+  // Build band order from BUILT_IN_SCALES; fall back to unique labels in results
+  const matchedScale = BUILT_IN_SCALES.find(
+    s => s.abbreviation === questionnaire.validated_scale_name
+  )
+  const bandOrder: string[] = matchedScale
+    ? matchedScale.severity_bands.map(b => b.label)
+    : [...new Set(completedResults.map((r: any) => r.severity_label).filter(Boolean))]
   const distribution = bandOrder.length > 0 ? buildDistribution(completedResults, bandOrder) : []
 
   const unacknowledgedAlerts = (alerts ?? []).filter((a: any) => !a.acknowledged)

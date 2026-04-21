@@ -3,7 +3,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { ArrowLeft, Users } from 'lucide-react'
+import { ArrowLeft, Users, BarChart3 } from 'lucide-react'
+import * as d3Lib from 'd3'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,7 +82,7 @@ export default function SociogramResultsPage() {
   const [vizData, setVizData]     = useState<VizData | null>(null)
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
-  const [d3Loaded, setD3Loaded]   = useState(false)
+  const [d3Loaded] = useState(true)
   const [settled, setSettled]     = useState(false)
   const [focusNode, setFocusNode] = useState<number | null>(null)
   const [search, setSearch]       = useState('')
@@ -212,15 +213,7 @@ export default function SociogramResultsPage() {
     load()
   }, [studyId])
 
-  // ── Load D3 ───────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if ((window as any).d3) { setD3Loaded(true); return }
-    const s = document.createElement('script')
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js'
-    s.onload = () => setD3Loaded(true)
-    document.head.appendChild(s)
-  }, [])
+  // D3 loaded from npm package — no CDN needed
 
   // ── Build viz when both data and d3 are ready ─────────────────────────────
 
@@ -236,8 +229,8 @@ export default function SociogramResultsPage() {
   useEffect(() => { applyFilters() }, [focusNode, search, showLabels, activeRelTypes, minScore])
 
   const applyFilters = useCallback(() => {
-    const d3 = (window as any).d3
-    if (!d3 || !svgSel.current) return
+    if (!svgSel.current) return
+    const d3 = d3Lib
     const { focusNode: fn, search: sq, showLabels: sl, activeRelTypes: art, minScore: ms, vizData: vd } = stateRef.current
     if (!vd) return
     const lq = sq.toLowerCase()
@@ -261,8 +254,8 @@ export default function SociogramResultsPage() {
   }, [])
 
   function buildViz(vd: VizData) {
-    const d3 = (window as any).d3
-    if (!d3 || !svgRef.current || !containerRef.current) return
+    const d3 = d3Lib
+    if (!svgRef.current || !containerRef.current) return
 
     const W = containerRef.current.clientWidth || 900
     const H = containerRef.current.clientHeight || 680
@@ -348,15 +341,15 @@ export default function SociogramResultsPage() {
       })
       .on('dblclick', (_ev: any, d: any) => {
         clearTimeout(clickTimer)
-        const d3_ = (window as any).d3
+        const d3_ = d3Lib
         if (pinnedRef.current.has(d.id)) {
           pinnedRef.current.delete(d.id)
           d.fx = null; d.fy = null
-          d3_.select(_ev.currentTarget).select('.pin-dot').attr('display', 'none')
+          d3Lib.select(_ev.currentTarget).select('.pin-dot').attr('display', 'none')
         } else {
           pinnedRef.current.add(d.id)
           d.fx = d.x; d.fy = d.y
-          d3_.select(_ev.currentTarget).select('.pin-dot').attr('display', null)
+          d3Lib.select(_ev.currentTarget).select('.pin-dot').attr('display', null)
         }
       })
       .on('mouseenter', (ev: any, d: any) => {
@@ -382,7 +375,7 @@ export default function SociogramResultsPage() {
       .attr('fill', (d: any) => `url(#gr-${d.id})`)
 
     node.each(function (d: any) {
-      const sel = (window as any).d3.select(this)
+      const sel = d3Lib.select(this)
       const r = rScale(d.id, vd.indegree, vd.nodes)
       const hR = r * 0.3, hY = -r * 0.16
       sel.append('circle').attr('cx', 0).attr('cy', hY).attr('r', hR)
@@ -439,12 +432,12 @@ export default function SociogramResultsPage() {
   }
 
   const zoomBy = (k: number) => {
-    const d3 = (window as any).d3; if (!d3 || !svgRef.current) return
-    d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, k)
+    if (!svgRef.current) return
+    d3Lib.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, k)
   }
   const zoomFit = () => {
-    const d3 = (window as any).d3; if (!d3 || !svgRef.current) return
-    d3.select(svgRef.current).transition().duration(500).call(zoomRef.current.transform, d3.zoomIdentity)
+    if (!svgRef.current) return
+    d3Lib.select(svgRef.current).transition().duration(500).call(zoomRef.current.transform, d3Lib.zoomIdentity)
   }
   const exportSVG = () => {
     const svg = svgRef.current; if (!svg) return
@@ -466,6 +459,21 @@ export default function SociogramResultsPage() {
     : []
 
   const tipNode = tooltip && vizData ? vizData.nodes[tooltip.id] : null
+
+  // Network analytics
+  const analytics = vizData ? (() => {
+    const n = vizData.nodes.length
+    const e = vizData.edges.length
+    const maxEdges = n > 1 ? n * (n - 1) : 1
+    const density = (e / maxEdges * 100).toFixed(1)
+    const isolates = vizData.nodes.filter((_, i) =>
+      vizData.indegree[i] === 0 && !vizData.edges.some(ed => ed[0] === i)
+    ).length
+    const avgIndegree = n > 0 ? (vizData.indegree.reduce((a, b) => a + b, 0) / n).toFixed(2) : '0'
+    const outDegree = vizData.nodes.map((_, i) => vizData.edges.filter(ed => ed[0] === i).length)
+    const avgOutdegree = n > 0 ? (outDegree.reduce((a, b) => a + b, 0) / n).toFixed(2) : '0'
+    return { n, e, density, isolates, avgIndegree, avgOutdegree }
+  })() : null
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -584,7 +592,31 @@ export default function SociogramResultsPage() {
           <p className="text-[11px] text-[#8B7355]">Click to focus · Scroll to zoom</p>
         </div>
 
-        <div className="mt-auto px-4 py-3 border-t border-[#E8E0D5]">
+        {/* Network analytics */}
+        {analytics && (
+          <div className="px-4 py-3 border-t border-[#E8E0D5]">
+            <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <BarChart3 className="w-3 h-3" /> Network analytics
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { label: 'Nodes', value: analytics.n },
+                { label: 'Edges', value: analytics.e },
+                { label: 'Density', value: `${analytics.density}%` },
+                { label: 'Isolates', value: analytics.isolates },
+                { label: 'Avg in', value: analytics.avgIndegree },
+                { label: 'Avg out', value: analytics.avgOutdegree },
+              ].map(stat => (
+                <div key={stat.label} className="bg-[#F5F0E8] rounded-lg p-2 text-center">
+                  <p className="text-sm font-bold text-[#2D6A4F]">{stat.value}</p>
+                  <p className="text-[8px] text-[#8B7355] uppercase tracking-wide leading-tight">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="px-4 py-3 border-t border-[#E8E0D5]">
           <p className="text-[11px] text-[#B5A898] leading-relaxed">
             {vizData?.submittedCount}/{vizData?.participantCount} participants submitted
           </p>

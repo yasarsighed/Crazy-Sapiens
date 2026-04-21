@@ -75,8 +75,8 @@ const advancedNavItems = [
   { href: '/users',         label: 'Users',         icon: UserCog,     stub: false },
   { href: '/audit-log',     label: 'Audit Log',     icon: ClipboardList, stub: false },
   { href: '/scale-library', label: 'Scale Library', icon: Library,     stub: false },
-  { href: '/supervisors',   label: 'Supervisors',   icon: Shield,      stub: true },
-  { href: '/settings',      label: 'Settings',      icon: Settings,    stub: true },
+  { href: '/supervisors',   label: 'Supervisors',   icon: Shield,      stub: false },
+  { href: '/settings',      label: 'Settings',      icon: Settings,    stub: false },
 ]
 
 function getInitials(name: string | null): string {
@@ -112,15 +112,23 @@ export function Sidebar({ profile }: SidebarProps) {
         </div>
 
         {/* Researcher avatar pill */}
-        <div className="p-4 border-b border-border">
+        <Link href="/settings" className="block p-4 border-b border-border hover:bg-muted/40 transition-colors group">
           <div className="flex items-center gap-3">
-            <div 
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0"
-              style={{ backgroundColor: researcherColor }}
-            >
-              {getInitials(profile?.full_name)}
-            </div>
-            <div className="min-w-0">
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={profile.full_name ?? 'Avatar'}
+                className="w-9 h-9 rounded-full object-cover shrink-0 border border-border"
+              />
+            ) : (
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0"
+                style={{ backgroundColor: researcherColor }}
+              >
+                {getInitials(profile?.full_name)}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-foreground truncate">
                 {profile?.full_name || 'Researcher'}
               </p>
@@ -128,8 +136,9 @@ export function Sidebar({ profile }: SidebarProps) {
                 {profile?.role || 'researcher'}
               </p>
             </div>
+            <Settings className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors shrink-0" />
           </div>
-        </div>
+        </Link>
 
         {/* Main navigation */}
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">

@@ -6,9 +6,10 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Network, Download, Plus, X, ChevronDown,
-  ClipboardList, Users, Timer, ExternalLink, Trash2, Link2, FileText,
+  ClipboardList, Users, Timer, ExternalLink, Trash2, Link2, FileText, AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AddQuestionnaireDialog } from '@/components/add-questionnaire-dialog'
@@ -30,6 +31,7 @@ interface Instrument {
 
 export default function StudyPage() {
   const params = useParams()
+  const router = useRouter()
   const studyId = params.id as string
   const [study, setStudy] = useState<any>(null)
   const [participants, setParticipants] = useState<any[]>([])
@@ -43,6 +45,8 @@ export default function StudyPage() {
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [deletingStudy, setDeletingStudy] = useState(false)
+  const [showDeleteStudyConfirm, setShowDeleteStudyConfirm] = useState(false)
   const [showConsentEditor, setShowConsentEditor] = useState(false)
   const [consentText, setConsentText] = useState('')
   const [savingConsent, setSavingConsent] = useState(false)
@@ -112,23 +116,75 @@ export default function StudyPage() {
   }
 
   const deleteInstrument = async (id: string, type: 'questionnaire' | 'sociogram' | 'iat', title: string) => {
-    if (!window.confirm(`Remove "${title}" from this study? All associated data will be deleted. This cannot be undone.`)) return
+    if (!window.confirm(`Remove "${title}"?\n\nAll responses, scores, and alerts for this instrument will be permanently deleted. This cannot be undone.`)) return
     setDeleting(id)
     const supabase = createClient()
+
+    // Cascade: delete all dependent data before the instrument row
+    if (type === 'questionnaire') {
+      await supabase.from('clinical_alerts_log').delete().eq('questionnaire_id', id)
+      await supabase.from('questionnaire_scored_results').delete().eq('questionnaire_id', id)
+      await supabase.from('questionnaire_item_responses').delete().eq('questionnaire_id', id)
+    } else if (type === 'iat') {
+      await supabase.from('iat_session_results').delete().eq('iat_id', id)
+      await supabase.from('iat_trial_log').delete().eq('iat_id', id)
+    } else if (type === 'sociogram') {
+      await supabase.from('sociogram_nominations').delete().eq('sociogram_id', id)
+      await supabase.from('sociogram_participants').delete().eq('sociogram_id', id)
+    }
+
     const table =
       type === 'questionnaire' ? 'questionnaire_instruments'
       : type === 'sociogram'   ? 'sociogram_instruments'
       : 'iat_instruments'
+
     const { error } = await supabase.from(table).delete().eq('id', id)
     if (error) {
       toast.error('Failed to remove instrument', { description: error.message })
     } else {
-      // Clean up study_instruments reference (non-fatal)
       await supabase.from('study_instruments').delete().eq('instrument_id', id)
-      toast.success('Instrument removed from study')
+      toast.success('Instrument removed')
       await loadData()
     }
     setDeleting(null)
+  }
+
+  const deleteStudy = async () => {
+    setDeletingStudy(true)
+    const supabase = createClient()
+
+    // Delete all questionnaire data
+    for (const inst of instruments.filter(i => i.type === 'questionnaire')) {
+      await supabase.from('clinical_alerts_log').delete().eq('questionnaire_id', inst.id)
+      await supabase.from('questionnaire_scored_results').delete().eq('questionnaire_id', inst.id)
+      await supabase.from('questionnaire_item_responses').delete().eq('questionnaire_id', inst.id)
+      await supabase.from('questionnaire_instruments').delete().eq('id', inst.id)
+    }
+    // Delete all IAT data
+    for (const inst of instruments.filter(i => i.type === 'iat')) {
+      await supabase.from('iat_session_results').delete().eq('iat_id', inst.id)
+      await supabase.from('iat_trial_log').delete().eq('iat_id', inst.id)
+      await supabase.from('iat_instruments').delete().eq('id', inst.id)
+    }
+    // Delete all sociogram data
+    for (const inst of instruments.filter(i => i.type === 'sociogram')) {
+      await supabase.from('sociogram_nominations').delete().eq('sociogram_id', inst.id)
+      await supabase.from('sociogram_participants').delete().eq('sociogram_id', inst.id)
+      await supabase.from('sociogram_instruments').delete().eq('id', inst.id)
+    }
+
+    await supabase.from('study_instruments').delete().eq('study_id', studyId)
+    await supabase.from('study_enrollments').delete().eq('study_id', studyId)
+
+    const { error } = await supabase.from('studies').delete().eq('id', studyId)
+    if (error) {
+      toast.error('Failed to delete study', { description: error.message })
+      setDeletingStudy(false)
+      setShowDeleteStudyConfirm(false)
+    } else {
+      toast.success('Study deleted')
+      router.push('/studies')
+    }
   }
 
   const saveConsentText = async () => {
@@ -183,9 +239,18 @@ export default function StudyPage() {
               <p className="text-sm text-muted-foreground mt-1 max-w-xl">{study.description}</p>
             )}
           </div>
-          <Badge variant={study.status === 'active' ? 'default' : 'secondary'} className="shrink-0">
-            {study.status}
-          </Badge>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant={study.status === 'active' ? 'default' : 'secondary'}>
+              {study.status}
+            </Badge>
+            <button
+              onClick={() => setShowDeleteStudyConfirm(true)}
+              className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+              title="Delete study"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -370,6 +435,31 @@ export default function StudyPage() {
       <AddQuestionnaireDialog studyId={studyId} open={showAddQuestionnaire} onClose={() => setShowAddQuestionnaire(false)} onSuccess={loadData} />
       <AddSociogramDialog    studyId={studyId} open={showAddSociogram}    onClose={() => setShowAddSociogram(false)}    onSuccess={loadData} />
       <AddIatDialog          studyId={studyId} open={showAddIat}          onClose={() => setShowAddIat(false)}          onSuccess={loadData} />
+
+      {/* Delete study confirmation */}
+      {showDeleteStudyConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-start gap-3 mb-4">
+              <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <div>
+                <h2 className="font-serif text-lg text-foreground">Delete study?</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This will permanently delete <strong>{study.title}</strong> and all its instruments, participant data, responses, scores, and clinical alerts. This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setShowDeleteStudyConfirm(false)} disabled={deletingStudy}>
+                Cancel
+              </Button>
+              <Button variant="destructive" size="sm" onClick={deleteStudy} disabled={deletingStudy}>
+                {deletingStudy ? 'Deleting…' : 'Delete study'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add participant modal */}
       {showAddParticipant && (

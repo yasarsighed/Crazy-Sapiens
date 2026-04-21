@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/logo'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, User } from 'lucide-react'
 
 export default async function ParticipantLayout({
   children,
@@ -45,7 +45,15 @@ export default async function ParticipantLayout({
       <header className="border-b border-border bg-card">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <Logo size="sm" />
-          <p className="text-xs text-muted-foreground">Participant portal</p>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/participant/profile"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <User className="w-3.5 h-3.5" />
+              My profile
+            </Link>
+          </div>
         </div>
       </header>
       <main>{children}</main>
