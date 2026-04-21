@@ -78,16 +78,21 @@ export default async function ParticipantDashboardPage() {
     ? await supabase.from('iat_instruments').select('id, study_id, title').in('study_id', studyIds)
     : { data: [] }
 
-  // Completed IATs
+  // Completed IATs — check BOTH session_results (D-score saved) AND trial_log (any trials = attempted)
+  // The trial_log is the ground truth; session_results can be absent if the save timed out.
   const iatIds = (iats ?? []).map((i: any) => i.id)
-  const { data: completedIatData } = iatIds.length > 0
-    ? await supabase
-        .from('iat_session_results')
-        .select('iat_id')
-        .eq('participant_id', user.id)
-        .in('iat_id', iatIds)
-    : { data: [] }
-  const completedIatIds = new Set((completedIatData ?? []).map((r: any) => r.iat_id))
+  const [{ data: completedIatSessions }, { data: completedIatTrials }] = await Promise.all([
+    iatIds.length > 0
+      ? supabase.from('iat_session_results').select('iat_id').eq('participant_id', user.id).in('iat_id', iatIds)
+      : { data: [] },
+    iatIds.length > 0
+      ? supabase.from('iat_trial_log').select('iat_id').eq('participant_id', user.id).in('iat_id', iatIds).limit(iatIds.length * 10)
+      : { data: [] },
+  ])
+  const completedIatIds = new Set([
+    ...(completedIatSessions ?? []).map((r: any) => r.iat_id),
+    ...(completedIatTrials  ?? []).map((r: any) => r.iat_id),
+  ])
   const pendingIat   = (iats ?? []).filter((i: any) => !completedIatIds.has(i.id))
   const completedIat = (iats ?? []).filter((i: any) =>  completedIatIds.has(i.id))
 

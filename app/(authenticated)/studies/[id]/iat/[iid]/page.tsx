@@ -1,61 +1,57 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, AlertTriangle, CheckCircle, Clock, TrendingUp, Users, Ban } from 'lucide-react'
+import {
+  ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban, Download,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-// ─── D-score interpretation bands (Greenwald 2003 + Millner 2019) ────────────
+// ─── D-score bands (Greenwald 2003 + Millner 2019) ───────────────────────────
 interface DScoreBand {
-  label: string
-  min: number | null   // null = -∞
-  max: number | null   // null = +∞
-  color: string
+  label:    string
+  short:    string
+  min:      number | null   // null = -∞
+  max:      number | null   // null = +∞
+  color:    string
   clinical: boolean
 }
 
 const D_SCORE_BANDS: DScoreBand[] = [
-  { label: 'Life association (D < 0)',      min: null, max: 0,    color: '#52B788', clinical: false },
-  { label: 'No preference (0 – 0.15)',      min: 0,    max: 0.15, color: '#888888', clinical: false },
-  { label: 'Slight Self–Death (0.15 – 0.35)', min: 0.15, max: 0.35, color: '#E9C46A', clinical: false },
-  { label: 'Moderate Self–Death (0.35 – 0.65)', min: 0.35, max: 0.65, color: '#F4A261', clinical: false },
-  { label: 'Strong Self–Death (≥ 0.65)',    min: 0.65, max: null, color: '#E63946', clinical: true },
+  { label: 'Life association (D < 0)',           short: 'Life assoc.',    min: null,  max: 0,    color: '#52B788', clinical: false },
+  { label: 'No clear preference (0 – 0.15)',     short: 'No preference', min: 0,     max: 0.15, color: '#888888', clinical: false },
+  { label: 'Slight Self–Death (0.15 – 0.35)',    short: 'Slight',        min: 0.15,  max: 0.35, color: '#E9C46A', clinical: false },
+  { label: 'Moderate Self–Death (0.35 – 0.65)',  short: 'Moderate',      min: 0.35,  max: 0.65, color: '#F4A261', clinical: false },
+  { label: 'Strong Self–Death (≥ 0.65)',         short: 'Strong ⚑',      min: 0.65,  max: null, color: '#E63946', clinical: true  },
 ]
 
-function bandForScore(d: number): DScoreBand {
+function bandFor(d: number): DScoreBand {
   for (const band of D_SCORE_BANDS) {
-    const aboveMin = band.min === null || d >= band.min
-    const belowMax = band.max === null || d < band.max
-    if (aboveMin && belowMax) return band
+    if ((band.min === null || d >= band.min) && (band.max === null || d < band.max)) return band
   }
   return D_SCORE_BANDS[D_SCORE_BANDS.length - 1]
 }
 
-function buildDDistribution(
-  scores: number[]
-): { band: DScoreBand; count: number }[] {
-  return D_SCORE_BANDS.map(band => ({
-    band,
-    count: scores.filter(d => {
-      const aboveMin = band.min === null || d >= band.min
-      const belowMax = band.max === null || d < band.max
-      return aboveMin && belowMax
-    }).length,
-  }))
-}
-
-function dScoreLabel(d: number): string {
-  return bandForScore(d).label
-}
-
 // ─── Stats helpers ────────────────────────────────────────────────────────────
 function mean(arr: number[]): number {
-  return arr.reduce((s, v) => s + v, 0) / arr.length
+  return arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : 0
 }
 function sd(arr: number[]): number {
   if (arr.length < 2) return 0
   const m = mean(arr)
   return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length)
+}
+function fmt(n: number, dp = 3): string { return n.toFixed(dp) }
+
+// ─── Per-participant computed stats ──────────────────────────────────────────
+interface ParticipantStats {
+  participantId: string
+  dScore:        number | null
+  trialCount:    number
+  meanRT_comp:   number | null   // mean RT for blocks 3+4 (compatible)
+  meanRT_incomp: number | null   // mean RT for blocks 6+7 (incompatible)
+  errorRate:     number | null   // % of scoring-block trials incorrect
+  excluded:      boolean
 }
 
 export default async function IATResultsPage({
@@ -64,29 +60,22 @@ export default async function IATResultsPage({
   params: { id: string; iid: string }
 }) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const { id: studyId, iid } = params
 
-  // Fetch IAT instrument details
+  // Fetch instrument
   const { data: instrument } = await supabase
     .from('iat_instruments')
-    .select('id, title, description, study_id, created_at')
+    .select('id, title, description, study_id, debrief_text, created_at')
     .eq('id', iid)
     .single()
 
   if (!instrument) {
-    return (
-      <div className="p-6 lg:p-8">
-        <p className="text-muted-foreground">IAT instrument not found.</p>
-      </div>
-    )
+    return <div className="p-6 lg:p-8"><p className="text-muted-foreground">IAT instrument not found.</p></div>
   }
 
-  // Fetch study for breadcrumb
   const { data: study } = await supabase
     .from('studies')
     .select('id, title')
@@ -94,70 +83,97 @@ export default async function IATResultsPage({
     .single()
 
   // Fetch D-score session results
-  // Falls back gracefully if iat_session_results doesn't exist
   const { data: sessionResults, error: srError } = await supabase
     .from('iat_session_results')
     .select('participant_id, d_score, session_id, computed_at')
     .eq('iat_id', iid)
     .order('computed_at', { ascending: false })
 
-  const hasResultsTable = !srError
-
-  // Fetch trial log counts per participant (to know who attempted even if D-score not saved)
-  const { data: trialCounts } = await supabase
+  // Fetch ALL trial data (for RT and error analysis)
+  // Note: block_number is the correct column name (not block_num)
+  const { data: allTrials } = await supabase
     .from('iat_trial_log')
-    .select('participant_id, block_num')
+    .select('participant_id, block_number, response_time_ms, is_correct, excluded_from_scoring')
     .eq('iat_id', iid)
 
-  // Unique participants who have trial data
-  const participantIdsFromTrials = [...new Set((trialCounts ?? []).map((t: any) => t.participant_id))]
-  const participantIdsFromScores = [...new Set((sessionResults ?? []).map((r: any) => r.participant_id))]
-  const allParticipantIds = [...new Set([...participantIdsFromTrials, ...participantIdsFromScores])]
+  // Build per-participant trial maps
+  const trialsByParticipant: Record<string, typeof allTrials> = {}
+  for (const trial of allTrials ?? []) {
+    if (!trialsByParticipant[trial.participant_id]) trialsByParticipant[trial.participant_id] = []
+    trialsByParticipant[trial.participant_id]!.push(trial)
+  }
+
+  // Gather all participant IDs across both tables
+  const pidFromSessions = new Set((sessionResults ?? []).map(r => r.participant_id))
+  const pidFromTrials   = new Set(Object.keys(trialsByParticipant))
+  const allPids = [...new Set([...pidFromSessions, ...pidFromTrials])]
+
+  // D-score by participant (prefer session_results, fall back to null)
+  const dScoreByPid: Record<string, number | null> = {}
+  for (const r of sessionResults ?? []) dScoreByPid[r.participant_id] = r.d_score
+  for (const pid of pidFromTrials) if (!(pid in dScoreByPid)) dScoreByPid[pid] = null
 
   // Fetch profiles
-  const { data: profiles } = allParticipantIds.length > 0
-    ? await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .in('id', allParticipantIds)
+  const { data: profiles } = allPids.length > 0
+    ? await supabase.from('profiles').select('id, full_name, email').in('id', allPids)
     : { data: [] }
+  const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
 
-  const profileMap = Object.fromEntries((profiles ?? []).map((p: any) => [p.id, p]))
+  // Compute per-participant stats
+  const participantStats: ParticipantStats[] = allPids.map(pid => {
+    const trials = trialsByParticipant[pid] ?? []
+    const scoringTrials = trials.filter(t => !t.excluded_from_scoring)
+    const compatTrials   = scoringTrials.filter(t => t.block_number === 3 || t.block_number === 4)
+    const incompatTrials = scoringTrials.filter(t => t.block_number === 6 || t.block_number === 7)
 
-  // Trial counts per participant (for "% blocks completed" indicator)
-  const trialCountMap: Record<string, number> = {}
-  for (const t of trialCounts ?? []) {
-    trialCountMap[t.participant_id] = (trialCountMap[t.participant_id] ?? 0) + 1
-  }
+    const meanRT_comp   = compatTrials.length > 0
+      ? mean(compatTrials.map(t => t.response_time_ms).filter(Boolean)) : null
+    const meanRT_incomp = incompatTrials.length > 0
+      ? mean(incompatTrials.map(t => t.response_time_ms).filter(Boolean)) : null
 
-  // Build unified participant list
-  // Prefer session_results for D-score; fall back to "completed but D-score not saved"
-  const scoreByParticipant: Record<string, number | null> = {}
-  for (const r of sessionResults ?? []) {
-    scoreByParticipant[r.participant_id] = r.d_score
-  }
+    const errorCount = scoringTrials.filter(t => !t.is_correct).length
+    const errorRate  = scoringTrials.length > 0 ? errorCount / scoringTrials.length : null
 
-  // Anyone in trials but not in scores = attempted but D-score not persisted
-  for (const pid of participantIdsFromTrials) {
-    if (!(pid in scoreByParticipant)) {
-      scoreByParticipant[pid] = null
+    return {
+      participantId: pid,
+      dScore:        dScoreByPid[pid] ?? null,
+      trialCount:    trials.length,
+      meanRT_comp,
+      meanRT_incomp,
+      errorRate,
+      excluded:      dScoreByPid[pid] === null,
     }
-  }
+  })
 
-  // Stats on valid D-scores only
-  const validScores = Object.values(scoreByParticipant).filter((s): s is number => s !== null)
-  const excluded = allParticipantIds.length - validScores.length
+  // Sort: clinical first, then by D-score descending
+  participantStats.sort((a, b) => {
+    if (a.dScore !== null && b.dScore !== null) return b.dScore - a.dScore
+    if (a.dScore !== null) return -1
+    if (b.dScore !== null) return 1
+    return 0
+  })
 
-  const meanD   = validScores.length ? mean(validScores).toFixed(3) : null
-  const sdD     = validScores.length >= 2 ? sd(validScores).toFixed(3) : null
-  const maxD    = validScores.length ? Math.max(...validScores).toFixed(3) : null
-  const minD    = validScores.length ? Math.min(...validScores).toFixed(3) : null
-
-  const distribution = buildDDistribution(validScores)
+  // Aggregate stats
+  const validScores = participantStats.map(p => p.dScore).filter((d): d is number => d !== null)
   const clinicalCount = validScores.filter(d => d >= 0.65).length
+  const meanD  = validScores.length ? mean(validScores) : null
+  const sdD    = validScores.length >= 2 ? sd(validScores) : null
+  const minD   = validScores.length ? Math.min(...validScores) : null
+  const maxD   = validScores.length ? Math.max(...validScores) : null
+  const excluded = participantStats.filter(p => p.excluded).length
+
+  // Distribution
+  const distribution = D_SCORE_BANDS.map(band => ({
+    band,
+    count: validScores.filter(d =>
+      (band.min === null || d >= band.min) && (band.max === null || d < band.max)
+    ).length,
+  }))
+
+  const hasSessionTable = !srError
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl">
+    <div className="p-6 lg:p-8 max-w-6xl">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
         <Link href="/studies" className="hover:text-foreground">Studies</Link>
@@ -167,128 +183,156 @@ export default async function IATResultsPage({
         <span className="text-foreground">{instrument.title}</span>
       </div>
 
-      <Link
-        href={`/studies/${studyId}`}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
-      >
+      <Link href={`/studies/${studyId}`}
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
         <ArrowLeft className="w-4 h-4" />
         Back to study
       </Link>
 
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-start gap-3 mb-1 flex-wrap">
+      <div className="mb-6">
+        <div className="flex items-start gap-3 mb-2 flex-wrap">
           <h1 className="font-serif text-2xl text-foreground">{instrument.title}</h1>
-          <Badge variant="outline" className="mt-1 border-[#F4A261] text-[#F4A261]">
-            Death/Suicide IAT
-          </Badge>
+          <Badge variant="outline" className="mt-1 border-[#F4A261] text-[#F4A261]">Death/Suicide IAT</Badge>
         </div>
-        <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Implicit Association Test measuring Self–Death vs. Self–Life associations.
-          D-scores computed via Greenwald et al. (2003) Algorithm D2.
-          Positive D = faster Self–Death pairings; clinical threshold ≥ 0.65 (Millner et al. 2019).
+        <p className="text-sm text-muted-foreground max-w-3xl">
+          Implicit Association Test — Self–Death vs. Self–Life associations.
+          Algorithm D2 (Greenwald et al., 2003). Clinical threshold D ≥ 0.65 (Millner et al., 2019).
+          Positive D = faster Self–Death pairings = stronger implicit Self–Death association.
         </p>
       </div>
 
-      {/* Clinical alert banner */}
+      {/* Warnings */}
       {clinicalCount > 0 && (
-        <div className="flex items-start gap-3 border border-destructive/40 bg-destructive/5 rounded-xl p-4 mb-6">
+        <div className="flex items-start gap-3 border border-destructive/40 bg-destructive/5 rounded-xl p-4 mb-5">
           <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-destructive">
-              {clinicalCount} participant{clinicalCount > 1 ? 's' : ''} scored ≥ 0.65 (Strong Self–Death association)
+              {clinicalCount} participant{clinicalCount > 1 ? 's' : ''} in the Strong Self–Death band (D ≥ 0.65)
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              These participants show implicit associations that may warrant clinical follow-up.
-              IAT alone is not diagnostic — use alongside validated clinical screening.
+              IAT alone is not diagnostic. Use alongside structured clinical assessment (e.g. Columbia Protocol, SBQ-R).
             </p>
           </div>
         </div>
       )}
 
-      {/* Missing iat_session_results table warning */}
-      {!hasResultsTable && allParticipantIds.length > 0 && (
-        <div className="flex items-start gap-3 border border-amber-200 bg-amber-50 rounded-xl p-4 mb-6">
+      {!hasSessionTable && allPids.length > 0 && (
+        <div className="flex items-start gap-3 border border-amber-200 bg-amber-50 rounded-xl p-4 mb-5">
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-amber-800">D-scores not persisted</p>
-            <p className="text-xs text-amber-700 mt-0.5">
-              The <code className="font-mono">iat_session_results</code> table does not exist yet.
-              D-scores are computed client-side on each participant's session but not stored.
-              Create the table to enable persistent aggregate analytics.
-            </p>
-          </div>
+          <p className="text-sm text-amber-800">
+            <code className="font-mono">iat_session_results</code> table not found —
+            D-scores are not persisted. Create the table and run the SQL migration.
+          </p>
         </div>
       )}
 
       {/* Stat row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
+        {[
+          { label: 'Participants', value: allPids.length },
+          { label: 'Valid D-scores', value: validScores.length },
+          { label: 'Mean D', value: meanD !== null ? fmt(meanD) : '—' },
+          { label: 'SD', value: sdD !== null ? fmt(sdD) : '—' },
+          { label: 'Clinical ≥ 0.65', value: clinicalCount, red: clinicalCount > 0 },
+        ].map(stat => (
+          <Card key={stat.label}>
+            <CardContent className="pt-4 pb-4">
+              <p className={`text-2xl font-serif font-semibold ${stat.red ? 'text-destructive' : 'text-foreground'}`}>
+                {stat.value}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+        {/* D-score distribution chart */}
         <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-2xl font-serif font-semibold text-foreground">{allParticipantIds.length}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Participants attempted</p>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-serif text-base">D-score distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {validScores.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No valid D-scores yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {distribution.map(({ band, count }) => {
+                  const pct = validScores.length > 0 ? (count / validScores.length) * 100 : 0
+                  return (
+                    <div key={band.label} className="flex items-center gap-3">
+                      <div className="w-28 shrink-0 text-right">
+                        <span
+                          className="text-xs font-medium px-1.5 py-0.5 rounded text-white"
+                          style={{ backgroundColor: band.color }}
+                        >
+                          {band.short}
+                        </span>
+                      </div>
+                      <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden relative">
+                        <div
+                          className="h-full rounded-full transition-all flex items-center justify-end pr-1"
+                          style={{ width: `${Math.max(pct, pct > 0 ? 4 : 0)}%`, backgroundColor: band.color }}
+                        />
+                      </div>
+                      <div className="w-6 text-xs text-muted-foreground text-right shrink-0">{count}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* Summary stats */}
         <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-2xl font-serif font-semibold text-foreground">{meanD ?? '—'}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Mean D-score</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-2xl font-serif font-semibold text-foreground">{sdD ?? '—'}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">SD</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-2xl font-serif font-semibold text-foreground">{excluded}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Excluded / no D-score</p>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-serif text-base">Group summary</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {[
+              { label: 'Mean D-score', value: meanD !== null ? fmt(meanD) : '—', color: meanD !== null ? bandFor(meanD).color : undefined },
+              { label: 'SD', value: sdD !== null ? fmt(sdD) : '—' },
+              { label: 'Range', value: minD !== null && maxD !== null ? `${fmt(minD)} – ${fmt(maxD)}` : '—' },
+              { label: 'Excluded / no D-score', value: excluded > 0 ? `${excluded}` : '0' },
+              { label: 'Compatible block mean RT', value: (() => {
+                const rts = participantStats.map(p => p.meanRT_comp).filter((r): r is number => r !== null)
+                return rts.length ? `${Math.round(mean(rts))} ms` : '—'
+              })() },
+              { label: 'Incompatible block mean RT', value: (() => {
+                const rts = participantStats.map(p => p.meanRT_incomp).filter((r): r is number => r !== null)
+                return rts.length ? `${Math.round(mean(rts))} ms` : '—'
+              })() },
+              { label: 'Group error rate', value: (() => {
+                const rates = participantStats.map(p => p.errorRate).filter((r): r is number => r !== null)
+                return rates.length ? `${(mean(rates) * 100).toFixed(1)}%` : '—'
+              })() },
+            ].map(row => (
+              <div key={row.label} className="flex items-center justify-between border-b border-border last:border-0 pb-2 last:pb-0">
+                <span className="text-muted-foreground">{row.label}</span>
+                <span className="font-mono font-medium" style={{ color: row.color }}>
+                  {row.value}
+                </span>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
 
-      {/* D-score scale reference */}
-      <Card className="mb-8">
-        <CardHeader className="pb-3">
-          <CardTitle className="font-serif text-base">D-score reference scale</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {distribution.map(({ band, count }) => {
-              const pct = validScores.length > 0 ? (count / validScores.length) * 100 : 0
-              return (
-                <div key={band.label} className="flex items-center gap-3">
-                  <div className="w-52 shrink-0 text-xs text-muted-foreground text-right">{band.label}</div>
-                  <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, backgroundColor: band.color }}
-                    />
-                  </div>
-                  <div className="w-8 text-xs text-muted-foreground text-right">{count}</div>
-                  {band.clinical && count > 0 && (
-                    <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-          <p className="text-xs text-muted-foreground mt-4 italic">
-            Range labels adapted from Greenwald et al. (2003) general thresholds and Millner et al. (2019)
-            clinical threshold for the Death/Suicide IAT.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Individual results table */}
+      {/* Individual results */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="font-serif text-base">Individual results</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="font-serif text-base">Individual results</CardTitle>
+            {allPids.length > 0 && (
+              <p className="text-xs text-muted-foreground">Sorted by D-score descending</p>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          {allParticipantIds.length === 0 ? (
+          {allPids.length === 0 ? (
             <div className="text-center py-12">
               <p className="font-serif text-lg text-foreground mb-1">No participants yet.</p>
               <p className="text-sm italic text-muted-foreground">The implicit associations await their measurement.</p>
@@ -298,92 +342,144 @@ export default async function IATResultsPage({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Participant</th>
-                    <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">D-score</th>
-                    <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Interpretation</th>
-                    <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Trials</th>
-                    <th className="text-left py-2 text-xs text-muted-foreground font-medium">Clinical flag</th>
+                    <th className="text-left py-2 pr-3 text-xs text-muted-foreground font-medium">Participant</th>
+                    <th className="text-left py-2 pr-3 text-xs text-muted-foreground font-medium">D-score</th>
+                    <th className="text-left py-2 pr-3 text-xs text-muted-foreground font-medium min-w-[140px]">Visual</th>
+                    <th className="text-right py-2 pr-3 text-xs text-muted-foreground font-medium">RT (comp.)</th>
+                    <th className="text-right py-2 pr-3 text-xs text-muted-foreground font-medium">RT (incomp.)</th>
+                    <th className="text-right py-2 pr-3 text-xs text-muted-foreground font-medium">Errors</th>
+                    <th className="text-right py-2 text-xs text-muted-foreground font-medium">Trials</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(scoreByParticipant).map(([pid, dScore], i) => {
-                    const profile = profileMap[pid]
-                    const trials  = trialCountMap[pid] ?? 0
-                    const band    = dScore !== null ? bandForScore(dScore) : null
+                  {participantStats.map((ps) => {
+                    const profile = profileMap[ps.participantId]
+                    const band = ps.dScore !== null ? bandFor(ps.dScore) : null
+                    // Visual D-score bar: map D ∈ [-2, +2] to 0–100%
+                    // Centre line at 50%; 0.65 threshold at 66.25%
+                    const barPct = ps.dScore !== null
+                      ? Math.min(100, Math.max(0, ((ps.dScore + 2) / 4) * 100))
+                      : null
 
                     return (
                       <tr
-                        key={`${pid}-${i}`}
-                        className="border-b border-border last:border-0"
+                        key={ps.participantId}
+                        className={`border-b border-border last:border-0 ${band?.clinical ? 'bg-destructive/5' : ''}`}
                       >
-                        <td className="py-3 pr-4">
-                          <p className="font-medium text-foreground">
-                            {profile?.full_name ?? 'Unknown'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{profile?.email ?? pid}</p>
+                        <td className="py-3 pr-3">
+                          <p className="font-medium text-foreground text-xs">{profile?.full_name ?? 'Unknown'}</p>
+                          <p className="text-[11px] text-muted-foreground">{profile?.email ?? ps.participantId.slice(0, 8)}</p>
                         </td>
-                        <td className="py-3 pr-4">
-                          {dScore !== null ? (
-                            <span
-                              className="font-serif text-lg font-semibold"
-                              style={{ color: band?.color ?? '#888888' }}
-                            >
-                              {dScore.toFixed(3)}
-                            </span>
+                        <td className="py-3 pr-3">
+                          {ps.dScore !== null ? (
+                            <div>
+                              <span className="font-serif font-semibold text-base" style={{ color: band?.color }}>
+                                {fmt(ps.dScore)}
+                              </span>
+                              {band && (
+                                <span
+                                  className="block text-[10px] font-medium mt-0.5 px-1.5 py-px rounded-full w-fit text-white"
+                                  style={{ backgroundColor: band.color }}
+                                >
+                                  {band.short}
+                                </span>
+                              )}
+                            </div>
                           ) : (
-                            <span className="text-muted-foreground text-sm flex items-center gap-1">
-                              <Ban className="w-3.5 h-3.5" />
-                              excluded
+                            <span className="text-muted-foreground text-xs flex items-center gap-1">
+                              <Ban className="w-3.5 h-3.5" /> excluded
                             </span>
                           )}
                         </td>
-                        <td className="py-3 pr-4">
-                          {band ? (
-                            <span
-                              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                              style={{ backgroundColor: band.color }}
-                            >
-                              {band.label}
-                            </span>
+                        <td className="py-3 pr-3">
+                          {barPct !== null ? (
+                            <div className="relative w-full h-4 bg-muted rounded-full overflow-hidden" title={`D = ${fmt(ps.dScore!)}`}>
+                              {/* Zero line */}
+                              <div className="absolute top-0 bottom-0 w-px bg-border/60" style={{ left: '50%' }} />
+                              {/* 0.65 threshold line */}
+                              <div className="absolute top-0 bottom-0 w-px bg-destructive/40" style={{ left: '66.25%' }} />
+                              {/* D-score marker */}
+                              <div
+                                className="absolute top-1 bottom-1 w-1.5 rounded-full -translate-x-1/2"
+                                style={{ left: `${barPct}%`, backgroundColor: band?.color ?? '#888' }}
+                              />
+                            </div>
                           ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </td>
-                        <td className="py-3 pr-4">
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {trials} trials
+                        <td className="py-3 pr-3 text-right">
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {ps.meanRT_comp !== null ? `${Math.round(ps.meanRT_comp)} ms` : '—'}
                           </span>
                         </td>
-                        <td className="py-3">
-                          {band?.clinical ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-destructive font-medium">
-                              <AlertTriangle className="w-3 h-3" />
-                              Review
-                            </span>
-                          ) : (
-                            <CheckCircle className="w-3.5 h-3.5 text-[#52B788]" />
-                          )}
+                        <td className="py-3 pr-3 text-right">
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {ps.meanRT_incomp !== null ? `${Math.round(ps.meanRT_incomp)} ms` : '—'}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-3 text-right">
+                          <span className={`font-mono text-xs ${ps.errorRate !== null && ps.errorRate > 0.3 ? 'text-amber-600 font-medium' : 'text-muted-foreground'}`}>
+                            {ps.errorRate !== null ? `${(ps.errorRate * 100).toFixed(0)}%` : '—'}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right">
+                          <span className="text-xs text-muted-foreground flex items-center justify-end gap-1">
+                            <Clock className="w-3 h-3" />
+                            {ps.trialCount}
+                          </span>
                         </td>
                       </tr>
                     )
                   })}
                 </tbody>
               </table>
+
+              {/* Legend */}
+              <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border text-xs text-muted-foreground flex-wrap">
+                <span className="font-medium text-foreground">Legend:</span>
+                <span className="flex items-center gap-1">
+                  <div className="w-px h-3 bg-border" />
+                  D = 0 (no preference)
+                </span>
+                <span className="flex items-center gap-1">
+                  <div className="w-px h-3 bg-destructive/40" />
+                  D = 0.65 (clinical threshold)
+                </span>
+                <span>RT (comp.) = mean RT blocks 3+4 (Self+Death paired)</span>
+                <span>RT (incomp.) = mean RT blocks 6+7 (Other+Death paired)</span>
+                <span className="text-amber-600">Errors &gt; 30% highlighted</span>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
+      {/* Custom debrief preview */}
+      {instrument.debrief_text && (
+        <Card className="mt-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-serif text-base">Participant debrief text (preview)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
+              {instrument.debrief_text}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Methodological note */}
       <div className="mt-6 p-4 bg-muted/40 rounded-xl">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          <strong>Methodological note:</strong> D-scores range from approximately −2 to +2.
-          A positive D indicates faster (more implicit) Self–Death pairings relative to Self–Life pairings.
-          Algorithm D2: RT capped at 10,000 ms; participants excluded if {'>'}10% of trials {'<'} 300 ms;
-          errors penalised as block-pair mean + 600 ms; pooled SD from all scoring blocks combined.
-          The ≥ 0.65 clinical threshold follows Millner et al. (2019) — IAT results should supplement,
-          not replace, structured clinical assessment.
+          <strong>Algorithm D2 (Greenwald et al., 2003):</strong> RT capped at 10,000 ms.
+          Participants excluded if &gt;10% of scoring-block trials &lt; 300 ms.
+          Errors penalised as block-pair correct mean + 600 ms.
+          Pooled SD from all B3+4+6+7 penalised trials combined.
+          D = (Mean<sub>B6+7</sub> − Mean<sub>B3+4</sub>) / Pooled SD.
+          Positive D = faster Self–Death pairings.
+          Clinical threshold ≥ 0.65 per Millner et al. (2019).
+          IAT results supplement — never replace — structured clinical assessment.
         </p>
       </div>
 
