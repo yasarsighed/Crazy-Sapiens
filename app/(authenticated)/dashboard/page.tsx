@@ -313,10 +313,10 @@ export default async function DashboardPage() {
                   {recentActivity.map((activity) => (
                     <div key={activity.id} className="flex items-start gap-2">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                        activity.action_type === 'enrollment' ? 'bg-success' :
+                        activity.action_type === 'enrollment' ? 'bg-green-500' :
                         activity.action_type === 'alert'      ? 'bg-destructive' :
                         activity.action_type === 'completion' ? 'bg-primary' :
-                        'bg-accent-yellow'
+                        'bg-yellow-500'
                       }`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-foreground line-clamp-2">
