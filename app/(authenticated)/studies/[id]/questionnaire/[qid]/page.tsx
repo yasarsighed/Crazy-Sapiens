@@ -6,6 +6,18 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AcknowledgeAlertButton } from '@/components/acknowledge-alert-button'
 import { BUILT_IN_SCALES } from '@/lib/scales'
+import {
+  cronbachAlpha,
+  itemTotalCorrelations,
+  alphaIfItemDeleted,
+  alphaInterpretation,
+  floorCeilingEffects,
+  mean as statMean,
+  sd as statSd,
+  median as statMedian,
+  skewness,
+  kurtosis,
+} from '@/lib/questionnaire-psychometrics'
 
 // Severity band → colour
 function severityColor(band: string | null): string {
@@ -127,6 +139,64 @@ export default async function QuestionnaireResultsPage({
 
   const unacknowledgedAlerts = (alerts ?? []).filter((a: any) => !a.acknowledged)
 
+  // ─── Psychometrics ────────────────────────────────────────────────────────
+  // Fetch item-level responses + item metadata to build the [participants × items] matrix.
+  const { data: items } = await supabase
+    .from('questionnaire_items')
+    .select('id, item_text, item_code, display_order')
+    .eq('questionnaire_id', qid)
+    .eq('is_active', true)
+    .order('display_order', { ascending: true })
+
+  const { data: itemResponses } = participantIds.length > 0 && items && items.length > 0
+    ? await supabase
+        .from('questionnaire_item_responses')
+        .select('participant_id, item_id, scored_value')
+        .eq('questionnaire_id', qid)
+        .in('participant_id', participantIds)
+    : { data: [] }
+
+  // Build participant-by-item matrix (only participants with a completed scored result,
+  // and only rows with all items answered — listwise for α)
+  const itemList = items ?? []
+  const itemIdIdx: Record<string, number> = {}
+  itemList.forEach((it: any, i: number) => { itemIdIdx[it.id] = i })
+
+  const completedParticipantIds = completedResults.map((r: any) => r.participant_id)
+  const rowByPid: Record<string, number[]> = {}
+  for (const pid of completedParticipantIds) {
+    rowByPid[pid] = new Array(itemList.length).fill(NaN)
+  }
+  for (const r of itemResponses ?? []) {
+    const row = rowByPid[r.participant_id]
+    if (!row) continue
+    const idx = itemIdIdx[r.item_id]
+    if (idx === undefined) continue
+    const v = Number(r.scored_value)
+    if (!isNaN(v)) row[idx] = v
+  }
+  const completeMatrix: number[][] = Object.values(rowByPid).filter(row => row.every(v => !isNaN(v)))
+
+  // Compute psychometrics
+  const alpha = completeMatrix.length >= 2 && itemList.length >= 2 ? cronbachAlpha(completeMatrix) : NaN
+  const alphaInfo = alphaInterpretation(alpha)
+  const itemTotalR = completeMatrix.length >= 2 && itemList.length >= 2 ? itemTotalCorrelations(completeMatrix) : []
+  const alphaIfDeleted = completeMatrix.length >= 2 && itemList.length >= 3 ? alphaIfItemDeleted(completeMatrix) : []
+
+  // Score distribution shape
+  const scoreMean     = scores.length > 0 ? statMean(scores) : 0
+  const scoreSd       = scores.length > 1 ? statSd(scores) : 0
+  const scoreMedian   = scores.length > 0 ? statMedian(scores) : 0
+  const scoreSkew     = scores.length > 2 ? skewness(scores) : 0
+  const scoreKurt     = scores.length > 3 ? kurtosis(scores) : 0
+
+  // Floor / ceiling
+  const scaleMin = 0
+  const scaleMax = matchedScale?.scale_max ?? (itemList.length > 0 ? itemList.length * 3 : 0)
+  const floorCeil = scores.length > 0
+    ? floorCeilingEffects(scores, scaleMin, scaleMax)
+    : { floor: false, ceiling: false, floorPct: 0, ceilingPct: 0 }
+
   return (
     <div className="p-6 lg:p-8 max-w-5xl">
       {/* Breadcrumb */}
@@ -238,6 +308,114 @@ export default async function QuestionnaireResultsPage({
                 )
               })}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Psychometrics */}
+      {completedResults.length >= 2 && itemList.length >= 2 && (
+        <Card className="mb-8">
+          <CardHeader className="pb-3">
+            <CardTitle className="font-serif text-base">Psychometrics</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {/* Reliability + distribution stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cronbach's α</p>
+                <p className="text-xl font-serif font-semibold" style={{ color: alphaInfo.color }}>
+                  {isNaN(alpha) ? '—' : alpha.toFixed(3)}
+                </p>
+                <p className="text-[10px] mt-0.5" style={{ color: alphaInfo.color }}>{alphaInfo.label}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">n = {completeMatrix.length}, k = {itemList.length}</p>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Mean (SD)</p>
+                <p className="text-xl font-serif font-semibold">{scoreMean.toFixed(1)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">SD {scoreSd.toFixed(2)}</p>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Median</p>
+                <p className="text-xl font-serif font-semibold">{scoreMedian.toFixed(1)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">range {minScore ?? '—'}–{maxScore ?? '—'}</p>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Skew / Kurtosis</p>
+                <p className="text-sm font-mono">
+                  {scoreSkew.toFixed(2)} <span className="text-muted-foreground">/</span> {scoreKurt.toFixed(2)}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">|skew|&lt;1 ≈ symmetric</p>
+              </div>
+            </div>
+
+            {/* Floor / ceiling warning */}
+            {(floorCeil.floor || floorCeil.ceiling) && (
+              <div className="flex items-start gap-2 p-3 border border-amber-300 bg-amber-50 rounded-lg text-xs text-amber-900">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">
+                    {floorCeil.floor && `Floor effect: ${(floorCeil.floorPct * 100).toFixed(0)}% at minimum.`}
+                    {floorCeil.floor && floorCeil.ceiling && ' '}
+                    {floorCeil.ceiling && `Ceiling effect: ${(floorCeil.ceilingPct * 100).toFixed(0)}% at maximum.`}
+                  </p>
+                  <p className="opacity-80 mt-0.5">
+                    More than 15% of responses bunch at an extreme — the scale may not be discriminating well at that end for this sample.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Item-total correlation table */}
+            {itemTotalR.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Item-total correlation (corrected; item excluded). Items below 0.30 are weak contributors — consider revising.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-1.5 pr-2 font-medium text-muted-foreground w-10">#</th>
+                        <th className="text-left py-1.5 pr-4 font-medium text-muted-foreground">Item</th>
+                        <th className="text-right py-1.5 pr-4 font-medium text-muted-foreground">r</th>
+                        {alphaIfDeleted.length > 0 && (
+                          <th className="text-right py-1.5 font-medium text-muted-foreground">α if deleted</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemList.map((it: any, i: number) => {
+                        const r = itemTotalR[i]
+                        const aIf = alphaIfDeleted[i]
+                        const weak = !isNaN(r) && r < 0.30
+                        const improves = !isNaN(aIf) && !isNaN(alpha) && aIf > alpha + 0.01
+                        return (
+                          <tr key={it.id} className="border-b border-border last:border-0">
+                            <td className="py-1.5 pr-2 font-mono text-muted-foreground">{i + 1}</td>
+                            <td className="py-1.5 pr-4 max-w-xl truncate" title={it.item_text}>
+                              {it.item_code ? <span className="text-muted-foreground mr-1">{it.item_code}</span> : null}
+                              {it.item_text}
+                            </td>
+                            <td className={`py-1.5 pr-4 text-right font-mono tabular-nums ${weak ? 'text-destructive font-semibold' : ''}`}>
+                              {isNaN(r) ? '—' : r.toFixed(3)}
+                            </td>
+                            {alphaIfDeleted.length > 0 && (
+                              <td className={`py-1.5 text-right font-mono tabular-nums ${improves ? 'text-[#E76F51] font-semibold' : ''}`}>
+                                {isNaN(aIf) ? '—' : aIf.toFixed(3)}
+                                {improves && <span className="ml-1 text-[9px]">↑</span>}
+                              </td>
+                            )}
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-2 italic">
+                  α if deleted highlights items whose removal would improve reliability by &gt;0.01.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
