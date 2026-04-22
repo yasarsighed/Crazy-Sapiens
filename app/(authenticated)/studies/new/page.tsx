@@ -31,7 +31,7 @@ export default function NewStudyPage() {
         .insert({
           title:       title.trim(),
           description: description.trim() || null,
-          status:      'active',
+          status:      'draft',
           created_by:  user.id,
         })
         .select('id')
@@ -50,8 +50,8 @@ export default function NewStudyPage() {
         }),
       }).catch(() => {})
 
-      toast.success('Study created!', {
-        description: 'Add participants and instruments to get started.',
+      toast.success('Study created as draft', {
+        description: 'Add instruments and participants, then set status to Active.',
       })
       router.push(`/studies/${study.id}`)
     } catch (err) {

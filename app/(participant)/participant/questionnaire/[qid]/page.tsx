@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   BUILT_IN_SCALES,
@@ -53,7 +53,10 @@ interface QuestionnaireInstrument {
 
 export default function QuestionnairePage() {
   const params = useParams()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const qid = params.qid as string
+  const isPreview = searchParams.get('preview') === '1'
 
   const [questionnaire, setQuestionnaire] = useState<QuestionnaireInstrument | null>(null)
   const [items, setItems] = useState<QuestionnaireItem[]>([])
@@ -100,6 +103,19 @@ export default function QuestionnairePage() {
       if (q.validated_scale_name) {
         matchedScale = BUILT_IN_SCALES.find(s => s.abbreviation === q.validated_scale_name) ?? null
         if (matchedScale) setScale(matchedScale)
+      }
+
+      // ── Preview mode: skip consent + submitted-check; just load items
+      if (isPreview) {
+        const { data: itemData } = await supabase
+          .from('questionnaire_items')
+          .select('id, item_text, item_code, display_order, response_options, is_clinical_flag_item, clinical_flag_threshold, clinical_flag_operator, clinical_flag_message, is_reverse_scored, scoring_weight')
+          .eq('questionnaire_id', qid)
+          .eq('is_active', true)
+          .order('display_order', { ascending: true })
+        setItems(itemData ?? [])
+        setLoading(false)
+        return
       }
 
       // ── Check consent (non-blocking — fail open so DB column absence doesn't lock participants) ──
@@ -155,10 +171,41 @@ export default function QuestionnairePage() {
         .order('display_order', { ascending: true })
 
       setItems(itemData ?? [])
+
+      // ── Resume in-progress answers ─────────────────────────────────────────
+      const { data: inProgress } = await supabase
+        .from('questionnaire_item_responses')
+        .select('item_id, raw_response_numeric')
+        .eq('questionnaire_id', qid)
+        .eq('participant_id', user.id)
+
+      if (inProgress && inProgress.length > 0) {
+        const resumed: Record<string, number> = {}
+        for (const r of inProgress) {
+          if (r.raw_response_numeric !== null && r.raw_response_numeric !== undefined) {
+            resumed[r.item_id] = Number(r.raw_response_numeric)
+          }
+        }
+        setResponses(resumed)
+        // Re-apply permanent flag tracking
+        const flagged = new Set<string>()
+        for (const it of itemData ?? []) {
+          const v = resumed[it.id]
+          if (
+            v !== undefined &&
+            it.is_clinical_flag_item &&
+            it.clinical_flag_threshold !== null &&
+            it.clinical_flag_operator === 'gte' &&
+            v >= it.clinical_flag_threshold
+          ) flagged.add(it.id)
+        }
+        setEverFlaggedItems(flagged)
+      }
+
       setLoading(false)
     }
     load()
-  }, [qid])
+  }, [qid, isPreview])
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -176,6 +223,15 @@ export default function QuestionnairePage() {
     ) {
       setEverFlaggedItems(prev => new Set([...prev, itemId]))
     }
+
+    // Autosave (fire-and-forget; skipped in preview)
+    if (!isPreview) {
+      fetch(`/api/questionnaire/${qid}/autosave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, rawValue: value }),
+      }).catch(() => {})
+    }
   }
 
   const answeredCount = Object.keys(responses).length
@@ -192,6 +248,10 @@ export default function QuestionnairePage() {
   }
 
   const handleSubmit = async () => {
+    if (isPreview) {
+      toast.info('Preview mode — submission disabled')
+      return
+    }
     if (!allAnswered) {
       setHighlightUnanswered(true)
       scrollToFirstUnanswered()
@@ -417,6 +477,14 @@ export default function QuestionnairePage() {
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
+      {isPreview && (
+        <div className="mb-6 flex items-center justify-between gap-3 border border-amber-300 bg-amber-50 rounded-xl px-4 py-3 text-sm text-amber-900">
+          <div>
+            <strong>Preview mode</strong> — answers won&apos;t be saved. Use this to sanity-check the questionnaire.
+          </div>
+          <Button variant="outline" size="sm" onClick={() => router.back()}>End preview</Button>
+        </div>
+      )}
       {/* Header */}
       <div className="mb-8">
         <h1 className="font-serif text-2xl text-foreground mb-2">{questionnaire.title}</h1>

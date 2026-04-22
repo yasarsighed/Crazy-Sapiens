@@ -48,7 +48,10 @@ export default function StudyPage() {
   const [deletingStudy, setDeletingStudy] = useState(false)
   const [showDeleteStudyConfirm, setShowDeleteStudyConfirm] = useState(false)
   const [showConsentEditor, setShowConsentEditor] = useState(false)
-  const [manualMode, setManualMode] = useState(false)
+  const [manualMode, setManualMode] = useState<'existing' | 'single' | 'bulk'>('existing')
+  const [bulkText, setBulkText] = useState('')
+  const [bulkSubmitting, setBulkSubmitting] = useState(false)
+  const [bulkResults, setBulkResults] = useState<Array<{ email: string; ok: boolean; temp_password?: string; error?: string }> | null>(null)
   const [manualEmail, setManualEmail] = useState('')
   const [manualName, setManualName] = useState('')
   const [creatingManual, setCreatingManual] = useState(false)
@@ -296,9 +299,33 @@ export default function StudyPage() {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Badge variant={study.status === 'active' ? 'default' : 'secondary'}>
-              {study.status}
-            </Badge>
+            <select
+              value={study.status}
+              onChange={async (e) => {
+                const next = e.target.value
+                const supabase = createClient()
+                const { error } = await supabase.from('studies').update({ status: next }).eq('id', studyId)
+                if (error) toast.error('Failed to update status', { description: error.message })
+                else {
+                  toast.success(`Study is now ${next}`)
+                  fetch('/api/activity/log', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'study_updated', entity: 'study', entityId: studyId, details: { status: next } }),
+                  }).catch(() => {})
+                  await loadData()
+                }
+              }}
+              className={`text-xs rounded-md px-2.5 py-1 font-medium border ${
+                study.status === 'active' ? 'bg-primary/10 text-primary border-primary/30'
+                : study.status === 'draft' ? 'bg-amber-50 text-amber-900 border-amber-300'
+                : 'bg-muted text-muted-foreground border-border'
+              }`}
+            >
+              <option value="draft">Draft</option>
+              <option value="active">Active</option>
+              <option value="closed">Closed</option>
+            </select>
             <button
               onClick={() => setShowDeleteStudyConfirm(true)}
               className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
@@ -523,23 +550,27 @@ export default function StudyPage() {
           <div className="bg-background rounded-xl p-6 w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-serif text-lg">Add participant</h2>
-              <button onClick={() => { setShowAddParticipant(false); setManualMode(false); setLastTempPassword(null) }}>
+              <button onClick={() => { setShowAddParticipant(false); setManualMode('existing'); setLastTempPassword(null); setBulkResults(null); setBulkText('') }}>
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
 
             <div className="flex gap-2 mb-4 border-b border-border">
               <button
-                onClick={() => setManualMode(false)}
-                className={`text-xs px-3 py-2 border-b-2 ${!manualMode ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground'}`}
+                onClick={() => setManualMode('existing')}
+                className={`text-xs px-3 py-2 border-b-2 ${manualMode === 'existing' ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground'}`}
               >Existing user</button>
               <button
-                onClick={() => setManualMode(true)}
-                className={`text-xs px-3 py-2 border-b-2 ${manualMode ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground'}`}
+                onClick={() => setManualMode('single')}
+                className={`text-xs px-3 py-2 border-b-2 ${manualMode === 'single' ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground'}`}
               >Create new</button>
+              <button
+                onClick={() => setManualMode('bulk')}
+                className={`text-xs px-3 py-2 border-b-2 ${manualMode === 'bulk' ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground'}`}
+              >Bulk CSV</button>
             </div>
 
-            {manualMode ? (
+            {manualMode === 'single' ? (
               <div className="space-y-3">
                 <input
                   type="text"
@@ -572,6 +603,70 @@ export default function StudyPage() {
                 <p className="text-[10px] text-muted-foreground">
                   Creates a new participant account, auto-enrolls in this study, and returns a temporary password.
                 </p>
+              </div>
+            ) : manualMode === 'bulk' ? (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  One participant per line as <code className="bg-muted px-1 rounded">email,full name</code>. Up to 200 rows.
+                </p>
+                <textarea
+                  value={bulkText}
+                  onChange={e => setBulkText(e.target.value)}
+                  placeholder={'alice@example.com, Alice Example\nbob@example.com, Bob Example'}
+                  rows={6}
+                  className="w-full border border-border rounded-md px-3 py-2 text-xs font-mono bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <Button
+                  onClick={async () => {
+                    const rows = bulkText.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => {
+                      const [email, ...rest] = line.split(',')
+                      return { email: (email ?? '').trim(), full_name: rest.join(',').trim() }
+                    }).filter(r => r.email && r.full_name)
+                    if (rows.length === 0) {
+                      toast.error('No valid rows', { description: 'Use format: email, full name' })
+                      return
+                    }
+                    setBulkSubmitting(true)
+                    setBulkResults(null)
+                    try {
+                      const res = await fetch('/api/participants/bulk-create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ rows, study_id: studyId }),
+                      })
+                      const json = await res.json()
+                      if (!res.ok) throw new Error(json.error || 'Bulk create failed')
+                      setBulkResults(json.results)
+                      const ok = (json.results as Array<{ ok: boolean }>).filter((r) => r.ok).length
+                      toast.success(`Created ${ok} of ${rows.length} participants`)
+                      await loadData()
+                    } catch (err) {
+                      toast.error('Bulk invite failed', { description: err instanceof Error ? err.message : 'Unknown error' })
+                    } finally {
+                      setBulkSubmitting(false)
+                    }
+                  }}
+                  disabled={bulkSubmitting || !bulkText.trim()}
+                  className="w-full"
+                >
+                  {bulkSubmitting ? 'Creating…' : 'Create & enroll all'}
+                </Button>
+                {bulkResults && (
+                  <div className="max-h-56 overflow-y-auto rounded-md border border-border text-xs">
+                    {bulkResults.map((r, i) => (
+                      <div key={i} className={`px-3 py-2 border-b border-border last:border-0 flex items-start justify-between gap-2 ${r.ok ? '' : 'bg-destructive/5'}`}>
+                        <div className="min-w-0 flex-1">
+                          <p className={`font-medium truncate ${r.ok ? 'text-foreground' : 'text-destructive'}`}>{r.email}</p>
+                          {r.ok && r.temp_password ? (
+                            <code className="block bg-muted rounded px-1.5 py-0.5 text-[10px] mt-1 break-all">{r.temp_password}</code>
+                          ) : r.error ? (
+                            <p className="text-destructive/80 text-[11px]">{r.error}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <>

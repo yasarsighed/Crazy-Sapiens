@@ -155,6 +155,13 @@ export default async function QuestionnaireResultsPage({
               {questionnaire.validated_scale_name}
             </Badge>
           )}
+          <Link
+            href={`/participant/questionnaire/${qid}?preview=1`}
+            target="_blank"
+            className="mt-1 ml-auto inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+          >
+            <Eye className="w-3.5 h-3.5" /> Preview as participant
+          </Link>
         </div>
         {questionnaire.instructions && (
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{questionnaire.instructions}</p>
