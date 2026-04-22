@@ -18,6 +18,8 @@ import {
   Shield,
   ClipboardList,
   Library,
+  Database,
+  ClipboardCheck,
   ChevronDown,
   LogOut,
 } from 'lucide-react'
@@ -61,13 +63,15 @@ const navGroups: NavGroup[] = [
       { href: '/studies',       label: 'Studies',       icon: FlaskConical, tooltip: 'Your experiments' },
       { href: '/instruments',   label: 'Instruments',   icon: FileText },
       { href: '/scale-library', label: 'Scale library', icon: Library },
+      { href: '/cohorts',       label: 'Cohorts',       icon: Database, tooltip: 'Participant pools' },
     ],
   },
   {
     title: 'Run',
     items: [
-      { href: '/participants',  label: 'Participants',  icon: Users, tooltip: 'The brave ones' },
-      { href: '/supervisors',   label: 'Supervisors',   icon: Shield },
+      { href: '/participants',    label: 'Participants',    icon: Users, tooltip: 'The brave ones' },
+      { href: '/supervisors',     label: 'Supervisors',     icon: Shield },
+      { href: '/admin/requests',  label: 'Requests',        icon: ClipboardCheck, tooltip: 'Cohort & study approval queue' },
     ],
   },
   {
