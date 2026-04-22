@@ -133,8 +133,34 @@ function generateBalancedBlock(def: BlockDef): Trial[] {
   return raw.map((t, idx) => ({ ...t, trialNum: idx + 1 }))
 }
 
-function generateTrials(): Trial[] {
-  return BLOCK_DEFS.flatMap(def => generateBalancedBlock(def))
+// Counterbalancing: in Order B we swap the combined-pair block content.
+// Block NUMBERS stay the same (so trial log + scoring logic are stable),
+// but what pools they use changes — so participants encounter Self+Life
+// as the first critical pairing (B3/B4) and Self+Death as second (B6/B7).
+// The sign of the D-score is flipped at scoring time to keep
+// "positive D = stronger Self+Death association" consistent across orders.
+function buildBlockDefs(orderB: boolean): BlockDef[] {
+  if (!orderB) return BLOCK_DEFS
+  return BLOCK_DEFS.map(def => {
+    if (def.blockNum === 3 || def.blockNum === 4) {
+      const src = BLOCK_DEFS.find(b => b.blockNum === (def.blockNum === 3 ? 6 : 7))!
+      return { ...def, label: src.label, leftLabel: src.leftLabel, rightLabel: src.rightLabel, pools: src.pools }
+    }
+    if (def.blockNum === 5) {
+      // In Order B, block 5 practices the OTHER switch (swap left/right from default B5)
+      return { ...def, leftLabel: def.rightLabel, rightLabel: def.leftLabel,
+        pools: def.pools.map(p => ({ ...p, key: p.key === 'e' ? 'i' : 'e' })) }
+    }
+    if (def.blockNum === 6 || def.blockNum === 7) {
+      const src = BLOCK_DEFS.find(b => b.blockNum === (def.blockNum === 6 ? 3 : 4))!
+      return { ...def, label: src.label, leftLabel: src.leftLabel, rightLabel: src.rightLabel, pools: src.pools }
+    }
+    return def
+  })
+}
+
+function generateTrials(defs: BlockDef[]): Trial[] {
+  return defs.flatMap(def => generateBalancedBlock(def))
 }
 
 // ─── D-score Algorithm D2 (Greenwald et al. 2003) ───────────────────────────
@@ -148,7 +174,7 @@ function generateTrials(): Trial[] {
 //   6. D = (Mean_B67 - Mean_B34) / Pooled_SD
 //   Positive D = stronger Self–Death association
 //
-function computeDScore(responses: TrialResponse[]): { d: number | null; excluded: boolean; reason?: string } {
+function computeDScore(responses: TrialResponse[], orderB: boolean): { d: number | null; excluded: boolean; reason?: string } {
   // Only scoring blocks 3, 4, 6, 7
   const scoringBlocks = [3, 4, 6, 7]
   const all = responses.filter(r => scoringBlocks.includes(r.blockNum))
@@ -190,7 +216,10 @@ function computeDScore(responses: TrialResponse[]): { d: number | null; excluded
   if (pooledSD === 0) return { d: null, excluded: true, reason: 'All response times identical.' }
 
   // Step 6: D = (M67 - M34) / pooled_SD
-  const d = (m67 - m34) / pooledSD
+  // Order A: B3/B4 = Self+Death (compatible), B6/B7 = Self+Life → positive D = Self-Death assoc.
+  // Order B: B3/B4 = Self+Life,  B6/B7 = Self+Death — flip sign so positive D keeps same meaning.
+  const rawD = (m67 - m34) / pooledSD
+  const d = orderB ? -rawD : rawD
   return { d, excluded: false }
 }
 
@@ -223,6 +252,9 @@ export default function IATPage() {
   const [blockTotal,    setBlockTotal]    = useState(0)    // trials in current block so far
   const [consentText,   setConsentText]   = useState<string | null>(null)
   const [studyId,       setStudyId]       = useState<string | null>(null)
+  const [orderB,        setOrderB]        = useState<boolean>(false) // counterbalancing assignment
+  const [blockDefs,     setBlockDefs]     = useState<BlockDef[]>(BLOCK_DEFS)
+  const orderBRef = useRef(false)
 
   // Refs for event handlers (never stale)
   const responsesRef   = useRef<TrialResponse[]>([])
@@ -295,7 +327,13 @@ export default function IATPage() {
         return
       }
 
-      const generated = generateTrials()
+      // Assign counterbalanced block order (~50/50 random)
+      const assignedOrderB = Math.random() < 0.5
+      setOrderB(assignedOrderB)
+      orderBRef.current = assignedOrderB
+      const defs = buildBlockDefs(assignedOrderB)
+      setBlockDefs(defs)
+      const generated = generateTrials(defs)
       setTrials(generated)
       trialsRef.current = generated
       setPhase('intro')
@@ -307,7 +345,7 @@ export default function IATPage() {
   function goToTrial(idx: number) {
     const all = trialsRef.current
     if (idx >= all.length) {
-      const result = computeDScore(responsesRef.current)
+      const result = computeDScore(responsesRef.current, orderBRef.current)
       setDResult(result)
       setPhase('saving')
       phaseRef.current = 'saving'
@@ -320,7 +358,7 @@ export default function IATPage() {
     const isNewBlock = !prevTrial || prevTrial.blockNum !== nextTrial.blockNum
 
     if (isNewBlock) {
-      const defIdx = BLOCK_DEFS.findIndex(b => b.blockNum === nextTrial.blockNum)
+      const defIdx = blockDefs.findIndex(b => b.blockNum === nextTrial.blockNum)
       setBlockIntroIdx(defIdx)
       setTrialIndex(idx)
       trialIndexRef.current = idx
@@ -422,16 +460,23 @@ export default function IATPage() {
         }
       }
 
-      // Save computed D-score (non-fatal — table may not exist yet)
+      // Save computed D-score (non-fatal — table or column may not exist yet)
       if (dScore !== null) {
         try {
-          await supabase.from('iat_session_results').insert({
+          const payload: any = {
             iat_id:        iatid,
             participant_id: userId,
             session_id:    sessionId,
             d_score:       dScore,
             computed_at:   new Date().toISOString(),
-          })
+            assigned_order: orderBRef.current ? 'B' : 'A',
+          }
+          const { error } = await supabase.from('iat_session_results').insert(payload)
+          if (error && /assigned_order/.test(error.message)) {
+            // Column missing — retry without it
+            delete payload.assigned_order
+            await supabase.from('iat_session_results').insert(payload)
+          }
         } catch {
           // iat_session_results table may not exist — D-score recomputable from trial log
         }
@@ -457,9 +502,9 @@ export default function IATPage() {
   // ─ Derived values ────────────────────────────────────────────────────────
   const currentTrial  = trials[trialIndex]
   const currentBlock  = currentTrial
-    ? BLOCK_DEFS.find(b => b.blockNum === currentTrial.blockNum) ?? BLOCK_DEFS[0]
-    : BLOCK_DEFS[0]
-  const introBlockDef = BLOCK_DEFS[blockIntroIdx] ?? BLOCK_DEFS[0]
+    ? blockDefs.find(b => b.blockNum === currentTrial.blockNum) ?? blockDefs[0]
+    : blockDefs[0]
+  const introBlockDef = blockDefs[blockIntroIdx] ?? blockDefs[0]
   const totalTrials   = trials.length
   const isScoredBlock = introBlockDef.isScored
   const isSwitched    = introBlockDef.blockNum === 5
@@ -483,7 +528,7 @@ export default function IATPage() {
           // After consent, check for mobile then proceed
           const isTouchOnly = window.matchMedia('(hover: none) and (pointer: coarse)').matches
           if (isTouchOnly) { setPhase('mobile_warning'); return }
-          const generated = generateTrials()
+          const generated = generateTrials(blockDefs)
           setTrials(generated)
           trialsRef.current = generated
           setPhase('intro')
@@ -542,7 +587,7 @@ export default function IATPage() {
           <div className="flex-1 flex flex-col items-center justify-center px-8">
             <div className="max-w-lg w-full text-center">
               <p className="text-gray-500 text-xs uppercase tracking-widest mb-2">
-                Block {introBlockDef.blockNum} of {BLOCK_DEFS.length}
+                Block {introBlockDef.blockNum} of {blockDefs.length}
               </p>
               <h2 className="text-white font-bold text-xl mb-2">{introBlockDef.label}</h2>
 
@@ -635,7 +680,7 @@ export default function IATPage() {
             {/* Footer */}
             <div className="flex justify-between items-center px-8 pb-4 shrink-0">
               <p className="text-gray-700 text-xs">
-                Block {currentTrial?.blockNum} / {BLOCK_DEFS.length}
+                Block {currentTrial?.blockNum} / {blockDefs.length}
                 {currentBlock.isScored ? ' ★' : ''}
               </p>
               <p className="text-gray-700 text-xs">

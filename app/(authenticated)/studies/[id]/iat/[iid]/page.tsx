@@ -83,12 +83,29 @@ export default async function IATResultsPage({
     .eq('id', studyId)
     .single()
 
-  // Fetch D-score session results
-  const { data: sessionResults, error: srError } = await supabase
-    .from('iat_session_results')
-    .select('participant_id, d_score, session_id, computed_at')
-    .eq('iat_id', iid)
-    .order('computed_at', { ascending: false })
+  // Fetch D-score session results (assigned_order may not exist — fall back if column missing)
+  type SessionRow = { participant_id: string; d_score: number; session_id: string; computed_at: string; assigned_order?: string | null }
+  let sessionResults: SessionRow[] | null = null
+  let srError: { message: string } | null = null
+  {
+    const withOrder: { data: unknown; error: { message: string } | null } = await supabase
+      .from('iat_session_results')
+      .select('participant_id, d_score, session_id, computed_at, assigned_order')
+      .eq('iat_id', iid)
+      .order('computed_at', { ascending: false })
+    if (withOrder.error && /assigned_order/.test(withOrder.error.message)) {
+      const fallback: { data: unknown; error: { message: string } | null } = await supabase
+        .from('iat_session_results')
+        .select('participant_id, d_score, session_id, computed_at')
+        .eq('iat_id', iid)
+        .order('computed_at', { ascending: false })
+      sessionResults = (fallback.data as SessionRow[] | null) ?? null
+      srError = fallback.error
+    } else {
+      sessionResults = (withOrder.data as SessionRow[] | null) ?? null
+      srError = withOrder.error
+    }
+  }
 
   // Fetch ALL trial data (for RT and error analysis)
   // Note: block_number is the correct column name (not block_num)
@@ -180,6 +197,19 @@ export default async function IATResultsPage({
 
   const hasSessionTable = !srError
 
+  // Counterbalancing breakdown (A vs B block order)
+  const orderByPid: Record<string, string | null> = {}
+  for (const r of sessionResults ?? []) orderByPid[r.participant_id] = r.assigned_order ?? null
+  const scoresA: number[] = []
+  const scoresB: number[] = []
+  for (const p of participantStats) {
+    if (p.dScore === null) continue
+    const o = orderByPid[p.participantId]
+    if (o === 'A') scoresA.push(p.dScore)
+    else if (o === 'B') scoresB.push(p.dScore)
+  }
+  const hasOrderData = scoresA.length + scoresB.length > 0
+
   return (
     <div className="p-6 lg:p-8 max-w-6xl">
       {/* Breadcrumb */}
@@ -254,6 +284,36 @@ export default async function IATResultsPage({
           </Card>
         ))}
       </div>
+
+      {/* Counterbalancing breakdown */}
+      {hasOrderData && (
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="font-serif text-base">Counterbalancing — D-score by assigned block order</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div className="rounded-lg p-3 border border-muted">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Order A (standard: compatible first)</p>
+                <p className="font-serif text-xl">n = {scoresA.length}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mean D {scoresA.length ? fmt(mean(scoresA)) : '—'} · SD {scoresA.length >= 2 ? fmt(sd(scoresA)) : '—'}
+                </p>
+              </div>
+              <div className="rounded-lg p-3 border border-muted">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Order B (reversed: incompatible first)</p>
+                <p className="font-serif text-xl">n = {scoresB.length}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mean D {scoresB.length ? fmt(mean(scoresB)) : '—'} · SD {scoresB.length >= 2 ? fmt(sd(scoresB)) : '—'}
+                </p>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-3">
+              Participants are randomly assigned block order at start. D-scores are sign-corrected so both orders share the same interpretation (positive = Self–Death). Large mean differences between A and B may indicate residual order effects.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Interpretation guide */}
       <Card className="mb-6">
