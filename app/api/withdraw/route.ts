@@ -20,7 +20,8 @@ export async function POST(req: Request) {
   const socIds = (socRes.data ?? []).map((r: any) => r.id)
   const iatIds = (iatRes.data ?? []).map((r: any) => r.id)
 
-  const deletes: Promise<any>[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const deletes: any[] = []
 
   if (qIds.length > 0) {
     deletes.push(
