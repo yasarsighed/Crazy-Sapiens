@@ -447,6 +447,40 @@ export default function SociogramResultsPage() {
     const a = document.createElement('a'); a.href = url; a.download = 'sociogram.svg'; a.click()
     URL.revokeObjectURL(url)
   }
+  const exportPNG = () => {
+    const svg = svgRef.current; if (!svg) return
+    const rect = svg.getBoundingClientRect()
+    const width = Math.round(rect.width) || 1200
+    const height = Math.round(rect.height) || 800
+    const clone = svg.cloneNode(true) as SVGSVGElement
+    clone.setAttribute('width', String(width))
+    clone.setAttribute('height', String(height))
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    const s = new XMLSerializer().serializeToString(clone)
+    const svgBlob = new Blob([s], { type: 'image/svg+xml;charset=utf-8' })
+    const svgUrl = URL.createObjectURL(svgBlob)
+    const img = new Image()
+    img.onload = () => {
+      const scale = 2 // retina
+      const canvas = document.createElement('canvas')
+      canvas.width = width * scale
+      canvas.height = height * scale
+      const ctx = canvas.getContext('2d')!
+      ctx.fillStyle = '#FAF8F4'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.scale(scale, scale)
+      ctx.drawImage(img, 0, 0, width, height)
+      canvas.toBlob(blob => {
+        if (!blob) return
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a'); a.href = url; a.download = 'sociogram.png'; a.click()
+        URL.revokeObjectURL(url)
+        URL.revokeObjectURL(svgUrl)
+      }, 'image/png')
+    }
+    img.onerror = () => URL.revokeObjectURL(svgUrl)
+    img.src = svgUrl
+  }
 
   const toggleRelType = (id: string) => setActiveRelTypes(p => {
     const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n
@@ -636,7 +670,8 @@ export default function SociogramResultsPage() {
             <div className="w-px h-5 bg-[#E8E0D5]" />
             <button onClick={() => zoomBy(0.74)} className="w-8 h-8 flex items-center justify-center text-[#8B7355] hover:bg-[#F5F0E8] hover:text-[#2D6A4F] transition-all text-base">−</button>
           </div>
-          <button onClick={exportSVG} title="Export SVG" className="w-8 h-8 bg-white border border-[#E8E0D5] rounded-xl shadow-sm text-[#8B7355] hover:text-[#2D6A4F] hover:border-[#2D6A4F]/40 transition-all flex items-center justify-center text-xs">↓</button>
+          <button onClick={exportPNG} title="Export PNG" className="w-8 h-8 bg-white border border-[#E8E0D5] rounded-xl shadow-sm text-[#8B7355] hover:text-[#2D6A4F] hover:border-[#2D6A4F]/40 transition-all flex items-center justify-center text-[10px] font-bold">PNG</button>
+          <button onClick={exportSVG} title="Export SVG" className="w-8 h-8 bg-white border border-[#E8E0D5] rounded-xl shadow-sm text-[#8B7355] hover:text-[#2D6A4F] hover:border-[#2D6A4F]/40 transition-all flex items-center justify-center text-[10px] font-bold">SVG</button>
           <button onClick={() => setFullscreen(p => !p)} className="w-8 h-8 bg-white border border-[#E8E0D5] rounded-xl shadow-sm text-[#8B7355] hover:text-[#2D6A4F] hover:border-[#2D6A4F]/40 transition-all flex items-center justify-center text-xs">
             {fullscreen ? '⊠' : '⊡'}
           </button>
