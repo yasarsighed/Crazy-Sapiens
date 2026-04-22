@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { CheckCircle, AlertTriangle, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConsentScreen } from '@/components/consent-screen'
+import { CrisisResources } from '@/components/crisis-resources'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ export default function QuestionnairePage() {
   const [score, setScore] = useState(0)
   const [severity, setSeverity] = useState<SeverityBand | null>(null)
   const [scale, setScale] = useState<BuiltInScale | null>(null)
+  const [clinicalFlagged, setClinicalFlagged] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   // Consent gate
   const [needsConsent, setNeedsConsent] = useState(false)
@@ -373,6 +375,7 @@ export default function QuestionnairePage() {
 
       setScore(totalScore)
       setSeverity(severityBand)
+      setClinicalFlagged(anyAlertFired)
       setSubmitted(true)
 
     } catch (err) {
@@ -465,10 +468,22 @@ export default function QuestionnairePage() {
           </div>
         )}
 
-        <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+        <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed mb-6">
           Scores reflect patterns — not your identity or fixed traits. If you are concerned about
           your wellbeing, please speak with your researcher or a mental health professional.
         </p>
+
+        {clinicalFlagged && (
+          <div className="mt-6 text-left">
+            <CrisisResources />
+          </div>
+        )}
+
+        <div className="mt-8">
+          <Button variant="outline" onClick={() => router.push('/participant/dashboard')}>
+            Back to dashboard
+          </Button>
+        </div>
       </div>
     )
   }

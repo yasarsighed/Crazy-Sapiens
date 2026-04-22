@@ -33,50 +33,55 @@ interface SidebarProps {
   profile: Profile | null
 }
 
-const mainNavItems = [
+interface NavItem {
+  href:    string
+  label:   string
+  icon:    typeof LayoutDashboard
+  tooltip?:string | null
+  stub?:   boolean
+}
+
+interface NavGroup {
+  title: string
+  items: NavItem[]
+}
+
+// Dashboard stays pinned at the top; everything else grouped by intent.
+const pinnedItem: NavItem = {
+  href: '/dashboard',
+  label: 'Dashboard',
+  icon: LayoutDashboard,
+  tooltip: 'The big picture',
+}
+
+const navGroups: NavGroup[] = [
   {
-    href: '/dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    tooltip: 'The big picture',
-    stub: false,
+    title: 'Design',
+    items: [
+      { href: '/studies',       label: 'Studies',       icon: FlaskConical, tooltip: 'Your experiments' },
+      { href: '/instruments',   label: 'Instruments',   icon: FileText },
+      { href: '/scale-library', label: 'Scale library', icon: Library },
+    ],
   },
   {
-    href: '/studies',
-    label: 'Studies',
-    icon: FlaskConical,
-    tooltip: 'Your experiments',
-    stub: false,
+    title: 'Run',
+    items: [
+      { href: '/participants',  label: 'Participants',  icon: Users, tooltip: 'The brave ones' },
+      { href: '/supervisors',   label: 'Supervisors',   icon: Shield },
+    ],
   },
   {
-    href: '/participants',
-    label: 'Participants',
-    icon: Users,
-    tooltip: 'The brave ones',
-    stub: false,
-  },
-  {
-    href: '/instruments',
-    label: 'Instruments',
-    icon: FileText,
-    tooltip: null,
-    stub: false,
-  },
-  {
-    href: '/analysis',
-    label: 'Analysis',
-    icon: BarChart3,
-    tooltip: 'Cross-study statistics',
-    stub: false,
+    title: 'Analyse',
+    items: [
+      { href: '/analysis',      label: 'Analysis',      icon: BarChart3, tooltip: 'Cross-study statistics' },
+      { href: '/audit-log',     label: 'Audit log',     icon: ClipboardList },
+    ],
   },
 ]
 
-const advancedNavItems = [
-  { href: '/users',         label: 'Users',         icon: UserCog,     stub: false },
-  { href: '/audit-log',     label: 'Audit Log',     icon: ClipboardList, stub: false },
-  { href: '/scale-library', label: 'Scale Library', icon: Library,     stub: false },
-  { href: '/supervisors',   label: 'Supervisors',   icon: Shield,      stub: false },
-  { href: '/settings',      label: 'Settings',      icon: Settings,    stub: false },
+const settingsNavItems: NavItem[] = [
+  { href: '/users',    label: 'Users',    icon: UserCog },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
 function getInitials(name: string | null): string {
@@ -140,13 +145,14 @@ export function Sidebar({ profile }: SidebarProps) {
           </div>
         </Link>
 
-        {/* Main navigation */}
-        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {mainNavItems.map((item) => {
+        {/* Main navigation, grouped by intent: Design / Run / Analyse */}
+        <nav className="flex-1 p-2 overflow-y-auto">
+          {/* Pinned Dashboard item */}
+          {(() => {
+            const item = pinnedItem
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
             const Icon = item.icon
-
-            const linkContent = (
+            const link = (
               <Link
                 href={item.href}
                 className={cn(
@@ -157,65 +163,73 @@ export function Sidebar({ profile }: SidebarProps) {
                 )}
               >
                 {isActive && (
-                  <div
-                    className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
-                    style={{ backgroundColor: researcherColor }}
-                  />
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
+                    style={{ backgroundColor: researcherColor }} />
                 )}
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="flex-1">{item.label}</span>
               </Link>
             )
+            return item.tooltip ? (
+              <Tooltip>
+                <TooltipTrigger asChild>{link}</TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">{item.tooltip}</TooltipContent>
+              </Tooltip>
+            ) : link
+          })()}
 
-            if (item.tooltip) {
-              return (
-                <Tooltip key={item.href}>
-                  <TooltipTrigger asChild>
-                    {linkContent}
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="text-xs">
-                    {item.tooltip}
-                  </TooltipContent>
-                </Tooltip>
-              )
-            }
+          {navGroups.map(group => (
+            <div key={group.title} className="mt-4">
+              <p className="px-3 mb-1 text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
+                {group.title}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map(item => {
+                  const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                  const Icon = item.icon
+                  const link = (
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors relative',
+                        isActive
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      )}
+                    >
+                      {isActive && (
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
+                          style={{ backgroundColor: researcherColor }} />
+                      )}
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="flex-1">{item.label}</span>
+                    </Link>
+                  )
+                  return item.tooltip ? (
+                    <Tooltip key={item.href}>
+                      <TooltipTrigger asChild>{link}</TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">{item.tooltip}</TooltipContent>
+                    </Tooltip>
+                  ) : <div key={item.href}>{link}</div>
+                })}
+              </div>
+            </div>
+          ))}
 
-            return <div key={item.href}>{linkContent}</div>
-          })}
-
-          {/* Advanced tools toggle */}
+          {/* Advanced / settings toggle */}
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
             className="flex items-center gap-2 px-3 py-2 w-full text-[11px] text-muted-foreground hover:text-foreground transition-colors mt-4"
           >
-            <ChevronDown className={cn(
-              'w-3 h-3 transition-transform',
-              showAdvanced && 'rotate-180'
-            )} />
-            <span>{showAdvanced ? 'Hide' : 'Show'} advanced tools</span>
+            <ChevronDown className={cn('w-3 h-3 transition-transform', showAdvanced && 'rotate-180')} />
+            <span>{showAdvanced ? 'Hide' : 'Admin & settings'}</span>
           </button>
 
-          {/* Advanced navigation */}
           {showAdvanced && (
-            <div className="space-y-1 pt-1">
-              {advancedNavItems.map((item) => {
+            <div className="space-y-0.5 pt-1">
+              {settingsNavItems.map(item => {
                 const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
                 const Icon = item.icon
-
-                if (item.stub) {
-                  return (
-                    <div
-                      key={item.href}
-                      className="flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-muted-foreground/50 cursor-not-allowed select-none"
-                      title="Coming soon"
-                    >
-                      <Icon className="w-4 h-4 shrink-0" />
-                      <span className="flex-1">{item.label}</span>
-                      <span className="text-[9px] border border-muted-foreground/30 rounded px-1 py-px">Soon</span>
-                    </div>
-                  )
-                }
-
                 return (
                   <Link
                     key={item.href}
@@ -228,10 +242,8 @@ export function Sidebar({ profile }: SidebarProps) {
                     )}
                   >
                     {isActive && (
-                      <div
-                        className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
-                        style={{ backgroundColor: researcherColor }}
-                      />
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
+                        style={{ backgroundColor: researcherColor }} />
                     )}
                     <Icon className="w-4 h-4 shrink-0" />
                     <span>{item.label}</span>

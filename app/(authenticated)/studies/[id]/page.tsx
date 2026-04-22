@@ -358,6 +358,17 @@ export default function StudyPage() {
           <Download className="w-4 h-4 mr-2" />
           Export CSV
         </Button>
+        <Button
+          variant="outline"
+          onClick={() => {
+            const a = document.createElement('a')
+            a.href = `/api/export/${studyId}/codebook`
+            a.click()
+          }}
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Codebook
+        </Button>
         <Button variant="outline" onClick={copyInviteLink}>
           <Link2 className="w-4 h-4 mr-2" />
           {inviteLinkCopied ? 'Copied!' : 'Copy invite link'}

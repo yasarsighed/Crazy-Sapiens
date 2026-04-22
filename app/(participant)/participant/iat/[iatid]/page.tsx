@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { ConsentScreen } from '@/components/consent-screen'
+import { CrisisResources } from '@/components/crisis-resources'
 
 // ─── Stimuli (Millner et al. 2019 + Greenwald 2003) ─────────────────────────
 // 5 words per category is standard. Each word appears ~equally often per block.
@@ -829,12 +830,11 @@ export default function IATPage() {
             </div>
           )}
 
-          <div className="border border-border rounded-xl p-4 mb-6">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">If you have concerns</strong> about your
-              wellbeing after completing this task, please contact your researcher or reach out
-              to a mental health support service. In a crisis, call your local emergency services.
-            </p>
+          <div className="mb-6">
+            <CrisisResources
+              title="Support is available any time"
+              subtitle="The Death/Suicide IAT can bring up difficult thoughts. If you are struggling, please reach out — free, confidential support is available 24/7."
+            />
           </div>
 
           <Button className="w-full" onClick={() => router.push('/participant/dashboard')}>

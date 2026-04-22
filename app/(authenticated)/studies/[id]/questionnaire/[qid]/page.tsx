@@ -18,6 +18,7 @@ import {
   skewness,
   kurtosis,
 } from '@/lib/questionnaire-psychometrics'
+import { assessParticipantQuality, qualityLabel } from '@/lib/response-quality'
 
 // Severity band → colour
 function severityColor(band: string | null): string {
@@ -151,7 +152,7 @@ export default async function QuestionnaireResultsPage({
   const { data: itemResponses } = participantIds.length > 0 && items && items.length > 0
     ? await supabase
         .from('questionnaire_item_responses')
-        .select('participant_id, item_id, scored_value')
+        .select('participant_id, item_id, scored_value, raw_response_numeric, submitted_at')
         .eq('questionnaire_id', qid)
         .in('participant_id', participantIds)
     : { data: [] }
@@ -189,6 +190,24 @@ export default async function QuestionnaireResultsPage({
   const scoreMedian   = scores.length > 0 ? statMedian(scores) : 0
   const scoreSkew     = scores.length > 2 ? skewness(scores) : 0
   const scoreKurt     = scores.length > 3 ? kurtosis(scores) : 0
+
+  // Per-participant response-quality flags (for exclusion decisions)
+  const qualityByPid: Record<string, ReturnType<typeof assessParticipantQuality>> = {}
+  {
+    const rowsByPid: Record<string, any[]> = {}
+    for (const r of itemResponses ?? []) {
+      (rowsByPid[r.participant_id] ??= []).push(r)
+    }
+    // Order rows by item display_order for accurate straight-lining detection
+    const itemOrder: Record<string, number> = {}
+    itemList.forEach((it: any, i: number) => { itemOrder[it.id] = i })
+    for (const pid of Object.keys(rowsByPid)) {
+      const ordered = rowsByPid[pid].slice().sort((a: any, b: any) =>
+        (itemOrder[a.item_id] ?? 0) - (itemOrder[b.item_id] ?? 0))
+      qualityByPid[pid] = assessParticipantQuality(ordered as any)
+    }
+  }
+  const qualityExcludeCount = Object.values(qualityByPid).filter(q => qualityLabel(q).severity === 'exclude').length
 
   // Floor / ceiling
   const scaleMin = 0
@@ -348,6 +367,21 @@ export default async function QuestionnaireResultsPage({
               </div>
             </div>
 
+            {/* Response-quality summary */}
+            {qualityExcludeCount > 0 && (
+              <div className="flex items-start gap-2 p-3 border border-orange-300 bg-orange-50 rounded-lg text-xs text-orange-900 mb-3">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">
+                    {qualityExcludeCount} participant{qualityExcludeCount > 1 ? 's' : ''} flagged for exclusion review (straight-lining / invariant answering).
+                  </p>
+                  <p className="opacity-80 mt-0.5">
+                    Check the Quality column in the table below. Consider pre-registering exclusion criteria before looking at outcomes.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Floor / ceiling warning */}
             {(floorCeil.floor || floorCeil.ceiling) && (
               <div className="flex items-start gap-2 p-3 border border-amber-300 bg-amber-50 rounded-lg text-xs text-amber-900">
@@ -439,6 +473,7 @@ export default async function QuestionnaireResultsPage({
                     <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Participant</th>
                     <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Score</th>
                     <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Severity</th>
+                    <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Quality</th>
                     <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Submitted</th>
                     <th className="text-left py-2 pr-4 text-xs text-muted-foreground font-medium">Alerts</th>
                     <th className="text-left py-2 text-xs text-muted-foreground font-medium"></th>
@@ -475,6 +510,27 @@ export default async function QuestionnaireResultsPage({
                           ) : (
                             <span className="text-muted-foreground text-xs">—</span>
                           )}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {(() => {
+                            const q = qualityByPid[result.participant_id]
+                            if (!q) return <span className="text-muted-foreground text-xs">—</span>
+                            const lbl = qualityLabel(q)
+                            const title = [
+                              q.straightLining && `longest constant run: ${q.longestRun}`,
+                              q.tooFast && q.completionSeconds !== null && `completed in ${Math.round(q.completionSeconds)}s`,
+                              q.invariant && 'identical answer to every item',
+                            ].filter(Boolean).join(' · ') || 'No response-quality concerns'
+                            return (
+                              <span
+                                title={title}
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium text-white"
+                                style={{ backgroundColor: lbl.color }}
+                              >
+                                {lbl.label}
+                              </span>
+                            )
+                          })()}
                         </td>
                         <td className="py-3 pr-4">
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
