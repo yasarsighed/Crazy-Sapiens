@@ -131,6 +131,33 @@ export default async function DashboardPage() {
     .neq('id', user.id)
     .limit(5)
 
+  // Admin-only: per-researcher study breakdown
+  let researcherBreakdown: Array<{ profile: Profile; studyCount: number; latestStudy: string | null }> = []
+  if (isAdmin) {
+    const { data: allResearchers } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('role', ['researcher', 'admin'])
+    const { data: allStudies } = await supabase
+      .from('studies')
+      .select('id, title, created_by, created_at')
+      .order('created_at', { ascending: false })
+    const byResearcher = new Map<string, { count: number; latest: string | null }>()
+    for (const s of allStudies ?? []) {
+      const curr = byResearcher.get(s.created_by) ?? { count: 0, latest: null }
+      curr.count++
+      if (!curr.latest) curr.latest = s.title
+      byResearcher.set(s.created_by, curr)
+    }
+    researcherBreakdown = (allResearchers ?? [])
+      .map((r: Profile) => {
+        const stat = byResearcher.get(r.id)
+        return { profile: r, studyCount: stat?.count ?? 0, latestStudy: stat?.latest ?? null }
+      })
+      .filter(x => x.studyCount > 0)
+      .sort((a, b) => b.studyCount - a.studyCount)
+  }
+
   // Recent activity — scoped to current user unless admin
   const activityBaseQuery = supabase
     .from('activity_logs')
@@ -239,6 +266,37 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Admin: who's working on what */}
+          {isAdmin && researcherBreakdown.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="font-serif text-base">Researcher activity</CardTitle>
+                <p className="text-[10px] text-muted-foreground mt-1">Who&apos;s working on what</p>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {researcherBreakdown.map(({ profile: r, studyCount, latestStudy }) => (
+                  <div key={r.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/40">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
+                      style={{ backgroundColor: r.researcher_color || '#2D6A4F' }}
+                    >
+                      {r.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{r.full_name || r.email}</p>
+                      {latestStudy && (
+                        <p className="text-[10px] text-muted-foreground truncate">Latest: {latestStudy}</p>
+                      )}
+                    </div>
+                    <span className="text-xs tabular-nums text-muted-foreground shrink-0">
+                      {studyCount} stud{studyCount === 1 ? 'y' : 'ies'}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Platform researchers */}
           <Card>
             <CardHeader className="pb-3">
@@ -276,17 +334,17 @@ export default async function DashboardPage() {
 
         {/* Right column */}
         <div className="space-y-6">
-          {/* Clinical alerts */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="font-serif text-base">Clinical alerts</CardTitle>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Heads up. These are serious. We do not joke about these.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {clinicalAlerts && clinicalAlerts.length > 0 ? (
-                clinicalAlerts.map((alert: ClinicalAlertType) => (
+          {/* Clinical alerts — only rendered when present */}
+          {clinicalAlerts && clinicalAlerts.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="font-serif text-base">Clinical alerts</CardTitle>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Heads up. These are serious. We do not joke about these.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {clinicalAlerts.map((alert: ClinicalAlertType) => (
                   <ClinicalAlert
                     key={alert.id}
                     id={alert.id}
@@ -295,15 +353,10 @@ export default async function DashboardPage() {
                     participantId={alert.participant_id}
                     createdAt={alert.created_at}
                   />
-                ))
-              ) : (
-                <EmptyState
-                  title="All clear."
-                  subtitle="Either everyone is thriving or nobody has submitted yet."
-                />
-              )}
-            </CardContent>
-          </Card>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Recent activity */}
           <Card>

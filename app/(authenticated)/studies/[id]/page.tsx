@@ -48,6 +48,42 @@ export default function StudyPage() {
   const [deletingStudy, setDeletingStudy] = useState(false)
   const [showDeleteStudyConfirm, setShowDeleteStudyConfirm] = useState(false)
   const [showConsentEditor, setShowConsentEditor] = useState(false)
+  const [manualMode, setManualMode] = useState(false)
+  const [manualEmail, setManualEmail] = useState('')
+  const [manualName, setManualName] = useState('')
+  const [creatingManual, setCreatingManual] = useState(false)
+  const [lastTempPassword, setLastTempPassword] = useState<string | null>(null)
+
+  const createManualParticipant = async () => {
+    if (!manualEmail.trim() || !manualName.trim()) {
+      toast.error('Email and name required')
+      return
+    }
+    setCreatingManual(true)
+    try {
+      const res = await fetch('/api/participants/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: manualEmail.trim(),
+          full_name: manualName.trim(),
+          study_id: studyId,
+        }),
+      })
+      const body = await res.json()
+      if (!res.ok) {
+        toast.error('Failed to create participant', { description: body.error })
+      } else {
+        toast.success('Participant created and enrolled')
+        if (body.temp_password) setLastTempPassword(body.temp_password)
+        setManualEmail('')
+        setManualName('')
+        await loadData()
+      }
+    } finally {
+      setCreatingManual(false)
+    }
+  }
   const [consentText, setConsentText] = useState('')
   const [savingConsent, setSavingConsent] = useState(false)
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
@@ -487,10 +523,58 @@ export default function StudyPage() {
           <div className="bg-background rounded-xl p-6 w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-serif text-lg">Add participant</h2>
-              <button onClick={() => setShowAddParticipant(false)}>
+              <button onClick={() => { setShowAddParticipant(false); setManualMode(false); setLastTempPassword(null) }}>
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
+
+            <div className="flex gap-2 mb-4 border-b border-border">
+              <button
+                onClick={() => setManualMode(false)}
+                className={`text-xs px-3 py-2 border-b-2 ${!manualMode ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground'}`}
+              >Existing user</button>
+              <button
+                onClick={() => setManualMode(true)}
+                className={`text-xs px-3 py-2 border-b-2 ${manualMode ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground'}`}
+              >Create new</button>
+            </div>
+
+            {manualMode ? (
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Full name"
+                  value={manualName}
+                  onChange={e => setManualName(e.target.value)}
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={manualEmail}
+                  onChange={e => setManualEmail(e.target.value)}
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <Button
+                  onClick={createManualParticipant}
+                  disabled={creatingManual || !manualEmail.trim() || !manualName.trim()}
+                  className="w-full"
+                >
+                  {creatingManual ? 'Creating…' : 'Create & enroll'}
+                </Button>
+                {lastTempPassword && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs space-y-1">
+                    <p className="font-medium text-amber-900">Temporary password</p>
+                    <code className="block bg-white rounded px-2 py-1 text-[11px] break-all">{lastTempPassword}</code>
+                    <p className="text-amber-800">Share securely with the participant. They can reset via &quot;Forgot password&quot;.</p>
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground">
+                  Creates a new participant account, auto-enrolls in this study, and returns a temporary password.
+                </p>
+              </div>
+            ) : (
+              <>
             <input
               type="text"
               placeholder="Search by name or email..."
@@ -516,6 +600,8 @@ export default function StudyPage() {
                   </div>
                 ))}
               </div>
+            )}
+              </>
             )}
           </div>
         </div>

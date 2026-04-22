@@ -201,7 +201,7 @@ export default async function ParticipantsPage() {
                       className="flex items-center gap-2 px-4 py-3 border-b border-border last:border-0 hover:bg-muted/20 transition-colors"
                     >
                       {/* Participant identity */}
-                      <div className="w-52 shrink-0 flex items-center gap-3 min-w-0">
+                      <Link href={`/participants/${pid}`} className="w-52 shrink-0 flex items-center gap-3 min-w-0 hover:opacity-90">
                         <div
                           className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
                           style={{ backgroundColor: '#2D6A4F' }}
@@ -209,10 +209,10 @@ export default async function ParticipantsPage() {
                           {p?.full_name?.charAt(0) ?? '?'}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{p?.full_name ?? 'Unknown'}</p>
+                          <p className="text-sm font-medium text-foreground truncate hover:text-primary">{p?.full_name ?? 'Unknown'}</p>
                           <p className="text-[10px] text-muted-foreground truncate">{p?.email}</p>
                         </div>
-                      </div>
+                      </Link>
 
                       {/* Per-instrument completion */}
                       {instruments.map(inst => {
