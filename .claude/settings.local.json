@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"C:/Crazy Sapiens/Crazy-Sapiens\" show HEAD:app/\\\\\\(authenticated\\\\\\)/dashboard/page.tsx)",
+      "Bash(git -C \"C:/Crazy Sapiens/Crazy-Sapiens\" log --oneline -5)",
+      "Bash(git -C \"C:/Crazy Sapiens/Crazy-Sapiens\" show 977b83c --stat)",
+      "Bash(git -C \"C:/Crazy Sapiens/Crazy-Sapiens\" show b1a73d1 --stat)",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/lib/supabase/service.ts' 'C:/Crazy Sapiens/Crazy-Sapiens/lib/supabase/service.ts')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/lib/log-activity.ts' 'C:/Crazy Sapiens/Crazy-Sapiens/lib/log-activity.ts')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/package.json' 'C:/Crazy Sapiens/Crazy-Sapiens/package.json')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/app/signup/page.tsx' 'C:/Crazy Sapiens/Crazy-Sapiens/app/signup/page.tsx')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/components/sidebar.tsx' 'C:/Crazy Sapiens/Crazy-Sapiens/components/sidebar.tsx')",
+      "Bash(mkdir -p 'C:/Crazy Sapiens/Crazy-Sapiens/app/forgot-password' 'C:/Crazy Sapiens/Crazy-Sapiens/app/reset-password')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/app/forgot-password/page.tsx' 'C:/Crazy Sapiens/Crazy-Sapiens/app/forgot-password/page.tsx')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/app/reset-password/page.tsx' 'C:/Crazy Sapiens/Crazy-Sapiens/app/reset-password/page.tsx')",
+      "Bash(mkdir -p 'C:/Crazy Sapiens/Crazy-Sapiens/app/api/questionnaire/[qid]/submit')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/app/api/questionnaire/[qid]/submit/route.ts' 'C:/Crazy Sapiens/Crazy-Sapiens/app/api/questionnaire/[qid]/submit/route.ts')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/app/\\(authenticated\\)/settings/page.tsx' 'C:/Crazy Sapiens/Crazy-Sapiens/app/\\(authenticated\\)/settings/page.tsx')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/app/\\(authenticated\\)/supervisors/page.tsx' 'C:/Crazy Sapiens/Crazy-Sapiens/app/\\(authenticated\\)/supervisors/page.tsx')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/app/\\(authenticated\\)/studies/[id]/page.tsx' 'C:/Crazy Sapiens/Crazy-Sapiens/app/\\(authenticated\\)/studies/[id]/page.tsx')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/app/\\(authenticated\\)/studies/[id]/iat/[iid]/page.tsx' 'C:/Crazy Sapiens/Crazy-Sapiens/app/\\(authenticated\\)/studies/[id]/iat/[iid]/page.tsx')",
+      "Bash(cp -f 'C:/Crazy Sapiens/Crazy-Sapiens/.claude/worktrees/hardcore-morse-7386d9/app/\\(authenticated\\)/studies/[id]/sociogram/page.tsx' 'C:/Crazy Sapiens/Crazy-Sapiens/app/\\(authenticated\\)/studies/[id]/sociogram/page.tsx')",
+      "Read(//c/Crazy Sapiens/Crazy-Sapiens/components/**)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm build *)",
+      "Bash(pnpm exec *)",
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "Bash(wait)"
+    ]
+  }
+}

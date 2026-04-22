@@ -168,13 +168,17 @@ export default async function QuestionnaireResultsPage({
   for (const pid of completedParticipantIds) {
     rowByPid[pid] = new Array(itemList.length).fill(NaN)
   }
+  // Single pass: fill psychometrics matrix + collect quality rows simultaneously
+  const rowsByPid: Record<string, any[]> = {}
   for (const r of itemResponses ?? []) {
+    // Psychometrics matrix
     const row = rowByPid[r.participant_id]
-    if (!row) continue
-    const idx = itemIdIdx[r.item_id]
-    if (idx === undefined) continue
-    const v = Number(r.scored_value)
-    if (!isNaN(v)) row[idx] = v
+    if (row) {
+      const idx = itemIdIdx[r.item_id]
+      if (idx !== undefined) { const v = Number(r.scored_value); if (!isNaN(v)) row[idx] = v }
+    }
+    // Quality rows (all participants, not just completed ones)
+    ;(rowsByPid[r.participant_id] ??= []).push(r)
   }
   const completeMatrix: number[][] = Object.values(rowByPid).filter(row => row.every(v => !isNaN(v)))
 
@@ -185,27 +189,18 @@ export default async function QuestionnaireResultsPage({
   const alphaIfDeleted = completeMatrix.length >= 2 && itemList.length >= 3 ? alphaIfItemDeleted(completeMatrix) : []
 
   // Score distribution shape
-  const scoreMean     = scores.length > 0 ? statMean(scores) : 0
-  const scoreSd       = scores.length > 1 ? statSd(scores) : 0
-  const scoreMedian   = scores.length > 0 ? statMedian(scores) : 0
-  const scoreSkew     = scores.length > 2 ? skewness(scores) : 0
-  const scoreKurt     = scores.length > 3 ? kurtosis(scores) : 0
+  const scoreMean   = scores.length > 0 ? statMean(scores)   : 0
+  const scoreSd     = scores.length > 1 ? statSd(scores)     : 0
+  const scoreMedian = scores.length > 0 ? statMedian(scores) : 0
+  const scoreSkew   = scores.length > 2 ? skewness(scores)   : 0
+  const scoreKurt   = scores.length > 3 ? kurtosis(scores)   : 0
 
-  // Per-participant response-quality flags (for exclusion decisions)
+  // Per-participant response-quality flags — reuse itemIdIdx for ordering
   const qualityByPid: Record<string, ReturnType<typeof assessParticipantQuality>> = {}
-  {
-    const rowsByPid: Record<string, any[]> = {}
-    for (const r of itemResponses ?? []) {
-      (rowsByPid[r.participant_id] ??= []).push(r)
-    }
-    // Order rows by item display_order for accurate straight-lining detection
-    const itemOrder: Record<string, number> = {}
-    itemList.forEach((it: any, i: number) => { itemOrder[it.id] = i })
-    for (const pid of Object.keys(rowsByPid)) {
-      const ordered = rowsByPid[pid].slice().sort((a: any, b: any) =>
-        (itemOrder[a.item_id] ?? 0) - (itemOrder[b.item_id] ?? 0))
-      qualityByPid[pid] = assessParticipantQuality(ordered as any)
-    }
+  for (const pid of Object.keys(rowsByPid)) {
+    const ordered = rowsByPid[pid].slice().sort((a: any, b: any) =>
+      (itemIdIdx[a.item_id] ?? 0) - (itemIdIdx[b.item_id] ?? 0))
+    qualityByPid[pid] = assessParticipantQuality(ordered as any)
   }
   const qualityExcludeCount = Object.values(qualityByPid).filter(q => qualityLabel(q).severity === 'exclude').length
 
@@ -512,25 +507,22 @@ export default async function QuestionnaireResultsPage({
                           )}
                         </td>
                         <td className="py-3 pr-4">
-                          {(() => {
-                            const q = qualityByPid[result.participant_id]
-                            if (!q) return <span className="text-muted-foreground text-xs">—</span>
+                          {qualityByPid[result.participant_id] ? (() => {
+                            const q   = qualityByPid[result.participant_id]
                             const lbl = qualityLabel(q)
-                            const title = [
+                            const tooltip = [
                               q.straightLining && `longest constant run: ${q.longestRun}`,
                               q.tooFast && q.completionSeconds !== null && `completed in ${Math.round(q.completionSeconds)}s`,
                               q.invariant && 'identical answer to every item',
                             ].filter(Boolean).join(' · ') || 'No response-quality concerns'
                             return (
-                              <span
-                                title={title}
+                              <span title={tooltip}
                                 className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium text-white"
-                                style={{ backgroundColor: lbl.color }}
-                              >
+                                style={{ backgroundColor: lbl.color }}>
                                 {lbl.label}
                               </span>
                             )
-                          })()}
+                          })() : <span className="text-muted-foreground text-xs">—</span>}
                         </td>
                         <td className="py-3 pr-4">
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -563,7 +555,6 @@ export default async function QuestionnaireResultsPage({
                                   />
                                 )}
                               </div>
-                              {/* Show follow-up notes if acknowledged */}
                               {ackedAlert?.acknowledged_notes && (
                                 <div className="flex items-start gap-1.5 mt-1">
                                   <MessageSquare className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />

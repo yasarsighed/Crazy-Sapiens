@@ -43,9 +43,8 @@ export function assessParticipantQuality(rows: ResponseRow[]): QualityFlags {
   }
   const straightLining = longestRun / rows.length >= STRAIGHT_LINE_MIN_RUN_FRACTION && rows.length >= 5
 
-  // Invariant = literally every answer the same
-  const uniqueValues = new Set(rows.map(r => r.raw_response_numeric))
-  const invariant = uniqueValues.size === 1
+  // Invariant = literally every answer the same (special case: longestRun spans the whole array)
+  const invariant = longestRun === rows.length
 
   // Completion time from timestamps (if available)
   const times = rows.map(r => r.submitted_at ? new Date(r.submitted_at).getTime() : null).filter((t): t is number => t !== null)

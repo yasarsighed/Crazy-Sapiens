@@ -2,12 +2,11 @@ import { AlertCircle, Phone, Globe } from 'lucide-react'
 
 // Localised crisis resources. Add more rows as needed — render filters by locale prefix.
 interface Resource {
-  country:  string        // ISO-3166 alpha-2 or 'GLOBAL'
-  name:     string
-  phone?:   string
-  url?:     string
-  hours?:   string
-  language?:string
+  country: string   // ISO-3166 alpha-2 or 'GLOBAL'
+  name:    string
+  phone?:  string
+  url?:    string
+  hours?:  string
 }
 
 const RESOURCES: Resource[] = [
@@ -16,7 +15,7 @@ const RESOURCES: Resource[] = [
   { country: 'GLOBAL', name: 'International Association for Suicide Prevention — resources', url: 'https://www.iasp.info/resources/Crisis_Centres/' },
 
   // UK / IE
-  { country: 'GB', name: 'Samaritans',           phone: '116 123', url: 'https://www.samaritans.org',           hours: '24/7', language: 'English' },
+  { country: 'GB', name: 'Samaritans',           phone: '116 123', url: 'https://www.samaritans.org',           hours: '24/7' },
   { country: 'GB', name: 'Shout (text-based)',   phone: 'Text SHOUT to 85258', url: 'https://giveusashout.org', hours: '24/7' },
   { country: 'IE', name: 'Samaritans Ireland',   phone: '116 123', url: 'https://www.samaritans.org/samaritans-ireland/' },
   { country: 'IE', name: 'Pieta House',          phone: '1800 247 247', url: 'https://www.pieta.ie' },
@@ -33,13 +32,14 @@ const RESOURCES: Resource[] = [
   { country: 'NZ', name: '1737 — Need to talk?',           phone: '1737', url: 'https://1737.org.nz',                hours: '24/7' },
 ]
 
+// Hoisted — these never change at runtime
+const GLOBAL_RESOURCES  = RESOURCES.filter(r => r.country === 'GLOBAL')
+const FALLBACK_RESOURCES = RESOURCES.filter(r => r.country === 'GB')
+
 function pickResources(locale: string, max = 4): Resource[] {
-  const upper = locale.toUpperCase()
-  const region = upper.split('-')[1] ?? upper.split('_')[1] ?? ''
+  const region = locale.toUpperCase().split(/[-_]/)[1] ?? ''
   const local  = RESOURCES.filter(r => r.country === region)
-  const global = RESOURCES.filter(r => r.country === 'GLOBAL')
-  const fallback = RESOURCES.filter(r => r.country === 'GB')    // default to UK for English if no region match
-  const chosen = local.length ? [...local, ...global] : [...fallback, ...global]
+  const chosen = local.length ? [...local, ...GLOBAL_RESOURCES] : [...FALLBACK_RESOURCES, ...GLOBAL_RESOURCES]
   return chosen.slice(0, max)
 }
 
@@ -62,7 +62,7 @@ export function CrisisResources({ locale, compact = false, title, subtitle }: Pr
           <p className={`font-medium text-destructive ${compact ? 'text-sm' : 'text-base'}`}>
             {title ?? 'If you need to talk to someone right now'}
           </p>
-          {subtitle !== null && (
+          {subtitle !== undefined && (
             <p className={`text-muted-foreground mt-0.5 ${compact ? 'text-xs' : 'text-sm'}`}>
               {subtitle ?? 'Free, confidential support is available 24/7. You are not alone.'}
             </p>

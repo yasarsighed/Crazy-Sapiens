@@ -7,6 +7,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EditDebriefButton } from '@/components/edit-debrief-button'
+import { mean, sd, cohensD } from '@/lib/questionnaire-psychometrics'
 
 // ─── D-score bands (Greenwald 2003 + Millner 2019) ───────────────────────────
 interface DScoreBand {
@@ -33,30 +34,7 @@ function bandFor(d: number): DScoreBand {
   return D_SCORE_BANDS[D_SCORE_BANDS.length - 1]
 }
 
-// ─── Stats helpers ────────────────────────────────────────────────────────────
-function mean(arr: number[]): number {
-  return arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : 0
-}
-function sd(arr: number[]): number {
-  if (arr.length < 2) return 0
-  const m = mean(arr)
-  return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length)
-}
 function fmt(n: number, dp = 3): string { return n.toFixed(dp) }
-
-// Cohen's d (pooled SD). Returns d and approximate 95% CI via Hedges normal approximation.
-function cohensD(a: number[], b: number[]): { d: number; ciLow: number; ciHigh: number } | null {
-  const na = a.length, nb = b.length
-  if (na < 2 || nb < 2) return null
-  const ma = mean(a), mb = mean(b)
-  const va = a.reduce((s, x) => s + (x - ma) ** 2, 0) / (na - 1)
-  const vb = b.reduce((s, x) => s + (x - mb) ** 2, 0) / (nb - 1)
-  const pooledSD = Math.sqrt(((na - 1) * va + (nb - 1) * vb) / (na + nb - 2))
-  if (pooledSD === 0) return null
-  const d = (ma - mb) / pooledSD
-  const seD = Math.sqrt((na + nb) / (na * nb) + (d * d) / (2 * (na + nb - 2)))
-  return { d, ciLow: d - 1.96 * seD, ciHigh: d + 1.96 * seD }
-}
 
 // ─── Per-participant computed stats ──────────────────────────────────────────
 interface ParticipantStats {
@@ -299,7 +277,6 @@ export default async function IATResultsPage({
         ))}
       </div>
 
-      {/* Counterbalancing breakdown */}
       {hasOrderData && (
         <Card className="mb-6">
           <CardHeader className="pb-3">
@@ -322,19 +299,17 @@ export default async function IATResultsPage({
                 </p>
               </div>
             </div>
-            {(() => {
-              const eff = cohensD(scoresA, scoresB)
-              if (!eff) return null
+            {cohensD(scoresA, scoresB) && (() => {
+              const eff = cohensD(scoresA, scoresB)!
               const tone = Math.abs(eff.d) < 0.2 ? 'text-[#52B788]' : Math.abs(eff.d) < 0.5 ? 'text-[#E9C46A]' : 'text-destructive'
+              const interpretation = Math.abs(eff.d) < 0.2 ? '— negligible order effect'
+                : Math.abs(eff.d) < 0.5 ? '— small order effect, monitor'
+                : '— substantial order effect, investigate before reporting'
               return (
                 <div className="mt-3 text-xs text-muted-foreground">
                   Cohen&apos;s <em>d</em> (A − B) = <span className={`font-mono font-medium ${tone}`}>{fmt(eff.d, 2)}</span>{' '}
                   <span className="font-mono">[95% CI {fmt(eff.ciLow, 2)}, {fmt(eff.ciHigh, 2)}]</span>
-                  <span className="ml-2 opacity-80">
-                    {Math.abs(eff.d) < 0.2 ? '— negligible order effect'
-                      : Math.abs(eff.d) < 0.5 ? '— small order effect, monitor'
-                      : '— substantial order effect, investigate before reporting'}
-                  </span>
+                  <span className="ml-2 opacity-80">{interpretation}</span>
                 </div>
               )
             })()}

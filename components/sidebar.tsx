@@ -84,6 +84,47 @@ const settingsNavItems: NavItem[] = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
+// Shared nav-link renders the active indicator, icon, label, and optional tooltip.
+function NavLink({
+  item,
+  pathname,
+  accentColor,
+}: {
+  item: NavItem
+  pathname: string
+  accentColor: string
+}) {
+  const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+  const Icon = item.icon
+  const link = (
+    <Link
+      href={item.href}
+      className={cn(
+        'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors relative',
+        isActive
+          ? 'bg-primary/10 text-primary font-medium'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+      )}
+    >
+      {isActive && (
+        <div
+          className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
+          style={{ backgroundColor: accentColor }}
+        />
+      )}
+      <Icon className="w-4 h-4 shrink-0" />
+      <span className="flex-1">{item.label}</span>
+    </Link>
+  )
+  if (!item.tooltip) return link
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{link}</TooltipTrigger>
+      <TooltipContent side="right" className="text-xs">{item.tooltip}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 function getInitials(name: string | null): string {
   if (!name) return '?'
   return name
@@ -145,38 +186,8 @@ export function Sidebar({ profile }: SidebarProps) {
           </div>
         </Link>
 
-        {/* Main navigation, grouped by intent: Design / Run / Analyse */}
         <nav className="flex-1 p-2 overflow-y-auto">
-          {/* Pinned Dashboard item */}
-          {(() => {
-            const item = pinnedItem
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-            const Icon = item.icon
-            const link = (
-              <Link
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors relative',
-                  isActive
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )}
-              >
-                {isActive && (
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
-                    style={{ backgroundColor: researcherColor }} />
-                )}
-                <Icon className="w-4 h-4 shrink-0" />
-                <span className="flex-1">{item.label}</span>
-              </Link>
-            )
-            return item.tooltip ? (
-              <Tooltip>
-                <TooltipTrigger asChild>{link}</TooltipTrigger>
-                <TooltipContent side="right" className="text-xs">{item.tooltip}</TooltipContent>
-              </Tooltip>
-            ) : link
-          })()}
+          <NavLink item={pinnedItem} pathname={pathname} accentColor={researcherColor} />
 
           {navGroups.map(group => (
             <div key={group.title} className="mt-4">
@@ -184,39 +195,13 @@ export function Sidebar({ profile }: SidebarProps) {
                 {group.title}
               </p>
               <div className="space-y-0.5">
-                {group.items.map(item => {
-                  const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-                  const Icon = item.icon
-                  const link = (
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors relative',
-                        isActive
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                      )}
-                    >
-                      {isActive && (
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
-                          style={{ backgroundColor: researcherColor }} />
-                      )}
-                      <Icon className="w-4 h-4 shrink-0" />
-                      <span className="flex-1">{item.label}</span>
-                    </Link>
-                  )
-                  return item.tooltip ? (
-                    <Tooltip key={item.href}>
-                      <TooltipTrigger asChild>{link}</TooltipTrigger>
-                      <TooltipContent side="right" className="text-xs">{item.tooltip}</TooltipContent>
-                    </Tooltip>
-                  ) : <div key={item.href}>{link}</div>
-                })}
+                {group.items.map(item => (
+                  <NavLink key={item.href} item={item} pathname={pathname} accentColor={researcherColor} />
+                ))}
               </div>
             </div>
           ))}
 
-          {/* Advanced / settings toggle */}
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
             className="flex items-center gap-2 px-3 py-2 w-full text-[11px] text-muted-foreground hover:text-foreground transition-colors mt-4"
@@ -227,29 +212,9 @@ export function Sidebar({ profile }: SidebarProps) {
 
           {showAdvanced && (
             <div className="space-y-0.5 pt-1">
-              {settingsNavItems.map(item => {
-                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-                const Icon = item.icon
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors relative',
-                      isActive
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    )}
-                  >
-                    {isActive && (
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
-                        style={{ backgroundColor: researcherColor }} />
-                    )}
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>{item.label}</span>
-                  </Link>
-                )
-              })}
+              {settingsNavItems.map(item => (
+                <NavLink key={item.href} item={item} pathname={pathname} accentColor={researcherColor} />
+              ))}
             </div>
           )}
         </nav>

@@ -152,6 +152,23 @@ export function floorCeilingEffects(
   }
 }
 
+// ─── Cohen's d with 95% CI ────────────────────────────────────────────────────
+// Pooled-SD estimator. CI via Hedges normal approximation (accurate for n ≥ 10).
+
+export function cohensD(
+  a: number[],
+  b: number[],
+): { d: number; ciLow: number; ciHigh: number } | null {
+  const na = a.length, nb = b.length
+  if (na < 2 || nb < 2) return null
+  const ma = mean(a), mb = mean(b)
+  const pooledSD = Math.sqrt(((na - 1) * variance(a) + (nb - 1) * variance(b)) / (na + nb - 2))
+  if (pooledSD === 0) return null
+  const d   = (ma - mb) / pooledSD
+  const seD = Math.sqrt((na + nb) / (na * nb) + d ** 2 / (2 * (na + nb - 2)))
+  return { d, ciLow: d - 1.96 * seD, ciHigh: d + 1.96 * seD }
+}
+
 // ─── Alpha interpretation ─────────────────────────────────────────────────────
 
 export function alphaInterpretation(alpha: number): { label: string; color: string } {
