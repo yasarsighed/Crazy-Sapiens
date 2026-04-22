@@ -5,6 +5,18 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { ArrowLeft, Users, BarChart3 } from 'lucide-react'
 import * as d3Lib from 'd3'
+import {
+  reciprocity,
+  clusteringCoefficient,
+  connectedComponents,
+  betweennessCentrality,
+  closenessCentrality,
+  eigenvectorCentrality,
+  labelPropagationCommunities,
+  modularity,
+  edgeListCSV,
+  nodeListCSV,
+} from '@/lib/sociogram-analytics'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +52,21 @@ type EdgeTuple = [number, number, string, number]
 type EdgeCfg = Record<string, { label: string; color: string; dash: string | null; opacity: (s: number) => number }>
 type DeptColors = Record<string, string>
 
+interface NetworkMetrics {
+  inDegree: number[]
+  outDegree: number[]
+  betweenness: number[]
+  closeness: number[]
+  eigenvector: number[]
+  community: number[]
+  reciprocity: number
+  clustering: number
+  components: number
+  modularity: number
+  density: number
+  isolates: number
+}
+
 interface VizData {
   nodes: VizNode[]
   edges: EdgeTuple[]
@@ -50,11 +77,14 @@ interface VizData {
   participantCount: number
   submittedCount: number
   sociogramTitle: string
+  metrics: NetworkMetrics
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_COLORS = ['#2D6A4F', '#457B9D', '#E76F51', '#E9C46A', '#6D6875', '#A8DADC']
+const COMMUNITY_COLORS = ['#2D6A4F', '#457B9D', '#E76F51', '#E9C46A', '#9D4EDD', '#F4A261', '#1D3557', '#E63946', '#2A9D8F', '#B5838D']
+const communityColor = (c: number) => COMMUNITY_COLORS[c % COMMUNITY_COLORS.length]
 
 function initials(name: string) {
   return name.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2) || '?'
@@ -91,6 +121,7 @@ export default function SociogramResultsPage() {
   const [fullscreen, setFullscreen] = useState(false)
   const [minScore, setMinScore]   = useState(1)
   const [activeRelTypes, setActiveRelTypes] = useState<Set<string>>(new Set())
+  const [sortBy, setSortBy] = useState<'betweenness' | 'closeness' | 'eigenvector' | 'in' | 'out'>('betweenness')
 
   const stateRef = useRef({ focusNode, search, showLabels, activeRelTypes, minScore, vizData })
   stateRef.current = { focusNode, search, showLabels, activeRelTypes, minScore, vizData }
@@ -191,8 +222,38 @@ export default function SociogramResultsPage() {
           n.score ?? 3,
         ])
 
-      // Compute in-degree
+      // Compute in-degree + full network metrics
       const indegree = nodes.map((_, i) => edges.filter(e => e[1] === i).length)
+      const outdegree = nodes.map((_, i) => edges.filter(e => e[0] === i).length)
+
+      const directedEdges: [number, number][] = edges.map(e => [e[0], e[1]])
+      const betweenness = betweennessCentrality(nodes.length, directedEdges)
+      const closeness   = closenessCentrality(nodes.length, directedEdges)
+      const eigenvector = eigenvectorCentrality(nodes.length, directedEdges)
+      const community   = labelPropagationCommunities(nodes.length, directedEdges)
+      const components  = connectedComponents(nodes.length, directedEdges)
+      const recip       = reciprocity(directedEdges)
+      const clustering  = clusteringCoefficient(nodes.length, directedEdges)
+      const mod         = modularity(nodes.length, directedEdges, community)
+      const maxEdges    = nodes.length > 1 ? nodes.length * (nodes.length - 1) : 1
+      const density     = edges.length / maxEdges
+      const isolates    = nodes.filter((_, i) => indegree[i] === 0 && outdegree[i] === 0).length
+      const numComps    = new Set(components).size
+
+      const metrics: NetworkMetrics = {
+        inDegree: indegree,
+        outDegree: outdegree,
+        betweenness,
+        closeness,
+        eigenvector,
+        community,
+        reciprocity: recip,
+        clustering,
+        components: numComps,
+        modularity: mod,
+        density,
+        isolates,
+      }
 
       const allRelTypeIds = new Set(relTypes.map(rt => rt.id))
 
@@ -206,6 +267,7 @@ export default function SociogramResultsPage() {
         participantCount: participants.length,
         submittedCount,
         sociogramTitle: sociogram.title,
+        metrics,
       })
       setActiveRelTypes(allRelTypeIds)
       setLoading(false)
@@ -283,9 +345,9 @@ export default function SociogramResultsPage() {
       })
     })
 
-    // Node gradients
+    // Node gradients — colored by detected community
     vd.nodes.forEach(n => {
-      const col = '#2D6A4F'
+      const col = communityColor(vd.metrics.community[n.id] ?? 0)
       const g = defs.append('radialGradient').attr('id', `gr-${n.id}`).attr('cx', '38%').attr('cy', '35%').attr('r', '65%')
       g.append('stop').attr('offset', '0%').attr('stop-color', '#fff').attr('stop-opacity', 0.9)
       g.append('stop').attr('offset', '50%').attr('stop-color', col).attr('stop-opacity', 0.92)
@@ -368,7 +430,9 @@ export default function SociogramResultsPage() {
 
     node.append('circle')
       .attr('r', (d: any) => rScale(d.id, vd.indegree, vd.nodes) + 1.5)
-      .attr('fill', 'none').attr('stroke', '#2D6A4F').attr('stroke-width', 2).attr('opacity', 0.6)
+      .attr('fill', 'none')
+      .attr('stroke', (d: any) => communityColor(vd.metrics.community[d.id] ?? 0))
+      .attr('stroke-width', 2).attr('opacity', 0.6)
 
     node.append('circle')
       .attr('r', (d: any) => rScale(d.id, vd.indegree, vd.nodes))
@@ -494,20 +558,65 @@ export default function SociogramResultsPage() {
 
   const tipNode = tooltip && vizData ? vizData.nodes[tooltip.id] : null
 
-  // Network analytics
+  // Network analytics — derived from computed metrics
   const analytics = vizData ? (() => {
+    const m = vizData.metrics
     const n = vizData.nodes.length
-    const e = vizData.edges.length
-    const maxEdges = n > 1 ? n * (n - 1) : 1
-    const density = (e / maxEdges * 100).toFixed(1)
-    const isolates = vizData.nodes.filter((_, i) =>
-      vizData.indegree[i] === 0 && !vizData.edges.some(ed => ed[0] === i)
-    ).length
-    const avgIndegree = n > 0 ? (vizData.indegree.reduce((a, b) => a + b, 0) / n).toFixed(2) : '0'
-    const outDegree = vizData.nodes.map((_, i) => vizData.edges.filter(ed => ed[0] === i).length)
-    const avgOutdegree = n > 0 ? (outDegree.reduce((a, b) => a + b, 0) / n).toFixed(2) : '0'
-    return { n, e, density, isolates, avgIndegree, avgOutdegree }
+    const avg = (arr: number[]) => arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length
+    const numCommunities = new Set(m.community).size
+    return {
+      n,
+      e: vizData.edges.length,
+      density: (m.density * 100).toFixed(1),
+      reciprocity: (m.reciprocity * 100).toFixed(1),
+      clustering: m.clustering.toFixed(3),
+      modularity: m.modularity.toFixed(3),
+      components: m.components,
+      communities: numCommunities,
+      isolates: m.isolates,
+      avgIndegree: avg(m.inDegree).toFixed(2),
+      avgOutdegree: avg(m.outDegree).toFixed(2),
+    }
   })() : null
+
+  // Centrality table rows — sortable
+  const centralityRows = vizData ? [...vizData.nodes]
+    .map(node => {
+      const m = vizData.metrics
+      return {
+        node,
+        inD:  m.inDegree[node.id] ?? 0,
+        outD: m.outDegree[node.id] ?? 0,
+        betw: m.betweenness[node.id] ?? 0,
+        clos: m.closeness[node.id] ?? 0,
+        eig:  m.eigenvector[node.id] ?? 0,
+        community: m.community[node.id] ?? 0,
+      }
+    })
+    .sort((a, b) => {
+      const key = sortBy === 'in' ? 'inD' : sortBy === 'out' ? 'outD' : sortBy === 'betweenness' ? 'betw' : sortBy === 'closeness' ? 'clos' : 'eig'
+      return (b as any)[key] - (a as any)[key]
+    })
+    .slice(0, 10)
+    : []
+
+  const exportEdgeListCSV = () => {
+    if (!vizData) return
+    const labels = Object.fromEntries(vizData.relTypes.map(rt => [rt.id, rt.label]))
+    const csv = edgeListCSV(vizData.nodes, vizData.edges, labels)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = 'sociogram_edges.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
+  const exportNodeListCSV = () => {
+    if (!vizData) return
+    const csv = nodeListCSV(vizData.nodes, vizData.metrics)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = 'sociogram_nodes.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -632,23 +741,91 @@ export default function SociogramResultsPage() {
             <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <BarChart3 className="w-3 h-3" /> Network analytics
             </p>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5 mb-2">
               {[
                 { label: 'Nodes', value: analytics.n },
                 { label: 'Edges', value: analytics.e },
                 { label: 'Density', value: `${analytics.density}%` },
+                { label: 'Reciprocity', value: `${analytics.reciprocity}%` },
+                { label: 'Clustering', value: analytics.clustering },
+                { label: 'Modularity', value: analytics.modularity },
+                { label: 'Communities', value: analytics.communities },
+                { label: 'Components', value: analytics.components },
                 { label: 'Isolates', value: analytics.isolates },
                 { label: 'Avg in', value: analytics.avgIndegree },
                 { label: 'Avg out', value: analytics.avgOutdegree },
               ].map(stat => (
                 <div key={stat.label} className="bg-[#F5F0E8] rounded-lg p-2 text-center">
-                  <p className="text-sm font-bold text-[#2D6A4F]">{stat.value}</p>
+                  <p className="text-[11px] font-bold text-[#2D6A4F]">{stat.value}</p>
                   <p className="text-[8px] text-[#8B7355] uppercase tracking-wide leading-tight">{stat.label}</p>
                 </div>
               ))}
             </div>
+            <p className="text-[9px] text-[#8B7355] leading-snug">
+              Reciprocity = mutual / total ties. Modularity &gt; 0.3 = strong community structure (Newman 2004).
+            </p>
           </div>
         )}
+
+        {/* Centrality table */}
+        {vizData && centralityRows.length > 0 && (
+          <div className="px-4 py-3 border-t border-[#E8E0D5]">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider">Top by centrality</p>
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as any)}
+                className="text-[9px] bg-[#F5F0E8] border border-[#DDD6CC] rounded px-1 py-0.5 text-[#3D3028]"
+              >
+                <option value="betweenness">Betweenness</option>
+                <option value="closeness">Closeness</option>
+                <option value="eigenvector">Eigenvector</option>
+                <option value="in">In-degree</option>
+                <option value="out">Out-degree</option>
+              </select>
+            </div>
+            <div className="space-y-0.5">
+              {centralityRows.map(r => {
+                const val = sortBy === 'in' ? r.inD : sortBy === 'out' ? r.outD
+                  : sortBy === 'betweenness' ? r.betw.toFixed(3)
+                  : sortBy === 'closeness' ? r.clos.toFixed(3)
+                  : r.eig.toFixed(3)
+                return (
+                  <button
+                    key={r.node.id}
+                    onClick={() => setFocusNode(p => p === r.node.id ? null : r.node.id)}
+                    className={`w-full flex items-center gap-1.5 px-1.5 py-1 rounded text-[10px] transition-all ${focusNode === r.node.id ? 'bg-[#EDF7F2]' : 'hover:bg-[#FAF8F4]'}`}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: communityColor(r.community) }}
+                      title={`Community ${r.community + 1}`}
+                    />
+                    <span className="flex-1 truncate text-left text-[#3D3028]">{r.node.name}</span>
+                    <span className="font-mono font-semibold text-[#2D6A4F] tabular-nums">{val}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Export */}
+        <div className="px-4 py-3 border-t border-[#E8E0D5] space-y-1.5">
+          <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider mb-1">Export data</p>
+          <button
+            onClick={exportEdgeListCSV}
+            className="w-full bg-[#F5F0E8] hover:bg-[#EDF7F2] border border-[#DDD6CC] rounded-lg px-2 py-1.5 text-[10px] text-[#3D3028] font-medium transition-colors text-left"
+          >
+            Edge list CSV <span className="text-[#8B7355] font-normal">(Gephi/igraph)</span>
+          </button>
+          <button
+            onClick={exportNodeListCSV}
+            className="w-full bg-[#F5F0E8] hover:bg-[#EDF7F2] border border-[#DDD6CC] rounded-lg px-2 py-1.5 text-[10px] text-[#3D3028] font-medium transition-colors text-left"
+          >
+            Node metrics CSV <span className="text-[#8B7355] font-normal">(with centralities)</span>
+          </button>
+        </div>
 
         <div className="px-4 py-3 border-t border-[#E8E0D5]">
           <p className="text-[11px] text-[#B5A898] leading-relaxed">
