@@ -20,7 +20,6 @@ interface ParticipantStats {
   meanRT_comp:   number | null   // mean RT for blocks 3+4 (compatible)
   meanRT_incomp: number | null   // mean RT for blocks 6+7 (incompatible)
   errorRate:     number | null   // % of scoring-block trials incorrect
-  excluded:      boolean
 }
 
 export default async function IATResultsPage({
@@ -130,7 +129,6 @@ export default async function IATResultsPage({
       meanRT_comp,
       meanRT_incomp,
       errorRate,
-      excluded:      dScoreByPid[pid] === null,
     }
   })
 
@@ -142,19 +140,20 @@ export default async function IATResultsPage({
     return 0
   })
 
-  // Aggregate stats
+  // Aggregate stats — single pass over validScores
   const validScores = participantStats.map(p => p.dScore).filter((d): d is number => d !== null)
+  const excluded    = participantStats.filter(p => p.dScore === null).length
   const clinicalCount = validScores.filter(d => bandForD(d, cfg.dscore_bands).clinical).length
   const meanD  = validScores.length ? mean(validScores) : null
   const sdD    = validScores.length >= 2 ? sd(validScores) : null
   const minD   = validScores.length ? Math.min(...validScores) : null
   const maxD   = validScores.length ? Math.max(...validScores) : null
-  const excluded = participantStats.filter(p => p.excluded).length
 
-  // Percentile helper
+  // Percentile — binary search O(n log n) instead of O(n²) filter
   const sortedForPercentile = [...validScores].sort((a, b) => a - b)
   function percentileRank(d: number): number {
-    const below = sortedForPercentile.filter(x => x < d).length
+    const idx = sortedForPercentile.findIndex(x => x >= d)
+    const below = idx === -1 ? sortedForPercentile.length : idx
     return Math.round((below / sortedForPercentile.length) * 100)
   }
 
@@ -165,6 +164,20 @@ export default async function IATResultsPage({
       (band.min === null || d >= band.min) && (band.max === null || d < band.max)
     ).length,
   }))
+
+  // Aggregate RT and error rate — hoisted out of JSX to avoid recomputation
+  const meanRTComp = (() => {
+    const rts = participantStats.map(p => p.meanRT_comp).filter((r): r is number => r !== null)
+    return rts.length ? `${Math.round(mean(rts))} ms` : '—'
+  })()
+  const meanRTIncomp = (() => {
+    const rts = participantStats.map(p => p.meanRT_incomp).filter((r): r is number => r !== null)
+    return rts.length ? `${Math.round(mean(rts))} ms` : '—'
+  })()
+  const groupErrorRate = (() => {
+    const rates = participantStats.map(p => p.errorRate).filter((r): r is number => r !== null)
+    return rates.length ? `${(mean(rates) * 100).toFixed(1)}%` : '—'
+  })()
 
   const hasSessionTable = !srError
 
@@ -383,19 +396,10 @@ export default async function IATResultsPage({
               { label: 'Mean D-score', value: meanD !== null ? fmt(meanD) : '—', color: meanD !== null ? bandForD(meanD, cfg.dscore_bands).color : undefined },
               { label: 'SD', value: sdD !== null ? fmt(sdD) : '—' },
               { label: 'Range', value: minD !== null && maxD !== null ? `${fmt(minD)} – ${fmt(maxD)}` : '—' },
-              { label: 'Excluded / no D-score', value: excluded > 0 ? `${excluded}` : '0' },
-              { label: 'Compatible block mean RT', value: (() => {
-                const rts = participantStats.map(p => p.meanRT_comp).filter((r): r is number => r !== null)
-                return rts.length ? `${Math.round(mean(rts))} ms` : '—'
-              })() },
-              { label: 'Incompatible block mean RT', value: (() => {
-                const rts = participantStats.map(p => p.meanRT_incomp).filter((r): r is number => r !== null)
-                return rts.length ? `${Math.round(mean(rts))} ms` : '—'
-              })() },
-              { label: 'Group error rate', value: (() => {
-                const rates = participantStats.map(p => p.errorRate).filter((r): r is number => r !== null)
-                return rates.length ? `${(mean(rates) * 100).toFixed(1)}%` : '—'
-              })() },
+              { label: 'Excluded / no D-score', value: String(excluded) },
+              { label: 'Compatible block mean RT',   value: meanRTComp },
+              { label: 'Incompatible block mean RT', value: meanRTIncomp },
+              { label: 'Group error rate',           value: groupErrorRate },
             ].map(row => (
               <div key={row.label} className="flex items-center justify-between border-b border-border last:border-0 pb-2 last:pb-0">
                 <span className="text-muted-foreground">{row.label}</span>

@@ -272,9 +272,11 @@ export default function IATPage() {
   const respondedRef   = useRef(false)
   const sessionIdRef   = useRef<string>(crypto.randomUUID())
 
-  useEffect(() => { trialsRef.current     = trials     }, [trials])
-  useEffect(() => { trialIndexRef.current = trialIndex }, [trialIndex])
-  useEffect(() => { phaseRef.current      = phase      }, [phase])
+  useEffect(() => {
+    trialsRef.current     = trials
+    trialIndexRef.current = trialIndex
+    phaseRef.current      = phase
+  }, [trials, trialIndex, phase])
 
   // ─ Load ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -432,7 +434,7 @@ export default function IATPage() {
       const trial       = trialsRef.current[trialIndexRef.current]
       const isCorrect   = responseKey === trial.correctKey
 
-      responsesRef.current = [...responsesRef.current, { ...trial, responseKey, rt, isCorrect }]
+      responsesRef.current.push({ ...trial, responseKey, rt, isCorrect })
       setBlockTotal(t => t + 1)
       if (!isCorrect) setBlockErrors(c => c + 1)
 
