@@ -7,17 +7,15 @@ import { Button } from '@/components/ui/button'
 export default async function JoinStudyPage({
   params,
 }: {
-  params: { studyId: string }
+  params: Promise<{ studyId: string }>
 }) {
+  const { studyId } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    // Redirect to login, then come back here after login
-    redirect(`/login?redirect=/participant/join/${params.studyId}`)
+    redirect(`/login?redirect=/participant/join/${studyId}`)
   }
-
-  const { studyId } = params
 
   // Fetch study
   const { data: study } = await supabase

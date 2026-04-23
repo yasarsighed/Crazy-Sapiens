@@ -53,15 +53,14 @@ function buildDistribution(
 export default async function QuestionnaireResultsPage({
   params,
 }: {
-  params: { id: string; qid: string }
+  params: Promise<{ id: string; qid: string }>
 }) {
+  const { id: studyId, qid } = await params
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-
-  const { id: studyId, qid } = params
 
   // Fetch questionnaire instrument details
   const { data: questionnaire } = await supabase

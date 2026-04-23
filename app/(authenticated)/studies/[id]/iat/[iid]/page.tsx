@@ -25,20 +25,33 @@ interface ParticipantStats {
 export default async function IATResultsPage({
   params,
 }: {
-  params: { id: string; iid: string }
+  params: Promise<{ id: string; iid: string }>
 }) {
+  const { id: studyId, iid } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { id: studyId, iid } = params
-
-  // Fetch instrument
-  const { data: instrument } = await supabase
-    .from('iat_instruments')
-    .select('id, title, description, study_id, debrief_text, created_at, iat_type')
-    .eq('id', iid)
-    .single()
+  // Fetch instrument — fall back gracefully if iat_type column not yet migrated
+  type InstrumentRow = { id: string; title: string; description: string; study_id: string; debrief_text: string | null; created_at: string; iat_type?: string | null }
+  let instrument: InstrumentRow | null = null
+  {
+    const withType = await supabase
+      .from('iat_instruments')
+      .select('id, title, description, study_id, debrief_text, created_at, iat_type')
+      .eq('id', iid)
+      .single()
+    if (withType.error && /iat_type/.test(withType.error.message)) {
+      const fallback = await supabase
+        .from('iat_instruments')
+        .select('id, title, description, study_id, debrief_text, created_at')
+        .eq('id', iid)
+        .single()
+      instrument = fallback.data as InstrumentRow | null
+    } else {
+      instrument = withType.data as InstrumentRow | null
+    }
+  }
 
   if (!instrument) {
     return <div className="p-6 lg:p-8"><p className="text-muted-foreground">IAT instrument not found.</p></div>

@@ -19,15 +19,14 @@ function severityColor(band: string | null): string {
 export default async function ParticipantResponsesPage({
   params,
 }: {
-  params: { id: string; qid: string; pid: string }
+  params: Promise<{ id: string; qid: string; pid: string }>
 }) {
+  const { id: studyId, qid, pid } = await params
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-
-  const { id: studyId, qid, pid } = params
 
   // Fetch questionnaire
   const { data: questionnaire } = await supabase

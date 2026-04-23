@@ -61,7 +61,7 @@ export async function POST(
         .single()
       if (insErr) return NextResponse.json({ error: `Could not save score: ${insErr.message}` }, { status: 500 })
       if (alertPayload && ins) {
-        await svc.from('clinical_alerts_log').insert({ ...alertPayload, scored_result_id: ins.id }).then(() => {}).catch(() => {})
+        await Promise.resolve(svc.from('clinical_alerts_log').insert({ ...alertPayload, scored_result_id: ins.id })).catch(() => {})
       }
       return NextResponse.json({ ok: true, scoredResultId: ins?.id })
     }
@@ -70,10 +70,9 @@ export async function POST(
 
   // ── Fire clinical alert (non-fatal) ──────────────────────────────────────
   if (alertPayload && scoredResult) {
-    await svc
-      .from('clinical_alerts_log')
-      .insert({ ...alertPayload, scored_result_id: scoredResult.id })
-      .then(() => {}).catch(() => {})
+    await Promise.resolve(
+      svc.from('clinical_alerts_log').insert({ ...alertPayload, scored_result_id: scoredResult.id })
+    ).catch(() => {})
   }
 
   // Log completion
