@@ -13,6 +13,7 @@ type ResponseKey = 'e' | 'i'
 
 interface Trial {
   blockNum:   number
+  blockLabel: string
   trialNum:   number
   word:       string
   wordCat:    WordCategory  // 'conceptA' | 'conceptB' | 'attrA' | 'attrB'
@@ -180,6 +181,7 @@ function generateBalancedBlock(def: BlockDef): Trial[] {
     for (let i = 0; i < poolCount; i++) {
       raw.push({
         blockNum:   def.blockNum,
+        blockLabel: def.label,
         trialNum:   0,
         word:       pool.words[i % pool.words.length],
         wordCat:    pool.cat,
@@ -353,6 +355,7 @@ export default function IATPage() {
       exclusionReason: result.reason,
       trials: finalResponses.map(r => ({
         blockNumber:         r.blockNum,
+        blockLabel:          r.blockLabel,
         trialNumber:         r.trialNum,
         stimulusText:        r.word,
         stimulusCategory:    r.wordCat,

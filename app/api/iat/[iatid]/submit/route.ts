@@ -33,6 +33,7 @@ export async function POST(
     exclusionReason?: string
     trials: Array<{
       blockNumber:       number
+      blockLabel:        string
       trialNumber:       number
       stimulusText:      string
       stimulusCategory:  string
@@ -79,6 +80,7 @@ export async function POST(
     participant_id:       user.id,
     session_id:           body.sessionId,
     block_number:         t.blockNumber,
+    block_label:          t.blockLabel,
     trial_number:         t.trialNumber,
     stimulus_text:        t.stimulusText,
     stimulus_category:    t.stimulusCategory,
