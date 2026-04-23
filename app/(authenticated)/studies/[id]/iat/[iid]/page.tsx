@@ -2,37 +2,13 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban, Download,
+  ArrowLeft, AlertTriangle, Clock, Ban,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EditDebriefButton } from '@/components/edit-debrief-button'
 import { mean, sd, cohensD } from '@/lib/questionnaire-psychometrics'
-
-// ─── D-score bands (Greenwald 2003 + Millner 2019) ───────────────────────────
-interface DScoreBand {
-  label:    string
-  short:    string
-  min:      number | null   // null = -∞
-  max:      number | null   // null = +∞
-  color:    string
-  clinical: boolean
-}
-
-const D_SCORE_BANDS: DScoreBand[] = [
-  { label: 'Life association (D < 0)',           short: 'Life assoc.',    min: null,  max: 0,    color: '#52B788', clinical: false },
-  { label: 'No clear preference (0 – 0.15)',     short: 'No preference', min: 0,     max: 0.15, color: '#888888', clinical: false },
-  { label: 'Slight Self–Death (0.15 – 0.35)',    short: 'Slight',        min: 0.15,  max: 0.35, color: '#E9C46A', clinical: false },
-  { label: 'Moderate Self–Death (0.35 – 0.65)',  short: 'Moderate',      min: 0.35,  max: 0.65, color: '#F4A261', clinical: false },
-  { label: 'Strong Self–Death (≥ 0.65)',         short: 'Strong ⚑',      min: 0.65,  max: null, color: '#E63946', clinical: true  },
-]
-
-function bandFor(d: number): DScoreBand {
-  for (const band of D_SCORE_BANDS) {
-    if ((band.min === null || d >= band.min) && (band.max === null || d < band.max)) return band
-  }
-  return D_SCORE_BANDS[D_SCORE_BANDS.length - 1]
-}
+import { getIATType, bandForD } from '@/lib/iat-types'
 
 function fmt(n: number, dp = 3): string { return n.toFixed(dp) }
 
@@ -61,13 +37,16 @@ export default async function IATResultsPage({
   // Fetch instrument
   const { data: instrument } = await supabase
     .from('iat_instruments')
-    .select('id, title, description, study_id, debrief_text, created_at')
+    .select('id, title, description, study_id, debrief_text, created_at, iat_type')
     .eq('id', iid)
     .single()
 
   if (!instrument) {
     return <div className="p-6 lg:p-8"><p className="text-muted-foreground">IAT instrument not found.</p></div>
   }
+
+  const cfg = getIATType(instrument.iat_type)
+  const hasClinicalBands = cfg.dscore_bands.some(b => b.clinical)
 
   const { data: study } = await supabase
     .from('studies')
@@ -165,7 +144,7 @@ export default async function IATResultsPage({
 
   // Aggregate stats
   const validScores = participantStats.map(p => p.dScore).filter((d): d is number => d !== null)
-  const clinicalCount = validScores.filter(d => d >= 0.65).length
+  const clinicalCount = validScores.filter(d => bandForD(d, cfg.dscore_bands).clinical).length
   const meanD  = validScores.length ? mean(validScores) : null
   const sdD    = validScores.length >= 2 ? sd(validScores) : null
   const minD   = validScores.length ? Math.min(...validScores) : null
@@ -180,7 +159,7 @@ export default async function IATResultsPage({
   }
 
   // Distribution
-  const distribution = D_SCORE_BANDS.map(band => ({
+  const distribution = cfg.dscore_bands.map(band => ({
     band,
     count: validScores.filter(d =>
       (band.min === null || d >= band.min) && (band.max === null || d < band.max)
@@ -223,22 +202,28 @@ export default async function IATResultsPage({
       <div className="mb-6">
         <div className="flex items-start gap-3 mb-2 flex-wrap">
           <h1 className="font-serif text-2xl text-foreground">{instrument.title}</h1>
-          <Badge variant="outline" className="mt-1 border-[#F4A261] text-[#F4A261]">Death/Suicide IAT</Badge>
+          <Badge
+            variant="outline"
+            className="mt-1"
+            style={{ borderColor: cfg.badgeColor, color: cfg.badgeColor }}
+          >
+            {cfg.name}
+          </Badge>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Implicit Association Test — Self–Death vs. Self–Life associations.
-          Algorithm D2 (Greenwald et al., 2003). Clinical threshold D ≥ 0.65 (Millner et al., 2019).
-          Positive D = faster Self–Death pairings = stronger implicit Self–Death association.
+          Implicit Association Test · Algorithm D2 (Greenwald et al., 2003).
+          Positive D = {cfg.positiveD.toLowerCase()}.
+          {' '}{cfg.clinicalNote}
         </p>
       </div>
 
       {/* Warnings */}
-      {clinicalCount > 0 && (
+      {clinicalCount > 0 && hasClinicalBands && (
         <div className="flex items-start gap-3 border border-destructive/40 bg-destructive/5 rounded-xl p-4 mb-5">
           <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-destructive">
-              {clinicalCount} participant{clinicalCount > 1 ? 's' : ''} in the Strong Self–Death band (D ≥ 0.65)
+              {clinicalCount} participant{clinicalCount > 1 ? 's' : ''} flagged in the clinical band
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               IAT alone is not diagnostic. Use alongside structured clinical assessment (e.g. Columbia Protocol, SBQ-R).
@@ -264,7 +249,7 @@ export default async function IATResultsPage({
           { label: 'Valid D-scores', value: validScores.length },
           { label: 'Mean D', value: meanD !== null ? fmt(meanD) : '—' },
           { label: 'SD', value: sdD !== null ? fmt(sdD) : '—' },
-          { label: 'Clinical ≥ 0.65', value: clinicalCount, red: clinicalCount > 0 },
+          { label: hasClinicalBands ? 'Clinical flag' : 'Strong assoc.', value: clinicalCount, red: hasClinicalBands && clinicalCount > 0 },
         ].map(stat => (
           <Card key={stat.label}>
             <CardContent className="pt-4 pb-4">
@@ -315,7 +300,7 @@ export default async function IATResultsPage({
             })()}
 
             <p className="text-[11px] text-muted-foreground mt-3">
-              Participants are randomly assigned block order at start. D-scores are sign-corrected so both orders share the same interpretation (positive = Self–Death). Large mean differences between A and B may indicate residual order effects.
+              Participants are randomly assigned block order at start. D-scores are sign-corrected so both orders share the same interpretation (positive D = {cfg.positiveD.toLowerCase()}). Large mean differences between A and B may indicate residual order effects.
             </p>
           </CardContent>
         </Card>
@@ -328,7 +313,7 @@ export default async function IATResultsPage({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-xs">
-            {D_SCORE_BANDS.map(band => (
+            {cfg.dscore_bands.map(band => (
               <div key={band.label} className="rounded-lg p-3 border" style={{ borderColor: band.color + '60', backgroundColor: band.color + '12' }}>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: band.color }} />
@@ -343,7 +328,8 @@ export default async function IATResultsPage({
             ))}
           </div>
           <p className="text-[11px] text-muted-foreground mt-3">
-            Positive D = faster Self–Death associations. These are implicit, automatic preferences — not conscious intent. Always combine with validated self-report (SBQ-R, PHQ-9 item 9) and structured assessment (Columbia Protocol).
+            Positive D = {cfg.positiveD.toLowerCase()}. These are implicit, automatic associations — not a measure of conscious intent or belief.
+            {hasClinicalBands && ' Always combine with validated self-report (SBQ-R, PHQ-9 item 9) and structured assessment (Columbia Protocol).'}
           </p>
         </CardContent>
       </Card>
@@ -394,7 +380,7 @@ export default async function IATResultsPage({
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             {[
-              { label: 'Mean D-score', value: meanD !== null ? fmt(meanD) : '—', color: meanD !== null ? bandFor(meanD).color : undefined },
+              { label: 'Mean D-score', value: meanD !== null ? fmt(meanD) : '—', color: meanD !== null ? bandForD(meanD, cfg.dscore_bands).color : undefined },
               { label: 'SD', value: sdD !== null ? fmt(sdD) : '—' },
               { label: 'Range', value: minD !== null && maxD !== null ? `${fmt(minD)} – ${fmt(maxD)}` : '—' },
               { label: 'Excluded / no D-score', value: excluded > 0 ? `${excluded}` : '0' },
@@ -456,7 +442,7 @@ export default async function IATResultsPage({
                 <tbody>
                   {participantStats.map((ps) => {
                     const profile = profileMap[ps.participantId]
-                    const band = ps.dScore !== null ? bandFor(ps.dScore) : null
+                    const band = ps.dScore !== null ? bandForD(ps.dScore, cfg.dscore_bands) : null
                     // Visual D-score bar: map D ∈ [-2, +2] to 0–100%
                     // Centre line at 50%; 0.65 threshold at 66.25%
                     const barPct = ps.dScore !== null
@@ -551,12 +537,14 @@ export default async function IATResultsPage({
                   <div className="w-px h-3 bg-border" />
                   D = 0 (no preference)
                 </span>
-                <span className="flex items-center gap-1">
-                  <div className="w-px h-3 bg-destructive/40" />
-                  D = 0.65 (clinical threshold)
-                </span>
-                <span>RT (comp.) = mean RT blocks 3+4 (Self+Death paired)</span>
-                <span>RT (incomp.) = mean RT blocks 6+7 (Other+Death paired)</span>
+                {hasClinicalBands && (
+                  <span className="flex items-center gap-1">
+                    <div className="w-px h-3 bg-destructive/40" />
+                    Clinical threshold
+                  </span>
+                )}
+                <span>RT (comp.) = mean RT blocks 3+4 ({cfg.conceptALabel}+{cfg.attrALabel} paired)</span>
+                <span>RT (incomp.) = mean RT blocks 6+7 ({cfg.conceptBLabel}+{cfg.attrALabel} paired)</span>
                 <span className="text-amber-600">Errors &gt; 30% highlighted</span>
               </div>
             </div>
@@ -593,9 +581,10 @@ export default async function IATResultsPage({
           Errors penalised as block-pair correct mean + 600 ms.
           Pooled SD from all B3+4+6+7 penalised trials combined.
           D = (Mean<sub>B6+7</sub> − Mean<sub>B3+4</sub>) / Pooled SD.
-          Positive D = faster Self–Death pairings.
-          Clinical threshold ≥ 0.65 per Millner et al. (2019).
-          IAT results supplement — never replace — structured clinical assessment.
+          Positive D = {cfg.positiveD.toLowerCase()}.
+          {hasClinicalBands
+            ? ' Clinical threshold ≥ 0.65 per Millner et al. (2019). IAT results supplement — never replace — structured clinical assessment.'
+            : ` ${cfg.citation}`}
         </p>
       </div>
 
