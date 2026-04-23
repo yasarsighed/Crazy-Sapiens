@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { logActivity } from '@/lib/log-activity'
+import { getAppOrigin } from '@/lib/app-origin'
 
 // POST /api/participants/create
-// Body: { email, full_name, study_id?, password? }
-// Admin or researcher creates a participant profile (and optional enrollment).
-// A random password is generated if not provided. Participant can reset via email.
+// Body: { email, full_name, study_id? }
+// Sends an invitation email to the participant via Supabase Auth.
+// They click the link, land on /participant/dashboard, and can set a password later.
 export async function POST(req: Request) {
   try {
     const supabase = await createClient()
@@ -23,32 +24,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { email, full_name, study_id, password } = await req.json()
+    const { email, full_name, study_id } = await req.json()
     if (!email || !full_name) {
       return NextResponse.json({ error: 'email and full_name required' }, { status: 400 })
     }
 
     const svc = createServiceClient()
-    const tempPassword =
-      password ||
-      `Tmp-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
 
-    const { data: created, error: createErr } = await svc.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: { full_name, role: 'participant' },
+    const { data: invited, error: inviteErr } = await svc.auth.admin.inviteUserByEmail(email, {
+      data: { full_name, role: 'participant' },
+      redirectTo: `${getAppOrigin()}/auth/callback?next=/participant/dashboard`,
     })
-    if (createErr || !created?.user) {
+
+    if (inviteErr || !invited?.user) {
+      // "Database error" usually means the on_auth_user_created trigger is failing
+      // — run supabase/fix-profile-trigger.sql in the Supabase dashboard.
+      const hint = inviteErr?.message?.toLowerCase().includes('database error')
+        ? ' (trigger failure — run supabase/fix-profile-trigger.sql in Supabase dashboard)'
+        : ''
       return NextResponse.json(
-        { error: createErr?.message || 'Failed to create user' },
+        { error: (inviteErr?.message || 'Failed to invite user') + hint },
         { status: 400 },
       )
     }
 
-    const newUserId = created.user.id
+    const newUserId = invited.user.id
 
-    // Trigger should have created the profile, but upsert to be safe
+    // Trigger creates the profile; upsert here catches the case where it didn't run
     await svc.from('profiles').upsert({
       id: newUserId,
       email,
@@ -68,11 +70,7 @@ export async function POST(req: Request) {
 
     await logActivity(user.id, 'participant_added', 'participant', newUserId, { email, study_id })
 
-    return NextResponse.json({
-      ok: true,
-      participant_id: newUserId,
-      temp_password: password ? undefined : tempPassword,
-    })
+    return NextResponse.json({ ok: true, participant_id: newUserId })
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Unknown error' },

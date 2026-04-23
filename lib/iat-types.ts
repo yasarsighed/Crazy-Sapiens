@@ -62,6 +62,8 @@ export interface IATTypeConfig {
   clinicalNote:      string
   positiveD:         string          // plain-English meaning of D > 0
   defaultDebriefNote: string
+  /** Abbreviation of the paired explicit-attitude scale in lib/scales.ts */
+  companionScaleAbbreviation: string
   interpretD:        (d: number) => DInterpretation
   dscore_bands: Array<{
     label: string; short: string
@@ -139,6 +141,7 @@ const DEATH_SUICIDE: IATTypeConfig = {
     + 'Must be used alongside validated self-report (SBQ-R, PHQ-9 item 9) '
     + 'and structured clinical interview (Columbia-Suicide Severity Rating Scale).',
   positiveD: 'Stronger implicit association of Self with Death/Suicide words',
+  companionScaleAbbreviation: 'PHQ-9',
   defaultDebriefNote:
     'This task measured how quickly you categorised self-related words with '
     + 'death or life words. A faster response when pairing "self" with death words '
@@ -226,6 +229,7 @@ const GENDER_CAREER: IATTypeConfig = {
     + 'among the strongest gender–career associations globally. '
     + 'Results reflect cultural exposure, not personal attitudes.',
   positiveD: 'Stronger implicit association of Male with Career (and Female with Family)',
+  companionScaleAbbreviation: 'EGA-C',
   defaultDebriefNote:
     'This task measured automatic associations between gender and career or '
     + 'family roles. The associations it captures are formed through years of '
@@ -302,6 +306,7 @@ const GENDER_SCIENCE: IATTypeConfig = {
     + 'The association predicts national-level gender gaps in STEM participation '
     + 'but should not be used to infer anything about an individual\'s abilities.',
   positiveD: 'Stronger implicit association of Male with Science (and Female with Arts)',
+  companionScaleAbbreviation: 'EGA-S',
   defaultDebriefNote:
     'This task measured automatic associations between gender and academic '
     + 'disciplines. The implicit patterns it captures reflect decades of cultural '
@@ -394,6 +399,7 @@ const HINDU_MUSLIM: IATTypeConfig = {
     + 'moral failing. Researchers should be especially careful about how data '
     + 'from this IAT are reported, given its sensitivity in the Indian context.',
   positiveD: 'Stronger implicit positive association with Hindu names relative to Muslim names',
+  companionScaleAbbreviation: 'EIA-HM',
   defaultDebriefNote:
     'This task measured automatic associations between Hindu and Muslim names '
     + 'and pleasant or unpleasant words. These patterns reflect the social '
@@ -494,6 +500,7 @@ const MODI_PM: IATTypeConfig = {
     + 'than purely leader-evaluation processes. Results should be interpreted '
     + 'with these design constraints in mind.',
   positiveD: 'Stronger implicit positive association with Modi-related words over other PM names',
+  companionScaleAbbreviation: 'EPA-IN',
   defaultDebriefNote:
     'This task measured automatic associations between words associated with '
     + 'Narendra Modi and other Indian Prime Ministers, paired with pleasant '
@@ -536,6 +543,13 @@ export const IAT_TYPE_MAP: Record<string, IATTypeConfig> = Object.fromEntries(
 export function getIATType(key: string | null | undefined): IATTypeConfig {
   return IAT_TYPE_MAP[key ?? ''] ?? DEATH_SUICIDE
 }
+
+/**
+ * Matches Supabase schema-cache errors when the `iat_type` column hasn't been
+ * migrated yet. Used in both the dialog (INSERT path) and the results page
+ * (SELECT path) to trigger a graceful column-missing fallback.
+ */
+export const IAT_TYPE_COLUMN_MISSING_RE = /iat_type/
 
 /** Return the D-score band for a given value. */
 export function bandForD(

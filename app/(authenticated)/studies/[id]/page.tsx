@@ -55,7 +55,6 @@ export default function StudyPage() {
   const [manualEmail, setManualEmail] = useState('')
   const [manualName, setManualName] = useState('')
   const [creatingManual, setCreatingManual] = useState(false)
-  const [lastTempPassword, setLastTempPassword] = useState<string | null>(null)
 
   const createManualParticipant = async () => {
     if (!manualEmail.trim() || !manualName.trim()) {
@@ -77,8 +76,9 @@ export default function StudyPage() {
       if (!res.ok) {
         toast.error('Failed to create participant', { description: body.error })
       } else {
-        toast.success('Participant created and enrolled')
-        if (body.temp_password) setLastTempPassword(body.temp_password)
+        toast.success('Invitation sent', {
+          description: `${manualEmail.trim()} will receive an email to set up their account.`,
+        })
         setManualEmail('')
         setManualName('')
         await loadData()
@@ -561,7 +561,7 @@ export default function StudyPage() {
           <div className="bg-background rounded-xl p-6 w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-serif text-lg">Add participant</h2>
-              <button onClick={() => { setShowAddParticipant(false); setManualMode('existing'); setLastTempPassword(null); setBulkResults(null); setBulkText('') }}>
+              <button onClick={() => { setShowAddParticipant(false); setManualMode('existing'); setBulkResults(null); setBulkText('') }}>
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
@@ -602,17 +602,10 @@ export default function StudyPage() {
                   disabled={creatingManual || !manualEmail.trim() || !manualName.trim()}
                   className="w-full"
                 >
-                  {creatingManual ? 'Creating…' : 'Create & enroll'}
+                  {creatingManual ? 'Sending invite…' : 'Invite & enroll'}
                 </Button>
-                {lastTempPassword && (
-                  <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs space-y-1">
-                    <p className="font-medium text-amber-900">Temporary password</p>
-                    <code className="block bg-white rounded px-2 py-1 text-[11px] break-all">{lastTempPassword}</code>
-                    <p className="text-amber-800">Share securely with the participant. They can reset via &quot;Forgot password&quot;.</p>
-                  </div>
-                )}
                 <p className="text-[10px] text-muted-foreground">
-                  Creates a new participant account, auto-enrolls in this study, and returns a temporary password.
+                  Creates a participant account and sends them an invitation email with a login link.
                 </p>
               </div>
             ) : manualMode === 'bulk' ? (
@@ -660,7 +653,7 @@ export default function StudyPage() {
                   disabled={bulkSubmitting || !bulkText.trim()}
                   className="w-full"
                 >
-                  {bulkSubmitting ? 'Creating…' : 'Create & enroll all'}
+                  {bulkSubmitting ? 'Sending invites…' : 'Invite & enroll all'}
                 </Button>
                 {bulkResults && (
                   <div className="max-h-56 overflow-y-auto rounded-md border border-border text-xs">
@@ -668,8 +661,8 @@ export default function StudyPage() {
                       <div key={i} className={`px-3 py-2 border-b border-border last:border-0 flex items-start justify-between gap-2 ${r.ok ? '' : 'bg-destructive/5'}`}>
                         <div className="min-w-0 flex-1">
                           <p className={`font-medium truncate ${r.ok ? 'text-foreground' : 'text-destructive'}`}>{r.email}</p>
-                          {r.ok && r.temp_password ? (
-                            <code className="block bg-muted rounded px-1.5 py-0.5 text-[10px] mt-1 break-all">{r.temp_password}</code>
+                          {r.ok ? (
+                            <p className="text-muted-foreground text-[11px]">Invitation sent</p>
                           ) : r.error ? (
                             <p className="text-destructive/80 text-[11px]">{r.error}</p>
                           ) : null}

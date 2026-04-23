@@ -34,6 +34,7 @@ export async function POST(
     trials: Array<{
       blockNumber:       number
       blockLabel:        string
+      blockType:         string
       trialNumber:       number
       stimulusText:      string
       stimulusCategory:  string
@@ -81,6 +82,7 @@ export async function POST(
     session_id:           body.sessionId,
     block_number:         t.blockNumber,
     block_label:          t.blockLabel,
+    block_type:           t.blockType,
     trial_number:         t.trialNumber,
     stimulus_text:        t.stimulusText,
     stimulus_category:    t.stimulusCategory,
@@ -92,9 +94,37 @@ export async function POST(
     excluded_from_scoring: t.excludedFromScoring,
   }))
 
+  // Detect missing columns on first batch and retry all batches without them
+  let columnsToDrop: string[] = []
   for (let i = 0; i < trialRows.length; i += 100) {
-    const { error } = await svc.from('iat_trial_log').insert(trialRows.slice(i, i + 100))
+    const batch = columnsToDrop.length > 0
+      ? trialRows.slice(i, i + 100).map(r => {
+          const copy = { ...r }
+          for (const col of columnsToDrop) delete (copy as any)[col]
+          return copy
+        })
+      : trialRows.slice(i, i + 100)
+
+    const { error } = await svc.from('iat_trial_log').insert(batch)
     if (error) {
+      // On first batch only: detect missing-column errors and retry that batch
+      if (i === 0 && (error.message.includes('block_type') || error.message.includes('block_label'))) {
+        if (error.message.includes('block_type'))  columnsToDrop.push('block_type')
+        if (error.message.includes('block_label')) columnsToDrop.push('block_label')
+        const retryBatch = trialRows.slice(0, 100).map(r => {
+          const copy = { ...r }
+          for (const col of columnsToDrop) delete (copy as any)[col]
+          return copy
+        })
+        const { error: retryErr } = await svc.from('iat_trial_log').insert(retryBatch)
+        if (retryErr) {
+          return NextResponse.json(
+            { error: `Failed to save trial data (batch 1): ${retryErr.message}` },
+            { status: 500 },
+          )
+        }
+        continue
+      }
       return NextResponse.json(
         { error: `Failed to save trial data (batch ${Math.floor(i / 100) + 1}): ${error.message}` },
         { status: 500 },
@@ -103,25 +133,36 @@ export async function POST(
   }
 
   // ── Insert session result ─────────────────────────────────────────────────
-  const { error: sessionErr } = await svc.from('iat_session_results').insert({
-    iat_id:           iatid,
-    participant_id:   user.id,
-    session_id:       body.sessionId,
-    d_score:          body.dScore,
-    computed_at:      new Date().toISOString(),
-    assigned_order:   body.assignedOrder,
-  })
+  const sessionPayload = {
+    iat_id:            iatid,
+    participant_id:    user.id,
+    session_id:        body.sessionId,
+    d_score:           body.dScore,
+    computed_at:       new Date().toISOString(),
+    assigned_order:    body.assignedOrder,
+    excluded:          body.excluded,
+    exclusion_reason:  body.exclusionReason ?? null,
+  }
+
+  const { error: sessionErr } = await svc.from('iat_session_results').insert(sessionPayload)
 
   if (sessionErr) {
-    // If the assigned_order column doesn't exist yet, retry without it
-    if (/assigned_order/.test(sessionErr.message)) {
-      const { error: retryErr } = await svc.from('iat_session_results').insert({
+    // Progressively strip columns that don't exist yet in this deployment
+    const knownOptional = ['assigned_order', 'excluded', 'exclusion_reason']
+    if (knownOptional.some(col => sessionErr.message.includes(col))) {
+      const stripped = { ...sessionPayload }
+      for (const col of knownOptional) {
+        if (sessionErr.message.includes(col)) delete (stripped as any)[col]
+      }
+      // Retry — may still fail if multiple columns are missing; strip all optional
+      const safe = {
         iat_id:         iatid,
         participant_id: user.id,
         session_id:     body.sessionId,
         d_score:        body.dScore,
         computed_at:    new Date().toISOString(),
-      })
+      }
+      const { error: retryErr } = await svc.from('iat_session_results').insert(safe)
       if (retryErr) {
         return NextResponse.json(
           { error: `Failed to save session result: ${retryErr.message}` },

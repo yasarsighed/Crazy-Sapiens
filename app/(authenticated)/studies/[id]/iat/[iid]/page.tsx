@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EditDebriefButton } from '@/components/edit-debrief-button'
 import { mean, sd, cohensD } from '@/lib/questionnaire-psychometrics'
-import { getIATType, bandForD } from '@/lib/iat-types'
+import { getIATType, bandForD, IAT_TYPE_COLUMN_MISSING_RE } from '@/lib/iat-types'
 
 function fmt(n: number, dp = 3): string { return n.toFixed(dp) }
 
@@ -41,7 +41,7 @@ export default async function IATResultsPage({
       .select('id, title, description, study_id, debrief_text, created_at, iat_type')
       .eq('id', iid)
       .single()
-    if (withType.error && /iat_type/.test(withType.error.message)) {
+    if (withType.error && IAT_TYPE_COLUMN_MISSING_RE.test(withType.error.message)) {
       const fallback = await supabase
         .from('iat_instruments')
         .select('id, title, description, study_id, debrief_text, created_at')
@@ -226,15 +226,25 @@ export default async function IATResultsPage({
 
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-start gap-3 mb-2 flex-wrap">
-          <h1 className="font-serif text-2xl text-foreground">{instrument.title}</h1>
-          <Badge
-            variant="outline"
-            className="mt-1"
-            style={{ borderColor: cfg.badgeColor, color: cfg.badgeColor }}
+        <div className="flex items-start justify-between gap-4 flex-wrap mb-2">
+          <div className="flex items-start gap-3 flex-wrap">
+            <h1 className="font-serif text-2xl text-foreground">{instrument.title}</h1>
+            <Badge
+              variant="outline"
+              className="mt-1"
+              style={{ borderColor: cfg.badgeColor, color: cfg.badgeColor }}
+            >
+              {cfg.name}
+            </Badge>
+          </div>
+          <a
+            href={`/api/iat/${iid}/export`}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md px-3 py-1.5 hover:bg-muted/50 transition-colors shrink-0"
+            download
           >
-            {cfg.name}
-          </Badge>
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export trial data (CSV)
+          </a>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
           Implicit Association Test · Algorithm D2 (Greenwald et al., 2003).

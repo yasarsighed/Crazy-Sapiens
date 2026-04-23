@@ -8,12 +8,13 @@ import { ConsentScreen } from '@/components/consent-screen'
 import { CrisisResources } from '@/components/crisis-resources'
 import { getIATType, type IATTypeConfig, type WordCategory } from '@/lib/iat-types'
 
-// ─── Block types ──────────────────────────────────────────────────────────────
 type ResponseKey = 'e' | 'i'
+type BlockType   = 'practice_target' | 'practice_attribute' | 'critical_practice' | 'critical_test' | 'reversal_practice'
 
 interface Trial {
   blockNum:   number
   blockLabel: string
+  blockType:  BlockType
   trialNum:   number
   word:       string
   wordCat:    WordCategory  // 'conceptA' | 'conceptB' | 'attrA' | 'attrB'
@@ -171,6 +172,14 @@ function buildBlockDefs(cfg: IATTypeConfig, orderB: boolean): BlockDef[] {
   })
 }
 
+function blockTypeFromNum(blockNum: number): BlockType {
+  if (blockNum === 1) return 'practice_target'
+  if (blockNum === 2) return 'practice_attribute'
+  if (blockNum === 5) return 'reversal_practice'
+  if (blockNum === 3 || blockNum === 6) return 'critical_practice'
+  return 'critical_test' // 4, 7
+}
+
 function generateBalancedBlock(def: BlockDef): Trial[] {
   const trialsPerPool = Math.floor(def.count / def.pools.length)
   const extra         = def.count - trialsPerPool * def.pools.length
@@ -182,6 +191,7 @@ function generateBalancedBlock(def: BlockDef): Trial[] {
       raw.push({
         blockNum:   def.blockNum,
         blockLabel: def.label,
+        blockType:  blockTypeFromNum(def.blockNum),
         trialNum:   0,
         word:       pool.words[i % pool.words.length],
         wordCat:    pool.cat,
@@ -356,6 +366,7 @@ export default function IATPage() {
       trials: finalResponses.map(r => ({
         blockNumber:         r.blockNum,
         blockLabel:          r.blockLabel,
+        blockType:           r.blockType,
         trialNumber:         r.trialNum,
         stimulusText:        r.word,
         stimulusCategory:    r.wordCat,
@@ -558,12 +569,15 @@ export default function IATPage() {
                 </div>
               </div>
 
-              <p className="text-gray-400 text-sm mb-6">
-                Press{' '}
+              <p className="text-gray-400 text-sm mb-3">
+                When a word appears — press{' '}
                 <kbd className="bg-gray-700 px-2 py-0.5 rounded text-white text-xs font-mono">E</kbd>
-                {' '}or{' '}
+                {' '}if it belongs to the <strong className="text-white">left</strong> category,{' '}
                 <kbd className="bg-gray-700 px-2 py-0.5 rounded text-white text-xs font-mono">I</kbd>
-                {' '}as quickly and accurately as possible. A red ✕ means wrong key — correct it and keep going.
+                {' '}if it belongs to the <strong className="text-white">right</strong>. Go as fast as you can.
+              </p>
+              <p className="text-gray-500 text-xs mb-6">
+                A red ✕ means wrong key — press the correct one immediately and continue. Do not pause.
               </p>
 
               <button
@@ -635,7 +649,7 @@ export default function IATPage() {
                 <>Press <kbd className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">E</kbd> for categories on the <strong>left</strong>, <kbd className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono ml-1">I</kbd> for the <strong>right</strong>.</>,
                 'Go as fast as you can while still being accurate.',
                 'A red ✕ means wrong key — correct it and keep going straight away.',
-                <>There are <strong>7 blocks</strong> total (~{cfg.estimatedMinutes} minutes). Blocks 1 and 2 are practice — no results collected.</>,
+                <>There are <strong>7 blocks</strong> total (~{cfg.estimatedMinutes} minutes). Blocks 4 and 7 are the critical test blocks — they carry the most weight in scoring.</>,
                 'Complete in one sitting without interruption for valid results.',
               ].map((step, i) => (
                 <li key={i} className="flex items-start gap-2">
