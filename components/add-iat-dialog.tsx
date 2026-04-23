@@ -69,7 +69,7 @@ export function AddIatDialog({ studyId, open, onClose, onSuccess }: AddIatDialog
       })).catch(() => {}) // non-fatal
 
       toast.success('IAT added to study', {
-        description: `160 trials · 7 blocks · ~${selected.estimatedMinutes} min`,
+        description: `180 trials · 7 blocks · ~${selected.estimatedMinutes} min`,
       })
       onSuccess()
       handleClose()
@@ -136,7 +136,7 @@ export function AddIatDialog({ studyId, open, onClose, onSuccess }: AddIatDialog
                     </p>
                     <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground/70">
                       <Timer className="w-3 h-3" />
-                      ~{type.estimatedMinutes} min · 160 trials · 7 blocks
+                      ~{type.estimatedMinutes} min · 180 trials · 7 blocks
                     </div>
                   </button>
                 )
