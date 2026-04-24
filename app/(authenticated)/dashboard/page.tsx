@@ -8,15 +8,17 @@ import { StudyCard } from '@/components/study-card'
 import { ClinicalAlert } from '@/components/clinical-alert'
 import { EmptyState } from '@/components/empty-state'
 import { HelpCircle, Plus, ExternalLink, Library, Mail, ClipboardList, ShieldAlert } from 'lucide-react'
-import type { Profile, Study, ClinicalAlert as ClinicalAlertType } from '@/types/database'
+import type { ClinicalAlert as ClinicalAlertType } from '@/types/database'
+
+const DEFAULT_RESEARCHER_COLOR = '#2D6A4F'
 
 const morningGreetings = [
   (name: string) => `Good morning, ${name}. Coffee first. p-values second.`,
-  (name: string) => `Good morning, ${name}. The data won&apos;t collect itself, and honestly, neither will the coffee.`,
+  (name: string) => `Good morning, ${name}. The data won't collect itself, and honestly, neither will the coffee.`,
   (name: string) => `Rise and hypothesise, ${name}.`,
 ]
 const afternoonGreetings = [
-  (name: string) => `Good afternoon, ${name}. Correlation isn&apos;t causation, but opening this dashboard definitely caused it to load.`,
+  (name: string) => `Good afternoon, ${name}. Correlation isn't causation, but opening this dashboard definitely caused it to load.`,
   (name: string) => `Good afternoon, ${name}. Halfway through the day. Still more data to collect than Freud had opinions.`,
   (name: string) => `Good afternoon, ${name}. Your participants are out there implicitly associating things as we speak.`,
 ]
@@ -27,9 +29,9 @@ const eveningGreetings = [
 ]
 const generalGreetings = [
   (name: string) => `Hello, ${name}. Freud would have had opinions about your research topic. Fortunately, he is not here.`,
-  (name: string) => `Welcome back, ${name}. The null hypothesis today is that nothing interesting will happen. Let&apos;s reject it.`,
-  (name: string) => `Hey, ${name}. Pavlov&apos;s dogs salivated at a bell. You opened a research dashboard. We&apos;re all shaped by our environments.`,
-  (name: string) => `Welcome back, ${name}. Your participants missed you. Probably. We didn&apos;t run a study on it.`,
+  (name: string) => `Welcome back, ${name}. The null hypothesis today is that nothing interesting will happen. Let's reject it.`,
+  (name: string) => `Hey, ${name}. Pavlov's dogs salivated at a bell. You opened a research dashboard. We're all shaped by our environments.`,
+  (name: string) => `Welcome back, ${name}. Your participants missed you. Probably. We didn't run a study on it.`,
 ]
 
 function getGreeting(name: string): string {
@@ -55,7 +57,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, full_name, role, researcher_color')
     .eq('id', user.id)
     .single()
 
@@ -64,7 +66,7 @@ export default async function DashboardPage() {
   // Fetch studies — admin sees all, researchers see their own
   let studiesQuery = supabase
     .from('studies')
-    .select('*')
+    .select('id, title, status, created_at, created_by, participant_count, completion_percentage')
     .order('created_at', { ascending: false })
     .limit(5)
   if (!isAdmin) studiesQuery = studiesQuery.eq('created_by', user.id)
@@ -101,63 +103,46 @@ export default async function DashboardPage() {
     instrumentsByStudy[i.study_id].push({ type: 'iat' })
   }
 
-  // Fetch clinical alerts
-  const { data: clinicalAlerts } = await supabase
-    .from('clinical_alerts_log')
-    .select('*')
-    .eq('acknowledged', false)
-    .order('created_at', { ascending: false })
-    .limit(5)
+  const qIds = (qInstrData.data || []).map(q => q.id)
 
-  // --- Stats ---
+  // All remaining queries are independent — run in parallel
   let activeStudiesCountQuery = supabase
     .from('studies')
     .select('*', { count: 'exact', head: true })
     .eq('status', 'active')
   if (!isAdmin) activeStudiesCountQuery = activeStudiesCountQuery.eq('created_by', user.id)
-  const { count: activeStudiesCount } = await activeStudiesCountQuery
 
-  const { count: totalParticipantsCount } = studyIds.length > 0
-    ? await supabase
-        .from('study_enrollments')
-        .select('*', { count: 'exact', head: true })
-        .in('study_id', studyIds)
-    : { count: 0 }
-
-  // Completed surveys: count actual questionnaire completions
-  const qIds = (qInstrData.data || []).map(q => q.id)
-  const { count: responsesCount } = qIds.length > 0
-    ? await supabase
-        .from('questionnaire_scored_results')
-        .select('*', { count: 'exact', head: true })
-        .in('questionnaire_id', qIds)
-        .eq('is_complete', true)
-    : { count: 0 }
-
-  const { count: alertsCount } = await supabase
-    .from('clinical_alerts_log')
-    .select('*', { count: 'exact', head: true })
-    .eq('acknowledged', false)
-
-  // Other researchers on platform
-  const { data: researchers } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'researcher')
-    .neq('id', user.id)
-    .limit(5)
+  const [
+    { count: activeStudiesCount },
+    { count: totalParticipantsCount },
+    { count: responsesCount },
+    { data: clinicalAlerts },
+    { count: alertsCount },
+    { data: researchers },
+    { data: recentActivity },
+  ] = await Promise.all([
+    activeStudiesCountQuery,
+    studyIds.length > 0
+      ? supabase.from('study_enrollments').select('*', { count: 'exact', head: true }).in('study_id', studyIds)
+      : Promise.resolve({ count: 0, data: null, error: null }),
+    qIds.length > 0
+      ? supabase.from('questionnaire_scored_results').select('*', { count: 'exact', head: true }).in('questionnaire_id', qIds).eq('is_complete', true)
+      : Promise.resolve({ count: 0, data: null, error: null }),
+    supabase.from('clinical_alerts_log').select('*').eq('acknowledged', false).order('created_at', { ascending: false }).limit(5),
+    supabase.from('clinical_alerts_log').select('*', { count: 'exact', head: true }).eq('acknowledged', false),
+    supabase.from('profiles').select('id, full_name, email, researcher_color').eq('role', 'researcher').neq('id', user.id).limit(5),
+    isAdmin
+      ? supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(8)
+      : supabase.from('activity_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(8),
+  ])
 
   // Admin-only: per-researcher study breakdown
-  let researcherBreakdown: Array<{ profile: Profile; studyCount: number; latestStudy: string | null }> = []
+  let researcherBreakdown: Array<{ profile: Record<string, any>; studyCount: number; latestStudy: string | null }> = []
   if (isAdmin) {
-    const { data: allResearchers } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('role', ['researcher', 'admin'])
-    const { data: allStudies } = await supabase
-      .from('studies')
-      .select('id, title, created_by, created_at')
-      .order('created_at', { ascending: false })
+    const [{ data: allResearchers }, { data: allStudies }] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, email, role, researcher_color').in('role', ['researcher', 'admin']),
+      supabase.from('studies').select('id, title, created_by, created_at').order('created_at', { ascending: false }),
+    ])
     const byResearcher = new Map<string, { count: number; latest: string | null }>()
     for (const s of allStudies ?? []) {
       const curr = byResearcher.get(s.created_by) ?? { count: 0, latest: null }
@@ -166,7 +151,7 @@ export default async function DashboardPage() {
       byResearcher.set(s.created_by, curr)
     }
     researcherBreakdown = (allResearchers ?? [])
-      .map((r: Profile) => {
+      .map((r) => {
         const stat = byResearcher.get(r.id)
         return { profile: r, studyCount: stat?.count ?? 0, latestStudy: stat?.latest ?? null }
       })
@@ -174,29 +159,16 @@ export default async function DashboardPage() {
       .sort((a, b) => b.studyCount - a.studyCount)
   }
 
-  // Recent activity — scoped to current user unless admin
-  const activityBaseQuery = supabase
-    .from('activity_logs')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(8)
-  const { data: recentActivity } = isAdmin
-    ? await activityBaseQuery
-    : await activityBaseQuery.eq('user_id', user.id)
-
-  const firstName = getFirstName(profile?.full_name)
-  const greeting = getGreeting(firstName)
-  const researcherColor = profile?.researcher_color || '#2D6A4F'
+  const firstName      = getFirstName(profile?.full_name)
+  const greeting       = getGreeting(firstName)
+  const researcherColor = profile?.researcher_color || DEFAULT_RESEARCHER_COLOR
 
   return (
     <div className="p-6 lg:p-8">
       {/* Top bar */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1
-            className="font-serif text-2xl text-foreground"
-            dangerouslySetInnerHTML={{ __html: greeting }}
-          />
+          <h1 className="font-serif text-2xl text-foreground">{greeting}</h1>
           {isAdmin && (
             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
               <ShieldAlert className="w-3 h-3" /> Admin view — showing all studies
@@ -265,7 +237,7 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {studies && studies.length > 0 ? (
-                studies.map((study: Study) => (
+                studies.map((study) => (
                   <StudyCard
                     key={study.id}
                     id={study.id}
@@ -294,7 +266,7 @@ export default async function DashboardPage() {
                   <div key={r.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/40">
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-                      style={{ backgroundColor: r.researcher_color || '#2D6A4F' }}
+                      style={{ backgroundColor: r.researcher_color || DEFAULT_RESEARCHER_COLOR }}
                     >
                       {r.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
                     </div>
@@ -321,13 +293,13 @@ export default async function DashboardPage() {
             <CardContent>
               {researchers && researchers.length > 0 ? (
                 <div className="space-y-3">
-                  {researchers.map((researcher: Profile) => (
+                  {researchers.map((researcher) => (
                     <div key={researcher.id} className="flex items-center gap-3">
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-                        style={{ backgroundColor: researcher.researcher_color || '#2D6A4F' }}
+                        style={{ backgroundColor: researcher.researcher_color || DEFAULT_RESEARCHER_COLOR }}
                       >
-                        {researcher.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+                        {researcher.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">
@@ -336,7 +308,7 @@ export default async function DashboardPage() {
                       </div>
                       <div
                         className="w-4 h-4 rounded shrink-0"
-                        style={{ backgroundColor: researcher.researcher_color || '#2D6A4F' }}
+                        style={{ backgroundColor: researcher.researcher_color || DEFAULT_RESEARCHER_COLOR }}
                       />
                     </div>
                   ))}

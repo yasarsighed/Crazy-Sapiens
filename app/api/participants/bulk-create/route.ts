@@ -16,6 +16,46 @@ type RowResult = {
   error?: string
 }
 
+async function inviteOne(
+  raw: BulkRow,
+  svc: ReturnType<typeof createServiceClient>,
+  study_id: string | undefined,
+  redirectTo: string,
+): Promise<RowResult> {
+  const email     = (raw.email     ?? '').trim().toLowerCase()
+  const full_name = (raw.full_name ?? '').trim()
+  if (!email || !full_name) {
+    return { email, ok: false, error: 'missing email or full_name' }
+  }
+
+  const { data: invited, error: inviteErr } = await svc.auth.admin.inviteUserByEmail(email, {
+    data: { full_name, role: 'participant' },
+    redirectTo,
+  })
+
+  if (inviteErr || !invited?.user) {
+    return { email, ok: false, error: inviteErr?.message || 'Failed to invite user' }
+  }
+
+  const newUserId = invited.user.id
+
+  await svc.from('profiles').upsert(
+    { id: newUserId, email, full_name, role: 'participant' },
+    { onConflict: 'id' },
+  )
+
+  if (study_id) {
+    await svc.from('study_enrollments').insert({
+      study_id,
+      participant_id: newUserId,
+      status:         'active',
+      enrolled_at:    new Date().toISOString(),
+    })
+  }
+
+  return { email, ok: true, participant_id: newUserId }
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = await createClient()
@@ -40,56 +80,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Max 200 rows per request' }, { status: 400 })
     }
 
-    const svc = createServiceClient()
-
+    const svc        = createServiceClient()
     const redirectTo = `${getAppOrigin()}/auth/callback?next=/participant/dashboard`
 
+    // Process in parallel chunks of 10 to avoid rate-limiting the Supabase Admin API
+    const CHUNK   = 10
     const results: RowResult[] = []
-
-    for (const raw of rows) {
-      const email = (raw.email ?? '').trim().toLowerCase()
-      const full_name = (raw.full_name ?? '').trim()
-      if (!email || !full_name) {
-        results.push({ email, ok: false, error: 'missing email or full_name' })
-        continue
-      }
-
-      const { data: invited, error: inviteErr } = await svc.auth.admin.inviteUserByEmail(email, {
-        data: { full_name, role: 'participant' },
-        redirectTo,
-      })
-
-      if (inviteErr || !invited?.user) {
-        results.push({ email, ok: false, error: inviteErr?.message || 'Failed to invite user' })
-        continue
-      }
-
-      const newUserId = invited.user.id
-
-      await svc.from('profiles').upsert({
-        id: newUserId,
-        email,
-        full_name,
-        role: 'participant',
-      }, { onConflict: 'id' })
-
-      if (study_id) {
-        await svc.from('study_enrollments').insert({
-          study_id,
-          participant_id: newUserId,
-          status: 'active',
-          enrolled_at: new Date().toISOString(),
-        })
-      }
-
-      results.push({ email, ok: true, participant_id: newUserId })
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk        = rows.slice(i, i + CHUNK)
+      const chunkResults = await Promise.all(
+        chunk.map(raw => inviteOne(raw, svc, study_id, redirectTo)),
+      )
+      results.push(...chunkResults)
     }
 
     const createdCount = results.filter(r => r.ok).length
     await logActivity(user.id, 'participants_bulk_added', 'study', study_id ?? null, {
-      total: rows.length,
+      total:   rows.length,
       created: createdCount,
-      failed: rows.length - createdCount,
+      failed:  rows.length - createdCount,
     })
 
     return NextResponse.json({ ok: true, results })

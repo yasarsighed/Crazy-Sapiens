@@ -1,24 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function escapeCSV(value: any): string {
-  if (value === null || value === undefined) return ''
-  const str = String(value)
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`
-  }
-  return str
-}
-
-function toCSVRow(values: any[]): string {
-  return values.map(escapeCSV).join(',')
-}
-
-function toCSV(headers: string[], rows: any[][]): string {
-  return [headers.join(','), ...rows.map(toCSVRow)].join('\n')
-}
+import { toCSV } from '@/lib/csv'
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 

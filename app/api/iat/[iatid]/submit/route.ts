@@ -147,22 +147,17 @@ export async function POST(
   const { error: sessionErr } = await svc.from('iat_session_results').insert(sessionPayload)
 
   if (sessionErr) {
-    // Progressively strip columns that don't exist yet in this deployment
     const knownOptional = ['assigned_order', 'excluded', 'exclusion_reason']
     if (knownOptional.some(col => sessionErr.message.includes(col))) {
-      const stripped = { ...sessionPayload }
-      for (const col of knownOptional) {
-        if (sessionErr.message.includes(col)) delete (stripped as any)[col]
-      }
-      // Retry — may still fail if multiple columns are missing; strip all optional
-      const safe = {
+      // One or more optional columns not yet migrated — retry with only the
+      // required core fields so data is never lost regardless of schema version.
+      const { error: retryErr } = await svc.from('iat_session_results').insert({
         iat_id:         iatid,
         participant_id: user.id,
         session_id:     body.sessionId,
         d_score:        body.dScore,
         computed_at:    new Date().toISOString(),
-      }
-      const { error: retryErr } = await svc.from('iat_session_results').insert(safe)
+      })
       if (retryErr) {
         return NextResponse.json(
           { error: `Failed to save session result: ${retryErr.message}` },
