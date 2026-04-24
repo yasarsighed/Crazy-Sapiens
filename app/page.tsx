@@ -24,7 +24,7 @@ export default function SplashPage() {
         
         {/* Tagline */}
         <p className="text-[13px] text-muted-foreground font-sans mb-8">
-          A psychological research platform
+          Serious science. Questionable sanity. Zero excuses.
         </p>
         
         {/* Horizontal rule with ampersand */}
@@ -37,10 +37,13 @@ export default function SplashPage() {
         {/* Founder dedication */}
         <div className="mb-10 text-center">
           <p className="text-[15px] text-muted-foreground italic font-sans mb-3">
-            This platform was created through the consistent and creative intellectual efforts of
+            Brought into existence — against all odds and several deadlines — by
           </p>
           <p className="font-serif text-lg text-foreground">
             Pradipta Poddar, Nandani Sharma &amp; Yasar Syed
+          </p>
+          <p className="text-[11px] text-muted-foreground/60 mt-2 font-sans">
+            (No participants were harmed. Probably.)
           </p>
         </div>
         

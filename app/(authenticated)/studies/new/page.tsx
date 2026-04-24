@@ -50,8 +50,8 @@ export default function NewStudyPage() {
         }),
       }).catch(() => {})
 
-      toast.success('Study created as draft', {
-        description: 'Add instruments and participants, then set status to Active.',
+      toast.success('Study created — it begins.', {
+        description: 'Add instruments and participants, then flip it to Active. Science awaits.',
       })
       router.push(`/studies/${study.id}`)
     } catch (err) {
@@ -79,7 +79,7 @@ export default function NewStudyPage() {
         </div>
         <div>
           <h1 className="font-serif text-2xl">New study</h1>
-          <p className="text-xs text-muted-foreground">Science does not do itself.</p>
+          <p className="text-xs text-muted-foreground">It won&apos;t fund itself either, but one problem at a time.</p>
         </div>
       </div>
 
@@ -106,7 +106,7 @@ export default function NewStudyPage() {
             id="description"
             value={description}
             onChange={e => setDescription(e.target.value)}
-            placeholder="Briefly describe your study's aims and methods..."
+            placeholder="What are you investigating? 'Whether psychology works' is not specific enough."
             rows={3}
           />
         </div>

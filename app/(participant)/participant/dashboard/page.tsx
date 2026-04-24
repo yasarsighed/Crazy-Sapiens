@@ -157,10 +157,10 @@ export default async function ParticipantDashboardPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {grandTotalPending > 0
-              ? `You have ${grandTotalPending} pending instrument${grandTotalPending > 1 ? 's' : ''}. Take your time.`
+              ? `You have ${grandTotalPending} pending instrument${grandTotalPending > 1 ? 's' : ''}. No rush — unless there is a deadline, in which case, rush.`
               : studyIds.length > 0
-                ? 'All instruments completed. Science thanks you.'
-                : 'You are not enrolled in any studies yet.'}
+                ? 'All done. Science is genuinely in your debt.'
+                : 'Not enrolled in anything yet. Your inner psychologist is waiting.'}
           </p>
         </div>
         <Link href="/participant/profile" className="ml-auto">
@@ -174,9 +174,9 @@ export default async function ParticipantDashboardPage() {
       {studyIds.length === 0 && (
         <div className="text-center py-20 border border-dashed border-border rounded-2xl">
           <FlaskConical className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
-          <p className="font-serif text-xl mb-2">Not enrolled in any studies</p>
+          <p className="font-serif text-xl mb-2">Not in any studies yet</p>
           <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            Your researcher will send you an invite link. Check your email or ask them directly.
+            Your researcher will send an invite link. Check your email — or just make eye contact with them until they notice.
           </p>
         </div>
       )}
@@ -248,8 +248,8 @@ export default async function ParticipantDashboardPage() {
                   <div className="flex items-center gap-3 p-4 bg-[#52B788]/10 border border-[#52B788]/30 rounded-xl">
                     <Trophy className="w-5 h-5 text-[#52B788] shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-foreground">All done — thank you!</p>
-                      <p className="text-xs text-muted-foreground">Your contributions support meaningful research.</p>
+                      <p className="text-sm font-medium text-foreground">All done — genuinely, thank you.</p>
+                      <p className="text-xs text-muted-foreground">Your data will outlive this website and possibly your researcher&apos;s anxiety about sample size.</p>
                     </div>
                   </div>
                 )}
@@ -302,7 +302,7 @@ export default async function ParticipantDashboardPage() {
                       <Timer className="w-4 h-4 text-[#F4A261] shrink-0" />
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{iat.title}</p>
-                        <p className="text-[10px] text-amber-600">Requires physical keyboard</p>
+                        <p className="text-[10px] text-amber-600">Requires a physical keyboard — phones won&apos;t cut it, Freud</p>
                       </div>
                     </div>
                     <Button asChild size="sm" className="shrink-0 bg-[#F4A261] hover:bg-[#e8934a] text-white border-0">
@@ -324,7 +324,7 @@ export default async function ParticipantDashboardPage() {
                 ))}
 
                 {totalCount === 0 && (
-                  <p className="text-sm text-muted-foreground italic text-center py-4">No instruments added yet.</p>
+                  <p className="text-sm text-muted-foreground italic text-center py-4">Nothing here yet. Your researcher is probably still arguing with the ethics board.</p>
                 )}
               </div>
 

@@ -72,7 +72,7 @@ export default function StudiesPage() {
     load()
   }, [])
 
-  if (loading) return <div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading...</div>
+  if (loading) return <div className="p-6 lg:p-8 text-sm text-muted-foreground">Consulting the data…</div>
 
   return (
     <div className="p-6 lg:p-8">
@@ -84,8 +84,8 @@ export default function StudiesPage() {
           <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
             {isAdmin && <ShieldAlert className="w-3.5 h-3.5" />}
             {studies.length
-              ? `${studies.length} ${isAdmin ? 'studies across all researchers' : 'experiments in progress'}`
-              : 'Science does not do itself.'}
+              ? `${studies.length} ${isAdmin ? 'studies across all researchers' : studies.length === 1 ? 'experiment. A humble beginning.' : 'experiments. Greenwald would be proud.'}`
+              : 'No studies yet. Staring at each other is not a methodology.'}
           </p>
         </div>
         {!isAdmin && (
@@ -155,10 +155,10 @@ export default function StudiesPage() {
       ) : (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <p className="font-serif text-xl text-foreground mb-2">No studies yet.</p>
-          <p className="text-sm italic text-muted-foreground mb-6">Science does not do itself.</p>
+          <p className="text-sm italic text-muted-foreground mb-6">Technically this is a null result. Those matter too, but not like this.</p>
           {!isAdmin && (
             <Button asChild>
-              <Link href="/studies/new">Create your first study</Link>
+              <Link href="/studies/new">Start your first experiment</Link>
             </Button>
           )}
         </div>

@@ -67,7 +67,7 @@ export default function LoginPage() {
             <Logo size="md" />
           </div>
           <CardDescription>
-            Sign in to access your research dashboard
+            Welcome back. Your data missed you.
           </CardDescription>
         </CardHeader>
         
@@ -135,7 +135,7 @@ export default function LoginPage() {
           </p>
           
           <p className="text-[11px] text-muted-foreground/70 text-center">
-            This platform is invite-only. Contact your research supervisor for access.
+            Invite-only. If you&apos;re here without one, close the tab and reflect on how that happened.
           </p>
         </CardFooter>
       </Card>

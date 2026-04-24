@@ -10,20 +10,36 @@ import { EmptyState } from '@/components/empty-state'
 import { HelpCircle, Plus, ExternalLink, Library, Mail, ClipboardList, ShieldAlert } from 'lucide-react'
 import type { Profile, Study, ClinicalAlert as ClinicalAlertType } from '@/types/database'
 
-const greetings = [
-  (name: string) => `Good morning, ${name}. The data won&apos;t collect itself.`,
-  (name: string) => `Welcome back, ${name}. Your participants missed you. Probably.`,
-  (name: string) => `Hello, ${name}. Let&apos;s make some science happen today.`,
-  (name: string) => `Good to see you, ${name}. Your studies are patiently waiting.`,
+const morningGreetings = [
+  (name: string) => `Good morning, ${name}. Coffee first. p-values second.`,
+  (name: string) => `Good morning, ${name}. The data won&apos;t collect itself, and honestly, neither will the coffee.`,
+  (name: string) => `Rise and hypothesise, ${name}.`,
+]
+const afternoonGreetings = [
+  (name: string) => `Good afternoon, ${name}. Correlation isn&apos;t causation, but opening this dashboard definitely caused it to load.`,
+  (name: string) => `Good afternoon, ${name}. Halfway through the day. Still more data to collect than Freud had opinions.`,
+  (name: string) => `Good afternoon, ${name}. Your participants are out there implicitly associating things as we speak.`,
+]
+const eveningGreetings = [
+  (name: string) => `Good evening, ${name}. Still here? That level of dedication is either inspiring or a coping mechanism. The AAQ-II will tell us.`,
+  (name: string) => `Good evening, ${name}. The IRB approved the study. Nobody approved staying this late.`,
+  (name: string) => `Good evening, ${name}. B. F. Skinner would call this a conditioned response to impending deadlines.`,
+]
+const generalGreetings = [
+  (name: string) => `Hello, ${name}. Freud would have had opinions about your research topic. Fortunately, he is not here.`,
+  (name: string) => `Welcome back, ${name}. The null hypothesis today is that nothing interesting will happen. Let&apos;s reject it.`,
+  (name: string) => `Hey, ${name}. Pavlov&apos;s dogs salivated at a bell. You opened a research dashboard. We&apos;re all shaped by our environments.`,
+  (name: string) => `Welcome back, ${name}. Your participants missed you. Probably. We didn&apos;t run a study on it.`,
 ]
 
 function getGreeting(name: string): string {
   const hour = new Date().getHours()
-  const randomIndex = Math.floor(Math.random() * greetings.length)
-  let greeting = greetings[randomIndex](name)
-  if (hour >= 12 && hour < 17) greeting = greeting.replace('Good morning', 'Good afternoon')
-  else if (hour >= 17 || hour < 5) greeting = greeting.replace('Good morning', 'Good evening')
-  return greeting
+  let pool: ((n: string) => string)[]
+  if (hour < 12) pool = morningGreetings
+  else if (hour < 17) pool = afternoonGreetings
+  else if (hour < 22) pool = eveningGreetings
+  else pool = generalGreetings
+  return pool[Math.floor(Math.random() * pool.length)](name)
 }
 
 function getFirstName(fullName: string | null): string {
@@ -207,23 +223,23 @@ export default async function DashboardPage() {
         <StatCard
           title={isAdmin ? 'All Active Studies' : 'Active Studies'}
           value={activeStudiesCount || 0}
-          subtitle="experiments in progress"
+          subtitle="running simultaneously (very on-brand)"
           variant="researcher-color"
         />
         <StatCard
           title="Total Participants"
           value={totalParticipantsCount || 0}
-          subtitle="brave souls enrolled"
+          subtitle="humans who said yes (bless them)"
         />
         <StatCard
           title="Completed Surveys"
           value={responsesCount || 0}
-          subtitle="questionnaires submitted"
+          subtitle="feelings formally quantified"
         />
         <StatCard
           title="Clinical Alerts"
           value={alertsCount || 0}
-          subtitle="requiring attention"
+          subtitle="eyes on these. now."
           variant="alert"
         />
       </div>
@@ -261,7 +277,7 @@ export default async function DashboardPage() {
                   />
                 ))
               ) : (
-                <EmptyState title="No studies yet." subtitle="Science does not do itself." />
+                <EmptyState title="No studies yet." subtitle="Even Freud had to start somewhere. He started badly, but still." />
               )}
             </CardContent>
           </Card>
@@ -326,7 +342,7 @@ export default async function DashboardPage() {
                   ))}
                 </div>
               ) : (
-                <EmptyState title="No other researchers yet." subtitle="You are the pioneer." />
+                <EmptyState title="No other researchers yet." subtitle="Enjoy the methodological solitude while it lasts." />
               )}
             </CardContent>
           </Card>
@@ -340,7 +356,7 @@ export default async function DashboardPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="font-serif text-base">Clinical alerts</CardTitle>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Heads up. These are serious. We do not joke about these.
+                  These are real. Handle with care. No jokes here.
                 </p>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -386,7 +402,7 @@ export default async function DashboardPage() {
                   ))}
                 </div>
               ) : (
-                <EmptyState title="No activity yet." subtitle="The calm before the data storm." />
+                <EmptyState title="Nothing yet." subtitle="The observer effect is real — you're watching and nothing is happening." />
               )}
             </CardContent>
           </Card>
