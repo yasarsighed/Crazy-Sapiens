@@ -7,6 +7,10 @@ export interface Profile {
   role: UserRole
   researcher_color: string | null
   avatar_url: string | null
+  date_of_birth: string | null
+  gender: string | null
+  education_level: string | null
+  occupation: string | null
   created_at: string
   updated_at: string | null
 }

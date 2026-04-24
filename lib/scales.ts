@@ -222,7 +222,160 @@ export const GAD7: BuiltInScale = {
   ],
 }
 
-export const BUILT_IN_SCALES: BuiltInScale[] = [PHQ9, GAD7]
+// ─── Acceptance and Action Questionnaire – II ────────────────────────────────
+// Bond et al. (2011) Behavior Therapy 42(4):676–688.
+// 7 items, 1–7 Likert (Never true → Always true).
+// Higher total = greater experiential avoidance / psychological inflexibility.
+// Clinical cut-off: total ≥ 24 (Bond et al., 2011).
+export const AAQ2: BuiltInScale = {
+  abbreviation: 'AAQ-II',
+  full_name: 'Acceptance and Action Questionnaire – II',
+  description:
+    'A 7-item measure of psychological inflexibility and experiential avoidance. Scores range from 7 (highly flexible) to 49 (highly inflexible). Clinical concern is indicated at scores ≥ 24.',
+  domain: 'Psychological Flexibility',
+  total_items: 7,
+  scale_min: 7,
+  scale_max: 49,
+  estimated_duration_minutes: 3,
+  requires_clinical_alert: true,
+  clinical_alert_threshold: 28,
+  clinical_alert_logic: 'total_gte',
+  citation:
+    'Bond FW, Hayes SC, Baer RA, et al. Preliminary Psychometric Properties of the Acceptance and Action Questionnaire-II: A Revised Measure of Psychological Inflexibility and Experiential Avoidance. Behavior Therapy. 2011;42(4):676–688.',
+  response_options: [
+    { value: 1, label: 'Never true' },
+    { value: 2, label: 'Very seldom true' },
+    { value: 3, label: 'Seldom true' },
+    { value: 4, label: 'Sometimes true' },
+    { value: 5, label: 'Often true' },
+    { value: 6, label: 'Almost always true' },
+    { value: 7, label: 'Always true' },
+  ],
+  items: [
+    {
+      code: 'AAQ2_1',
+      text: 'My painful experiences and memories make it difficult for me to live a life that I would value.',
+      is_reverse_scored: false,
+      is_clinical_flag_item: false,
+      display_order: 1,
+    },
+    {
+      code: 'AAQ2_2',
+      text: "I'm afraid of my feelings.",
+      is_reverse_scored: false,
+      is_clinical_flag_item: false,
+      display_order: 2,
+    },
+    {
+      code: 'AAQ2_3',
+      text: 'I worry about not being able to control my worries and feelings.',
+      is_reverse_scored: false,
+      is_clinical_flag_item: false,
+      display_order: 3,
+    },
+    {
+      code: 'AAQ2_4',
+      text: 'My painful memories prevent me from having a fulfilling life.',
+      is_reverse_scored: false,
+      is_clinical_flag_item: false,
+      display_order: 4,
+    },
+    {
+      code: 'AAQ2_5',
+      text: 'Emotions cause problems in my life.',
+      is_reverse_scored: false,
+      is_clinical_flag_item: false,
+      display_order: 5,
+    },
+    {
+      code: 'AAQ2_6',
+      text: 'It seems like most people are handling their lives better than I am.',
+      is_reverse_scored: false,
+      is_clinical_flag_item: false,
+      display_order: 6,
+    },
+    {
+      code: 'AAQ2_7',
+      text: 'Worries get in the way of my success.',
+      is_reverse_scored: false,
+      is_clinical_flag_item: false,
+      display_order: 7,
+    },
+  ],
+  severity_bands: [
+    { label: 'Flexible', category: 'flexible', min: 7, max: 17, color: '#52B788' },
+    { label: 'Average', category: 'average', min: 18, max: 24, color: '#90BE6D' },
+    { label: 'Elevated', category: 'elevated', min: 25, max: 28, color: '#E9C46A' },
+    { label: 'High Inflexibility', category: 'high', min: 29, max: 49, color: '#E63946' },
+  ],
+}
+
+// ─── Multidimensional Psychological Flexibility Inventory – SF ────────────────
+// Rolffs JL, Rogge RD, Wilson KG. (2018) Behavior Therapy 49(6):928–946.
+// 24-item short form. Items 1–12 = Psychological Flexibility (PF) subscale;
+// items 13–24 = Psychological Inflexibility (PI) subscale.
+// Response: 1 (Never) to 6 (Always). Subscale range 12–72.
+// Scored here as PI subscale total (higher = worse; range 12–72).
+// Note: Items 1–12 (PF subscale) are reverse-scored for the combined total.
+export const MPFI: BuiltInScale = {
+  abbreviation: 'MPFI',
+  full_name: 'Multidimensional Psychological Flexibility Inventory – Short Form',
+  description:
+    'A 24-item measure of psychological flexibility (items 1–12) and inflexibility (items 13–24). Scored as the Psychological Inflexibility subscale total (12–72); higher scores indicate greater inflexibility.',
+  domain: 'Psychological Flexibility',
+  total_items: 24,
+  scale_min: 12,
+  scale_max: 72,
+  estimated_duration_minutes: 7,
+  requires_clinical_alert: false,
+  clinical_alert_threshold: 0,
+  clinical_alert_logic: 'none',
+  citation:
+    'Rolffs JL, Rogge RD, Wilson KG. Disentangling Components of Flexibility via the Multidimensional Psychological Flexibility Inventory (MPFI). Assessment. 2018;25(4):528–545.',
+  response_options: [
+    { value: 1, label: 'Never' },
+    { value: 2, label: 'Very rarely' },
+    { value: 3, label: 'Rarely' },
+    { value: 4, label: 'Sometimes' },
+    { value: 5, label: 'Often' },
+    { value: 6, label: 'Always' },
+  ],
+  items: [
+    // Psychological Flexibility subscale (PF) — items 1–12
+    { code: 'MPFI_PF1',  text: 'I am able to act in a way that is consistent with my values even when I feel anxious or afraid.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 1 },
+    { code: 'MPFI_PF2',  text: 'I continue to engage in activities that I care about even when I am having negative thoughts about them.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 2 },
+    { code: 'MPFI_PF3',  text: 'I can notice my feelings and thoughts without getting carried away by them.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 3 },
+    { code: 'MPFI_PF4',  text: 'I make room for difficult feelings when I need to do something that is important to me.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 4 },
+    { code: 'MPFI_PF5',  text: 'I have a clear sense of what is important to me and what I want my life to stand for.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 5 },
+    { code: 'MPFI_PF6',  text: 'I am fully present in the current moment, even when unpleasant things are happening.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 6 },
+    { code: 'MPFI_PF7',  text: 'I am able to see difficult thoughts as just thoughts, not as facts.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 7 },
+    { code: 'MPFI_PF8',  text: 'I accept discomfort when it is in the service of what is important to me.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 8 },
+    { code: 'MPFI_PF9',  text: 'I am able to observe my thoughts and feelings without being swept up by them.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 9 },
+    { code: 'MPFI_PF10', text: 'I take actions that are guided by my values even in difficult situations.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 10 },
+    { code: 'MPFI_PF11', text: 'I am aware of my thoughts and feelings without being defined by them.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 11 },
+    { code: 'MPFI_PF12', text: 'I persist in following through on my intentions even when faced with difficulty.', is_reverse_scored: true,  is_clinical_flag_item: false, display_order: 12 },
+    // Psychological Inflexibility subscale (PI) — items 13–24
+    { code: 'MPFI_PI1',  text: 'My worries and fears get in the way of doing what is important to me.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 13 },
+    { code: 'MPFI_PI2',  text: 'I avoid situations that are likely to bring up difficult memories or feelings.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 14 },
+    { code: 'MPFI_PI3',  text: 'I get stuck in my thoughts and have difficulty seeing things from different angles.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 15 },
+    { code: 'MPFI_PI4',  text: 'I struggle to do what I know is important to me when I am having negative thoughts.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 16 },
+    { code: 'MPFI_PI5',  text: "I don't know what is really important to me in life.", is_reverse_scored: false, is_clinical_flag_item: false, display_order: 17 },
+    { code: 'MPFI_PI6',  text: 'My mind gets caught up in past events or future worries and I lose touch with what is happening right now.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 18 },
+    { code: 'MPFI_PI7',  text: 'I treat my thoughts as though they were facts and must be obeyed.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 19 },
+    { code: 'MPFI_PI8',  text: 'I try to suppress uncomfortable feelings.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 20 },
+    { code: 'MPFI_PI9',  text: 'My self-concept is mainly defined by my thoughts and feelings.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 21 },
+    { code: 'MPFI_PI10', text: 'I feel like I am going in circles and not progressing towards what is important to me.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 22 },
+    { code: 'MPFI_PI11', text: 'I am stuck in patterns that stop me from doing what I care about.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 23 },
+    { code: 'MPFI_PI12', text: 'I give up on my goals when things get difficult.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 24 },
+  ],
+  severity_bands: [
+    { label: 'Low Inflexibility', category: 'low',      min: 12, max: 24, color: '#52B788' },
+    { label: 'Moderate',          category: 'moderate',  min: 25, max: 36, color: '#E9C46A' },
+    { label: 'High Inflexibility',category: 'high',      min: 37, max: 72, color: '#E63946' },
+  ],
+}
+
+export const BUILT_IN_SCALES: BuiltInScale[] = [PHQ9, GAD7, AAQ2, MPFI]
 
 export function getScaleByAbbreviation(abbreviation: string): BuiltInScale | null {
   return BUILT_IN_SCALES.find(s => s.abbreviation === abbreviation) ?? null
