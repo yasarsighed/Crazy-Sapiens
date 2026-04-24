@@ -44,9 +44,14 @@ export function AddQuestionnaireDialog({
   const handleScaleSelect = (scale: BuiltInScale) => {
     setSelectedScale(scale)
     setTitle(scale.full_name)
-    setInstructions(
-      'Over the last 2 weeks, how often have you been bothered by any of the following problems?'
-    )
+    // Default instructions vary by scale type
+    const defaultInstructions =
+      scale.abbreviation === 'AAQ-II'
+        ? 'Below you will find a list of statements. Please rate how true each statement is for you.'
+        : scale.abbreviation === 'MPFI'
+        ? 'Using the scale below, please indicate how true each of the following statements was for you over the past two weeks.'
+        : 'Over the last 2 weeks, how often have you been bothered by any of the following problems?'
+    setInstructions(defaultInstructions)
     setAlertEnabled(scale.requires_clinical_alert)
     setAlertThreshold(String(scale.clinical_alert_threshold))
     setStep('configure')
@@ -311,10 +316,14 @@ export function AddQuestionnaireDialog({
             </div>
 
             {/* Summary */}
-            <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground">
-              <span className="font-medium">{selectedScale.total_items} items</span> will be loaded.
-              Severity bands:{' '}
-              {selectedScale.severity_bands.map(b => b.label).join(' → ')}.
+            <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
+              <p>
+                <span className="font-medium">{selectedScale.total_items} items</span> will be loaded.
+                Severity bands: {selectedScale.severity_bands.map(b => b.label).join(' → ')}.
+              </p>
+              {selectedScale.scoring_note && (
+                <p className="text-muted-foreground/70 italic">{selectedScale.scoring_note}</p>
+              )}
             </div>
 
             <div className="flex gap-3 pt-2">
