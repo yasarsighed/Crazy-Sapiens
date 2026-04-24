@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { ArrowLeft, Users, BarChart3 } from 'lucide-react'
 import * as d3Lib from 'd3'
+import type { SimulationNodeDatum } from 'd3'
 import {
   reciprocity,
   clusteringCoefficient,
@@ -22,7 +23,7 @@ import {
 
 interface DbParticipant {
   id: string
-  participant_id: string   // auth.users.id — used as nominator_id/nominee_id in nominations
+  participant_id: string
   display_name: string
 }
 
@@ -40,7 +41,8 @@ interface DbRelType {
   is_negative_dimension: boolean
 }
 
-interface VizNode {
+// Extends SimulationNodeDatum so d3 can mutate x/y/fx/fy on the same object
+interface VizNode extends SimulationNodeDatum {
   id: number
   name: string
   short: string
@@ -90,10 +92,58 @@ function initials(name: string) {
   return name.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2) || '?'
 }
 
-const rScale = (nodeIdx: number, indegree: number[], nodes: VizNode[]) => {
+// Radius scaled by in-degree
+const rScale = (nodeIdx: number, indegree: number[], _nodes: VizNode[]) => {
   const min = Math.min(...indegree)
   const max = Math.max(...indegree)
-  return max === min ? 14 : 10 + ((indegree[nodeIdx] - min) / (max - min)) * 14
+  return max === min ? 22 : 16 + ((indegree[nodeIdx] - min) / (max - min)) * 16
+}
+
+// ─── Minimap ──────────────────────────────────────────────────────────────────
+
+const MINI_W = 140
+const MINI_H = 100
+
+function drawMinimap(
+  canvas: HTMLCanvasElement,
+  nodes: VizNode[],
+  edges: EdgeTuple[],
+  edgeCfg: EdgeCfg,
+  mainW: number,
+  mainH: number,
+) {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  const scaleX = MINI_W / mainW
+  const scaleY = MINI_H / mainH
+  ctx.clearRect(0, 0, MINI_W, MINI_H)
+  ctx.fillStyle = '#F5F0E8'
+  ctx.fillRect(0, 0, MINI_W, MINI_H)
+
+  // Edges
+  for (const [s, t, typeId] of edges) {
+    const src = nodes[s], tgt = nodes[t]
+    if (src.x == null || src.y == null || tgt.x == null || tgt.y == null) continue
+    const cfg = edgeCfg[typeId]
+    ctx.beginPath()
+    ctx.moveTo(src.x * scaleX, src.y * scaleY)
+    ctx.lineTo(tgt.x * scaleX, tgt.y * scaleY)
+    ctx.strokeStyle = cfg?.color ?? '#999'
+    ctx.globalAlpha = 0.45
+    ctx.lineWidth = 0.6
+    ctx.stroke()
+    ctx.globalAlpha = 1
+  }
+
+  // Nodes
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i]
+    if (n.x == null || n.y == null) continue
+    ctx.beginPath()
+    ctx.arc(n.x * scaleX, n.y * scaleY, 2.5, 0, Math.PI * 2)
+    ctx.fillStyle = communityColor(0)
+    ctx.fill()
+  }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -104,15 +154,16 @@ export default function SociogramResultsPage() {
 
   const svgRef       = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const minimapRef   = useRef<HTMLCanvasElement>(null)
   const simRef       = useRef<any>(null)
   const zoomRef      = useRef<any>(null)
   const svgSel       = useRef<any>(null)
   const pinnedRef    = useRef<Set<number>>(new Set())
+  const dimRef       = useRef({ w: 0, h: 0 })
 
   const [vizData, setVizData]     = useState<VizData | null>(null)
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
-  const [d3Loaded] = useState(true)
   const [settled, setSettled]     = useState(false)
   const [focusNode, setFocusNode] = useState<number | null>(null)
   const [search, setSearch]       = useState('')
@@ -133,7 +184,6 @@ export default function SociogramResultsPage() {
       setLoading(true)
       const supabase = createClient()
 
-      // Find sociogram instruments for this study
       const { data: instruments, error: instrErr } = await supabase
         .from('sociogram_instruments')
         .select('id, title')
@@ -148,7 +198,6 @@ export default function SociogramResultsPage() {
 
       const sociogram = instruments[0]
 
-      // Load participants, nominations, relationship types in parallel
       const [partRes, nomRes, relRes, subRes] = await Promise.all([
         supabase
           .from('sociogram_participants')
@@ -183,12 +232,10 @@ export default function SociogramResultsPage() {
         return
       }
 
-      // Build node index — keyed by BOTH sociogram_participants.id AND participant_id (auth UID)
-      // Nominations store auth UIDs (participant_id) in nominator_id/nominee_id columns
       const nodeIdxById: Record<string, number> = {}
       const nodes: VizNode[] = participants.map((p, i) => {
-        nodeIdxById[p.id] = i             // sociogram_participants.id (legacy)
-        nodeIdxById[p.participant_id] = i  // auth.users.id (current — what nominations store)
+        nodeIdxById[p.id] = i
+        nodeIdxById[p.participant_id] = i
         return {
           id: i,
           name: p.display_name,
@@ -198,13 +245,11 @@ export default function SociogramResultsPage() {
         }
       })
 
-      // Build edge config from relationship types
       const edgeCfg: EdgeCfg = {}
       const deptColors: DeptColors = { Participant: '#2D6A4F' }
       relTypes.forEach((rt, i) => {
-        const key = rt.id
         const color = rt.color_hex || DEFAULT_COLORS[i % DEFAULT_COLORS.length]
-        edgeCfg[key] = {
+        edgeCfg[rt.id] = {
           label: rt.label,
           color,
           dash: rt.is_negative_dimension ? '5 3' : null,
@@ -212,7 +257,6 @@ export default function SociogramResultsPage() {
         }
       })
 
-      // Build edges
       const edges: EdgeTuple[] = nominations
         .filter(n => nodeIdxById[n.nominator_id] !== undefined && nodeIdxById[n.nominee_id] !== undefined)
         .map(n => [
@@ -222,11 +266,10 @@ export default function SociogramResultsPage() {
           n.score ?? 3,
         ])
 
-      // Compute in-degree + full network metrics
-      const indegree = nodes.map((_, i) => edges.filter(e => e[1] === i).length)
+      const indegree  = nodes.map((_, i) => edges.filter(e => e[1] === i).length)
       const outdegree = nodes.map((_, i) => edges.filter(e => e[0] === i).length)
-
       const directedEdges: [number, number][] = edges.map(e => [e[0], e[1]])
+
       const betweenness = betweennessCentrality(nodes.length, directedEdges)
       const closeness   = closenessCentrality(nodes.length, directedEdges)
       const eigenvector = eigenvectorCentrality(nodes.length, directedEdges)
@@ -255,64 +298,57 @@ export default function SociogramResultsPage() {
         isolates,
       }
 
-      const allRelTypeIds = new Set(relTypes.map(rt => rt.id))
-
       setVizData({
-        nodes,
-        edges,
-        indegree,
-        edgeCfg,
-        deptColors,
-        relTypes,
+        nodes, edges, indegree, edgeCfg, deptColors, relTypes,
         participantCount: participants.length,
         submittedCount,
         sociogramTitle: sociogram.title,
         metrics,
       })
-      setActiveRelTypes(allRelTypeIds)
+      setActiveRelTypes(new Set(relTypes.map(rt => rt.id)))
       setLoading(false)
     }
     load()
   }, [studyId])
 
-  // D3 loaded from npm package — no CDN needed
-
-  // ── Build viz when both data and d3 are ready ─────────────────────────────
+  // ── Build viz ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (d3Loaded && vizData) {
-      buildViz(vizData)
-    }
+    if (vizData) buildViz(vizData)
     return () => simRef.current?.stop()
-  }, [d3Loaded, vizData])
+  }, [vizData]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Apply filters reactively ──────────────────────────────────────────────
+  // ── Reactive filters ──────────────────────────────────────────────────────
 
   useEffect(() => { applyFilters() }, [focusNode, search, showLabels, activeRelTypes, minScore])
 
   const applyFilters = useCallback(() => {
     if (!svgSel.current) return
-    const d3 = d3Lib
     const { focusNode: fn, search: sq, showLabels: sl, activeRelTypes: art, minScore: ms, vizData: vd } = stateRef.current
     if (!vd) return
     const lq = sq.toLowerCase()
 
-    svgSel.current.selectAll('.edge').each(function (d: any) {
+    svgSel.current.selectAll('.edge').each((_: any, i: number, nodes: any[]) => {
+      const sel = d3Lib.select(nodes[i])
+      const d: any = sel.datum()
       const show =
         art.has(d.typeId) &&
         (d.typeId === 'communication' ? d.score >= ms : true) &&
         (fn === null || d.source.id === fn || d.target.id === fn)
-      d3.select(this).style('display', show ? null : 'none')
+      sel.attr('display', show ? null : 'none')
     })
 
-    svgSel.current.selectAll('.node-g').each(function (d: any) {
+    svgSel.current.selectAll('.node-g').each((_: any, i: number, nodes: any[]) => {
+      const sel = d3Lib.select(nodes[i])
+      const d: any = sel.datum()
       const nameMatch = !lq || (d.name as string).toLowerCase().includes(lq)
-      const focusDim = fn !== null && d.id !== fn && !vd.edges.some(e => (e[0] === fn && e[1] === d.id) || (e[1] === fn && e[0] === d.id))
+      const focusDim = fn !== null && d.id !== fn &&
+        !vd.edges.some(e => (e[0] === fn && e[1] === d.id) || (e[1] === fn && e[0] === d.id))
       const dim = focusDim || (!!lq && !nameMatch)
-      d3.select(this).attr('opacity', dim ? 0.12 : 1)
+      sel.attr('opacity', dim ? 0.12 : 1)
     })
 
-    svgSel.current.selectAll('.node-label').style('display', sl ? null : 'none')
+    svgSel.current.selectAll('.node-label').attr('display', sl ? null : 'none')
   }, [])
 
   function buildViz(vd: VizData) {
@@ -321,6 +357,7 @@ export default function SociogramResultsPage() {
 
     const W = containerRef.current.clientWidth || 900
     const H = containerRef.current.clientHeight || 680
+    dimRef.current = { w: W, h: H }
 
     d3.select(svgRef.current).selectAll('*').remove()
     const svg = d3.select(svgRef.current).attr('width', W).attr('height', H)
@@ -328,41 +365,53 @@ export default function SociogramResultsPage() {
 
     const defs = svg.append('defs')
 
-    // Shadow
+    // Drop shadow filter
     const sh = defs.append('filter').attr('id', 'nshadow').attr('x', '-30%').attr('y', '-30%').attr('width', '160%').attr('height', '160%')
-    sh.append('feDropShadow').attr('dx', 0).attr('dy', 1.5).attr('stdDeviation', 3).attr('flood-color', 'rgba(0,0,0,0.18)')
+    sh.append('feDropShadow').attr('dx', 0).attr('dy', 2).attr('stdDeviation', 4).attr('flood-color', 'rgba(0,0,0,0.22)')
 
-    // Arrow markers per relationship type
+    // Text shadow filter (for labels inside nodes)
+    const ts = defs.append('filter').attr('id', 'tshadow')
+    ts.append('feDropShadow').attr('dx', 0).attr('dy', 0.5).attr('stdDeviation', 1.5).attr('flood-color', 'rgba(0,0,0,0.6)')
+
+    // Arrow markers per relationship type + score
     Object.entries(vd.edgeCfg).forEach(([typeId, cfg]) => {
       [1, 2, 3, 4, 5].forEach(s => {
         defs.append('marker')
           .attr('id', `ar-${typeId.replace(/[^a-zA-Z0-9]/g, '_')}-${s}`)
-          .attr('viewBox', '0 -4 8 8').attr('refX', 16).attr('refY', 0)
+          .attr('viewBox', '0 -4 8 8').attr('refX', 18).attr('refY', 0)
           .attr('markerWidth', 4 + s * 0.35).attr('markerHeight', 4 + s * 0.35)
           .attr('orient', 'auto')
           .append('path').attr('d', 'M0,-4L8,0L0,4')
-          .attr('fill', cfg.color).attr('opacity', 0.85)
+          .attr('fill', cfg.color).attr('opacity', 0.9)
       })
     })
 
-    // Node gradients — colored by detected community
+    // Per-node radial gradients coloured by community
     vd.nodes.forEach(n => {
       const col = communityColor(vd.metrics.community[n.id] ?? 0)
-      const g = defs.append('radialGradient').attr('id', `gr-${n.id}`).attr('cx', '38%').attr('cy', '35%').attr('r', '65%')
-      g.append('stop').attr('offset', '0%').attr('stop-color', '#fff').attr('stop-opacity', 0.9)
-      g.append('stop').attr('offset', '50%').attr('stop-color', col).attr('stop-opacity', 0.92)
+      const g = defs.append('radialGradient')
+        .attr('id', `gr-${n.id}`).attr('cx', '38%').attr('cy', '35%').attr('r', '65%')
+      g.append('stop').attr('offset', '0%').attr('stop-color', col).attr('stop-opacity', 0.72)
       g.append('stop').attr('offset', '100%').attr('stop-color', col)
     })
 
     svg.append('rect').attr('width', W).attr('height', H).attr('fill', '#F5F0E8')
 
     const g = svg.append('g').attr('class', 'root-g')
-    const zoom = d3.zoom().scaleExtent([0.1, 5]).on('zoom', (ev: any) => g.attr('transform', ev.transform))
+
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.1, 5])
+      .on('zoom', (ev) => {
+        g.attr('transform', ev.transform.toString())
+        // Redraw minimap with current node positions on every user zoom/pan
+        if (minimapRef.current && vd) {
+          drawMinimap(minimapRef.current, vd.nodes, vd.edges, vd.edgeCfg, W, H)
+        }
+      })
     zoomRef.current = zoom
     svg.call(zoom)
 
     // Edges
-    const nodeById = Object.fromEntries(vd.nodes.map(n => [n.id, n]))
     const links = vd.edges.map(([s, t, typeId, score]) => ({
       source: s, target: t, typeId, score,
       ...(vd.edgeCfg[typeId] || { label: typeId, color: '#999', dash: null, opacity: () => 0.4 }),
@@ -378,102 +427,132 @@ export default function SociogramResultsPage() {
       .attr('marker-end', (d: any) => `url(#ar-${d.typeId.replace(/[^a-zA-Z0-9]/g, '_')}-${Math.max(1, Math.min(5, Math.round(d.score)))})`)
 
     // Nodes
-    const nodeData = vd.nodes.map(n => ({ ...n }))
-    let clickTimer: any = null
+    const nodeData: VizNode[] = vd.nodes.map(n => ({ ...n }))
+    let clickTimer: ReturnType<typeof setTimeout> | null = null
 
     const nodeG = g.append('g')
-    const node = nodeG.selectAll('g').data(nodeData).join('g')
+    const node = nodeG.selectAll<SVGGElement, VizNode>('g').data(nodeData).join('g')
       .attr('class', 'node-g')
       .style('cursor', 'pointer')
       .call(
-        d3.drag()
-          .on('start', (ev: any, d: any) => {
+        d3.drag<SVGGElement, VizNode>()
+          .on('start', (ev, d) => {
             if (!ev.active) simRef.current?.alphaTarget(0.02).restart()
             d.fx = d.x; d.fy = d.y
           })
-          .on('drag', (ev: any, d: any) => { d.fx = ev.x; d.fy = ev.y })
-          .on('end', (ev: any, d: any) => {
+          .on('drag', (ev, d) => { d.fx = ev.x; d.fy = ev.y })
+          .on('end', (ev, d) => {
             if (!ev.active) simRef.current?.alphaTarget(0)
             if (!pinnedRef.current.has(d.id)) { d.fx = null; d.fy = null }
           })
       )
-      .on('click', (_ev: any, d: any) => {
-        clearTimeout(clickTimer)
-        clickTimer = setTimeout(() => setFocusNode((p: any) => p === d.id ? null : d.id), 180)
+      .on('click', (_ev, d) => {
+        if (clickTimer) clearTimeout(clickTimer)
+        clickTimer = setTimeout(() => setFocusNode((p) => p === d.id ? null : d.id), 180)
       })
-      .on('dblclick', (_ev: any, d: any) => {
-        clearTimeout(clickTimer)
-        const d3_ = d3Lib
+      .on('dblclick', (ev, d) => {
+        if (clickTimer) clearTimeout(clickTimer)
         if (pinnedRef.current.has(d.id)) {
           pinnedRef.current.delete(d.id)
           d.fx = null; d.fy = null
-          d3Lib.select(_ev.currentTarget).select('.pin-dot').attr('display', 'none')
+          d3Lib.select(ev.currentTarget).select('.pin-dot').attr('display', 'none')
         } else {
           pinnedRef.current.add(d.id)
           d.fx = d.x; d.fy = d.y
-          d3Lib.select(_ev.currentTarget).select('.pin-dot').attr('display', null)
+          d3Lib.select(ev.currentTarget).select('.pin-dot').attr('display', null)
         }
       })
-      .on('mouseenter', (ev: any, d: any) => {
+      .on('mouseenter', (ev, d) => {
         const r = containerRef.current!.getBoundingClientRect()
         setTooltip({ x: ev.clientX - r.left + 14, y: ev.clientY - r.top - 10, id: d.id })
       })
-      .on('mousemove', (ev: any) => {
+      .on('mousemove', (ev) => {
         const r = containerRef.current!.getBoundingClientRect()
         setTooltip(p => p ? { ...p, x: ev.clientX - r.left + 14, y: ev.clientY - r.top - 10 } : null)
       })
       .on('mouseleave', () => setTooltip(null))
 
+    // Outer glow / shadow ring
     node.append('circle')
-      .attr('r', (d: any) => rScale(d.id, vd.indegree, vd.nodes) + 2)
+      .attr('r', (d) => rScale(d.id, vd.indegree, vd.nodes) + 3)
       .attr('fill', '#F5F0E8').attr('stroke', 'none').attr('filter', 'url(#nshadow)')
 
+    // Community ring
     node.append('circle')
-      .attr('r', (d: any) => rScale(d.id, vd.indegree, vd.nodes) + 1.5)
+      .attr('r', (d) => rScale(d.id, vd.indegree, vd.nodes) + 2)
       .attr('fill', 'none')
-      .attr('stroke', (d: any) => communityColor(vd.metrics.community[d.id] ?? 0))
-      .attr('stroke-width', 2).attr('opacity', 0.6)
+      .attr('stroke', (d) => communityColor(vd.metrics.community[d.id] ?? 0))
+      .attr('stroke-width', 2.5).attr('opacity', 0.7)
 
+    // Main filled circle
     node.append('circle')
-      .attr('r', (d: any) => rScale(d.id, vd.indegree, vd.nodes))
-      .attr('fill', (d: any) => `url(#gr-${d.id})`)
+      .attr('r', (d) => rScale(d.id, vd.indegree, vd.nodes))
+      .attr('fill', (d) => `url(#gr-${d.id})`)
 
-    node.each(function (d: any) {
-      const sel = d3Lib.select(this)
-      const r = rScale(d.id, vd.indegree, vd.nodes)
-      const hR = r * 0.3, hY = -r * 0.16
-      sel.append('circle').attr('cx', 0).attr('cy', hY).attr('r', hR)
-        .attr('fill', 'rgba(255,255,255,0.92)').attr('stroke', 'none')
-      const sw = r * 0.72, sy = r * 0.28
-      sel.append('path')
-        .attr('d', `M${-sw},${sy + r * 0.35} Q${-sw},${sy} 0,${sy} Q${sw},${sy} ${sw},${sy + r * 0.35}`)
-        .attr('fill', 'rgba(255,255,255,0.82)')
-    })
-
+    // Pin indicator
     node.append('circle').attr('class', 'pin-dot')
-      .attr('cx', (d: any) => rScale(d.id, vd.indegree, vd.nodes) * 0.65)
-      .attr('cy', (d: any) => -rScale(d.id, vd.indegree, vd.nodes) * 0.65)
-      .attr('r', 3.5).attr('fill', '#F4A261').attr('stroke', 'white').attr('stroke-width', 1)
+      .attr('cx', (d) => rScale(d.id, vd.indegree, vd.nodes) * 0.65)
+      .attr('cy', (d) => -rScale(d.id, vd.indegree, vd.nodes) * 0.65)
+      .attr('r', 3.5).attr('fill', '#F4A261').attr('stroke', 'white').attr('stroke-width', 1.2)
       .attr('display', 'none')
 
-    node.append('text').attr('class', 'node-label')
-      .text((d: any) => {
-        const parts = d.name.split(' ')
-        return rScale(d.id, vd.indegree, vd.nodes) >= 20 ? parts.slice(0, 2).join(' ') : parts[0]
-      })
-      .attr('text-anchor', 'middle')
-      .attr('y', (d: any) => rScale(d.id, vd.indegree, vd.nodes) + 13)
-      .attr('font-size', '11px').attr('font-weight', '700')
-      .attr('font-family', 'Plus Jakarta Sans, sans-serif')
-      .attr('fill', '#3D3028').attr('pointer-events', 'none')
+    // Labels INSIDE the circle — first name on top, last initial below for large nodes
+    node.each((d, i, els) => {
+      const sel = d3Lib.select(els[i])
+      const r = rScale(d.id, vd.indegree, vd.nodes)
+      const parts = d.name.trim().split(/\s+/)
+      const firstName = parts[0] ?? ''
+      const lastInitial = parts.length > 1 ? parts[parts.length - 1][0] + '.' : ''
 
-    // Simulation
-    const sim = d3.forceSimulation(nodeData)
-      .force('link', d3.forceLink(links).id((d: any) => d.id).distance(90).strength(0.22))
-      .force('charge', d3.forceManyBody().strength(-420))
+      if (r >= 28) {
+        // Large node: first name + last initial on two lines
+        const t = sel.append('text')
+          .attr('class', 'node-label')
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'middle')
+          .attr('pointer-events', 'none')
+          .attr('filter', 'url(#tshadow)')
+        t.append('tspan')
+          .text(firstName.length > 8 ? firstName.slice(0, 7) + '…' : firstName)
+          .attr('x', 0).attr('dy', lastInitial ? '-0.6em' : '0')
+          .attr('font-size', Math.min(12, r * 0.42) + 'px').attr('font-weight', '700')
+          .attr('fill', 'white').attr('font-family', 'Plus Jakarta Sans, sans-serif')
+        if (lastInitial) {
+          t.append('tspan')
+            .text(lastInitial)
+            .attr('x', 0).attr('dy', '1.25em')
+            .attr('font-size', Math.min(10, r * 0.36) + 'px').attr('font-weight', '500')
+            .attr('fill', 'rgba(255,255,255,0.85)').attr('font-family', 'Plus Jakarta Sans, sans-serif')
+        }
+      } else if (r >= 20) {
+        // Medium node: first name only
+        sel.append('text')
+          .attr('class', 'node-label')
+          .text(firstName.length > 6 ? firstName.slice(0, 5) + '…' : firstName)
+          .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+          .attr('font-size', Math.min(10, r * 0.40) + 'px').attr('font-weight', '700')
+          .attr('font-family', 'Plus Jakarta Sans, sans-serif')
+          .attr('fill', 'white').attr('filter', 'url(#tshadow)').attr('pointer-events', 'none')
+      } else {
+        // Small node: initials
+        sel.append('text')
+          .attr('class', 'node-label')
+          .text(d.short)
+          .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+          .attr('font-size', Math.min(9, r * 0.42) + 'px').attr('font-weight', '800')
+          .attr('font-family', 'Plus Jakarta Sans, sans-serif')
+          .attr('fill', 'white').attr('filter', 'url(#tshadow)').attr('pointer-events', 'none')
+      }
+    })
+
+    // ── Force simulation ───────────────────────────────────────────────────
+
+    const sim = d3.forceSimulation<VizNode>(nodeData)
+      .force('link', d3.forceLink<VizNode, typeof links[0]>(links).id(d => d.id).distance(100).strength(0.22))
+      .force('charge', d3.forceManyBody().strength(-480))
       .force('center', d3.forceCenter(W / 2, H / 2).strength(0.04))
-      .force('collision', d3.forceCollide().radius((d: any) => rScale(d.id, vd.indegree, vd.nodes) + 10))
-      .alphaDecay(0.04)
+      .force('collision', d3.forceCollide<VizNode>().radius(d => rScale(d.id, vd.indegree, vd.nodes) + 12))
+      .alphaDecay(0.035)
       .velocityDecay(0.55)
 
     simRef.current = sim
@@ -483,13 +562,21 @@ export default function SociogramResultsPage() {
       tc++; if (tc % 2 !== 0) return
       edge.attr('x1', (d: any) => d.source.x).attr('y1', (d: any) => d.source.y)
           .attr('x2', (d: any) => d.target.x).attr('y2', (d: any) => d.target.y)
-      node.attr('transform', (d: any) => `translate(${d.x},${d.y})`)
+      node.attr('transform', d => `translate(${d.x ?? 0},${d.y ?? 0})`)
+
+      // Update minimap every 6 ticks to keep it cheap
+      if (tc % 6 === 0 && minimapRef.current) {
+        drawMinimap(minimapRef.current, nodeData, vd.edges, vd.edgeCfg, W, H)
+      }
     })
 
     sim.on('end', () => {
       nodeData.forEach(n => { n.fx = n.x; n.fy = n.y })
       sim.stop()
       setSettled(true)
+      if (minimapRef.current) {
+        drawMinimap(minimapRef.current, nodeData, vd.edges, vd.edgeCfg, W, H)
+      }
     })
 
     setTimeout(applyFilters, 80)
@@ -497,11 +584,16 @@ export default function SociogramResultsPage() {
 
   const zoomBy = (k: number) => {
     if (!svgRef.current) return
-    d3Lib.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, k)
+    d3Lib.select(svgRef.current).transition().duration(300).call(
+      (zoomRef.current as d3Lib.ZoomBehavior<SVGSVGElement, unknown>).scaleBy, k
+    )
   }
   const zoomFit = () => {
     if (!svgRef.current) return
-    d3Lib.select(svgRef.current).transition().duration(500).call(zoomRef.current.transform, d3Lib.zoomIdentity)
+    d3Lib.select(svgRef.current).transition().duration(500).call(
+      (zoomRef.current as d3Lib.ZoomBehavior<SVGSVGElement, unknown>).transform,
+      d3Lib.zoomIdentity
+    )
   }
   const exportSVG = () => {
     const svg = svgRef.current; if (!svg) return
@@ -525,12 +617,12 @@ export default function SociogramResultsPage() {
     const svgUrl = URL.createObjectURL(svgBlob)
     const img = new Image()
     img.onload = () => {
-      const scale = 2 // retina
+      const scale = 2
       const canvas = document.createElement('canvas')
       canvas.width = width * scale
       canvas.height = height * scale
       const ctx = canvas.getContext('2d')!
-      ctx.fillStyle = '#FAF8F4'
+      ctx.fillStyle = '#F5F0E8'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
       ctx.scale(scale, scale)
       ctx.drawImage(img, 0, 0, width, height)
@@ -538,8 +630,7 @@ export default function SociogramResultsPage() {
         if (!blob) return
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a'); a.href = url; a.download = 'sociogram.png'; a.click()
-        URL.revokeObjectURL(url)
-        URL.revokeObjectURL(svgUrl)
+        URL.revokeObjectURL(url); URL.revokeObjectURL(svgUrl)
       }, 'image/png')
     }
     img.onerror = () => URL.revokeObjectURL(svgUrl)
@@ -550,7 +641,7 @@ export default function SociogramResultsPage() {
     const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n
   })
 
-  // ── Derived ──────────────────────────────────────────────────────────────
+  // ── Derived ────────────────────────────────────────────────────────────────
 
   const topNodes = vizData
     ? [...vizData.nodes].sort((a, b) => vizData.indegree[b.id] - vizData.indegree[a.id]).slice(0, 5)
@@ -558,28 +649,24 @@ export default function SociogramResultsPage() {
 
   const tipNode = tooltip && vizData ? vizData.nodes[tooltip.id] : null
 
-  // Network analytics — derived from computed metrics
   const analytics = vizData ? (() => {
     const m = vizData.metrics
-    const n = vizData.nodes.length
     const avg = (arr: number[]) => arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length
-    const numCommunities = new Set(m.community).size
     return {
-      n,
+      n: vizData.nodes.length,
       e: vizData.edges.length,
       density: (m.density * 100).toFixed(1),
       reciprocity: (m.reciprocity * 100).toFixed(1),
       clustering: m.clustering.toFixed(3),
       modularity: m.modularity.toFixed(3),
       components: m.components,
-      communities: numCommunities,
+      communities: new Set(m.community).size,
       isolates: m.isolates,
       avgIndegree: avg(m.inDegree).toFixed(2),
       avgOutdegree: avg(m.outDegree).toFixed(2),
     }
   })() : null
 
-  // Centrality table rows — sortable
   const centralityRows = vizData ? [...vizData.nodes]
     .map(node => {
       const m = vizData.metrics
@@ -594,7 +681,8 @@ export default function SociogramResultsPage() {
       }
     })
     .sort((a, b) => {
-      const key = sortBy === 'in' ? 'inD' : sortBy === 'out' ? 'outD' : sortBy === 'betweenness' ? 'betw' : sortBy === 'closeness' ? 'clos' : 'eig'
+      const key = sortBy === 'in' ? 'inD' : sortBy === 'out' ? 'outD'
+        : sortBy === 'betweenness' ? 'betw' : sortBy === 'closeness' ? 'clos' : 'eig'
       return (b as any)[key] - (a as any)[key]
     })
     .slice(0, 10)
@@ -623,7 +711,7 @@ export default function SociogramResultsPage() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F5F0E8]">
-        <p className="text-sm text-[#8B7355]">Loading sociogram data...</p>
+        <p className="text-sm text-[#8B7355]">Loading sociogram data…</p>
       </div>
     )
   }
@@ -685,10 +773,7 @@ export default function SociogramResultsPage() {
                   className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] mb-1.5 border transition-all ${active ? 'text-[#3D3028]' : 'text-[#B5A898] border-[#E8E0D5]'}`}
                   style={active ? { backgroundColor: cfg.color + '15', borderColor: cfg.color + '55' } : {}}
                 >
-                  <span
-                    className="w-7 h-1.5 rounded-full flex-shrink-0"
-                    style={{ background: active ? cfg.color : '#DDD6CC' }}
-                  />
+                  <span className="w-7 h-1.5 rounded-full flex-shrink-0" style={{ background: active ? cfg.color : '#DDD6CC' }} />
                   <span className="font-semibold">{rt.label}</span>
                 </button>
               )
@@ -717,27 +802,25 @@ export default function SociogramResultsPage() {
         )}
 
         {/* View options */}
-        <div className="px-4 py-3">
+        <div className="px-4 py-3 border-b border-[#E8E0D5]">
           <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider mb-2">View</p>
           <label className="flex items-center gap-2 cursor-pointer py-1">
             <div
               onClick={() => setShowLabels(p => !p)}
               className={`w-8 h-4 rounded-full transition-colors relative ${showLabels ? 'bg-[#2D6A4F]' : 'bg-[#DDD6CC]'}`}
             >
-              <span
-                className="absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all"
-                style={{ left: showLabels ? 18 : 2 }}
-              />
+              <span className="absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all" style={{ left: showLabels ? 18 : 2 }} />
             </div>
-            <span className="text-[11px] text-[#3D3028] font-medium">Show name labels</span>
+            <span className="text-[11px] text-[#3D3028] font-medium">Show labels</span>
           </label>
-          <p className="text-[11px] text-[#8B7355] mt-2">Double-click a node to pin it</p>
-          <p className="text-[11px] text-[#8B7355]">Click to focus · Scroll to zoom</p>
+          <p className="text-[11px] text-[#8B7355] mt-2 leading-relaxed">
+            Double-click node to pin · Click to focus · Scroll to zoom
+          </p>
         </div>
 
         {/* Network analytics */}
         {analytics && (
-          <div className="px-4 py-3 border-t border-[#E8E0D5]">
+          <div className="px-4 py-3 border-b border-[#E8E0D5]">
             <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <BarChart3 className="w-3 h-3" /> Network analytics
             </p>
@@ -761,20 +844,20 @@ export default function SociogramResultsPage() {
                 </div>
               ))}
             </div>
-            <p className="text-[9px] text-[#8B7355] leading-snug">
-              Reciprocity = mutual / total ties. Modularity &gt; 0.3 = strong community structure (Newman 2004).
+            <p className="text-[9px] text-[#B5A898] leading-snug">
+              Modularity &gt; 0.3 = strong community structure (Newman 2004).
             </p>
           </div>
         )}
 
         {/* Centrality table */}
         {vizData && centralityRows.length > 0 && (
-          <div className="px-4 py-3 border-t border-[#E8E0D5]">
+          <div className="px-4 py-3 border-b border-[#E8E0D5]">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider">Top by centrality</p>
+              <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider">Top centrality</p>
               <select
                 value={sortBy}
-                onChange={e => setSortBy(e.target.value as any)}
+                onChange={e => setSortBy(e.target.value as typeof sortBy)}
                 className="text-[9px] bg-[#F5F0E8] border border-[#DDD6CC] rounded px-1 py-0.5 text-[#3D3028]"
               >
                 <option value="betweenness">Betweenness</option>
@@ -799,7 +882,6 @@ export default function SociogramResultsPage() {
                     <span
                       className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{ background: communityColor(r.community) }}
-                      title={`Community ${r.community + 1}`}
                     />
                     <span className="flex-1 truncate text-left text-[#3D3028]">{r.node.name}</span>
                     <span className="font-mono font-semibold text-[#2D6A4F] tabular-nums">{val}</span>
@@ -812,24 +894,22 @@ export default function SociogramResultsPage() {
 
         {/* Export */}
         <div className="px-4 py-3 border-t border-[#E8E0D5] space-y-1.5">
-          <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider mb-1">Export data</p>
-          <button
-            onClick={exportEdgeListCSV}
-            className="w-full bg-[#F5F0E8] hover:bg-[#EDF7F2] border border-[#DDD6CC] rounded-lg px-2 py-1.5 text-[10px] text-[#3D3028] font-medium transition-colors text-left"
-          >
-            Edge list CSV <span className="text-[#8B7355] font-normal">(Gephi/igraph)</span>
-          </button>
-          <button
-            onClick={exportNodeListCSV}
-            className="w-full bg-[#F5F0E8] hover:bg-[#EDF7F2] border border-[#DDD6CC] rounded-lg px-2 py-1.5 text-[10px] text-[#3D3028] font-medium transition-colors text-left"
-          >
-            Node metrics CSV <span className="text-[#8B7355] font-normal">(with centralities)</span>
-          </button>
+          <p className="text-[11px] font-bold text-[#8B7355] uppercase tracking-wider mb-1">Export</p>
+          {[
+            { label: 'Edge list CSV', sub: '(Gephi / igraph)', fn: exportEdgeListCSV },
+            { label: 'Node metrics CSV', sub: '(with centralities)', fn: exportNodeListCSV },
+          ].map(({ label, sub, fn }) => (
+            <button key={label} onClick={fn}
+              className="w-full bg-[#F5F0E8] hover:bg-[#EDF7F2] border border-[#DDD6CC] rounded-lg px-2 py-1.5 text-[10px] text-[#3D3028] font-medium transition-colors text-left"
+            >
+              {label} <span className="text-[#8B7355] font-normal">{sub}</span>
+            </button>
+          ))}
         </div>
 
         <div className="px-4 py-3 border-t border-[#E8E0D5]">
-          <p className="text-[11px] text-[#B5A898] leading-relaxed">
-            {vizData?.submittedCount}/{vizData?.participantCount} participants submitted
+          <p className="text-[11px] text-[#B5A898]">
+            {vizData?.submittedCount}/{vizData?.participantCount} submitted
           </p>
         </div>
       </div>
@@ -838,26 +918,26 @@ export default function SociogramResultsPage() {
       <div ref={containerRef} className="flex-1 relative overflow-hidden">
         <svg ref={svgRef} className="w-full h-full" />
 
-        {/* Top right controls */}
+        {/* Top right: zoom + export controls */}
         <div className="absolute top-3 right-3 flex items-center gap-2">
           <div className="flex items-center bg-white border border-[#E8E0D5] rounded-xl shadow-sm overflow-hidden">
-            <button onClick={() => zoomBy(1.35)} className="w-8 h-8 flex items-center justify-center text-[#8B7355] hover:bg-[#F5F0E8] hover:text-[#2D6A4F] transition-all text-base">+</button>
+            <button onClick={() => zoomBy(1.35)} className="w-8 h-8 flex items-center justify-center text-[#8B7355] hover:bg-[#F5F0E8] hover:text-[#2D6A4F] transition-all text-base font-bold">+</button>
             <div className="w-px h-5 bg-[#E8E0D5]" />
             <button onClick={zoomFit} className="px-2.5 h-8 text-[11px] font-bold text-[#8B7355] hover:bg-[#F5F0E8] hover:text-[#2D6A4F] transition-all tracking-wider">FIT</button>
             <div className="w-px h-5 bg-[#E8E0D5]" />
-            <button onClick={() => zoomBy(0.74)} className="w-8 h-8 flex items-center justify-center text-[#8B7355] hover:bg-[#F5F0E8] hover:text-[#2D6A4F] transition-all text-base">−</button>
+            <button onClick={() => zoomBy(0.74)} className="w-8 h-8 flex items-center justify-center text-[#8B7355] hover:bg-[#F5F0E8] hover:text-[#2D6A4F] transition-all text-base font-bold">−</button>
           </div>
           <button onClick={exportPNG} title="Export PNG" className="w-8 h-8 bg-white border border-[#E8E0D5] rounded-xl shadow-sm text-[#8B7355] hover:text-[#2D6A4F] hover:border-[#2D6A4F]/40 transition-all flex items-center justify-center text-[10px] font-bold">PNG</button>
           <button onClick={exportSVG} title="Export SVG" className="w-8 h-8 bg-white border border-[#E8E0D5] rounded-xl shadow-sm text-[#8B7355] hover:text-[#2D6A4F] hover:border-[#2D6A4F]/40 transition-all flex items-center justify-center text-[10px] font-bold">SVG</button>
-          <button onClick={() => setFullscreen(p => !p)} className="w-8 h-8 bg-white border border-[#E8E0D5] rounded-xl shadow-sm text-[#8B7355] hover:text-[#2D6A4F] hover:border-[#2D6A4F]/40 transition-all flex items-center justify-center text-xs">
+          <button onClick={() => setFullscreen(p => !p)} title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'} className="w-8 h-8 bg-white border border-[#E8E0D5] rounded-xl shadow-sm text-[#8B7355] hover:text-[#2D6A4F] hover:border-[#2D6A4F]/40 transition-all flex items-center justify-center text-xs">
             {fullscreen ? '⊠' : '⊡'}
           </button>
         </div>
 
-        {/* Status pill */}
+        {/* Top left: status + focus pill */}
         <div className="absolute top-3 left-3 flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur border border-[#E8E0D5] rounded-lg px-2.5 py-1.5 shadow-sm">
-            <span className={`w-1.5 h-1.5 rounded-full ${settled ? 'bg-[#2D6A4F]' : 'bg-[#F4A261]'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${settled ? 'bg-[#2D6A4F]' : 'bg-[#F4A261] animate-pulse'}`} />
             <span className="text-[11px] text-[#8B7355]">{settled ? 'Layout ready' : 'Computing layout…'}</span>
           </div>
           {focusNode !== null && vizData && (
@@ -869,7 +949,7 @@ export default function SociogramResultsPage() {
           )}
         </div>
 
-        {/* Legend */}
+        {/* Legend — bottom left */}
         <div className="absolute bottom-4 left-4">
           <div className="bg-white/85 backdrop-blur border border-[#E8E0D5] rounded-xl px-4 py-2.5 shadow-sm">
             <div className="flex items-center gap-5">
@@ -879,43 +959,56 @@ export default function SociogramResultsPage() {
                   {[8, 12, 16, 20, 24].map(s => (
                     <div key={s} className="rounded-full bg-[#2D6A4F] opacity-60" style={{ width: s / 3 * 2, height: s / 3 * 2 }} />
                   ))}
-                  <span className="text-[11px] text-[#8B7355] ml-1">= centrality</span>
+                  <span className="text-[11px] text-[#8B7355] ml-1">= in-degree</span>
                 </div>
               </div>
               <div className="w-px h-8 bg-[#E8E0D5]" />
               <div>
-                <p className="text-[8px] font-bold text-[#8B7355] uppercase tracking-wider mb-1.5">Line weight</p>
-                <div className="flex items-center gap-2">
-                  {[1, 2, 3].map(s => (
-                    <div key={s} className="bg-[#2D6A4F] opacity-60 rounded" style={{ width: 16, height: s * 1.5 }} />
+                <p className="text-[8px] font-bold text-[#8B7355] uppercase tracking-wider mb-1.5">Node colour</p>
+                <div className="flex items-center gap-1.5">
+                  {COMMUNITY_COLORS.slice(0, 5).map((c, i) => (
+                    <div key={i} className="w-3 h-3 rounded-full" style={{ background: c }} />
                   ))}
-                  <span className="text-[11px] text-[#8B7355] ml-1">= tie strength</span>
+                  <span className="text-[11px] text-[#8B7355] ml-1">= community</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
+        {/* ── Minimap — bottom right ───────────────────────────────────────── */}
+        <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur border border-[#E8E0D5] rounded-xl shadow-md overflow-hidden">
+          <p className="text-[8px] font-bold text-[#8B7355] uppercase tracking-wider px-2 pt-1.5 pb-0.5">Overview</p>
+          <canvas
+            ref={minimapRef}
+            width={MINI_W}
+            height={MINI_H}
+            className="block"
+          />
+        </div>
+
         {/* Tooltip */}
         {tooltip && tipNode && vizData && (
           <div className="absolute z-40 pointer-events-none" style={{ left: tooltip.x, top: tooltip.y }}>
-            <div className="bg-white border border-[#E8E0D5] rounded-2xl p-4 shadow-xl min-w-[180px]" style={{ borderLeftColor: '#2D6A4F', borderLeftWidth: 3 }}>
+            <div className="bg-white border border-[#E8E0D5] rounded-2xl p-4 shadow-xl min-w-[180px]" style={{ borderLeftColor: communityColor(vizData.metrics.community[tipNode.id] ?? 0), borderLeftWidth: 3 }}>
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full flex-shrink-0 relative overflow-hidden" style={{ background: '#2D6A4F' }}>
-                  <svg viewBox="0 0 40 40" className="w-full h-full absolute inset-0">
-                    <circle cx="20" cy="14" r="7" fill="rgba(255,255,255,0.9)" />
-                    <path d="M4 40 Q4 27 20 27 Q36 27 36 40" fill="rgba(255,255,255,0.8)" />
-                  </svg>
+                <div
+                  className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-black text-sm"
+                  style={{ background: communityColor(vizData.metrics.community[tipNode.id] ?? 0) }}
+                >
+                  {tipNode.short}
                 </div>
                 <div>
                   <p className="text-xs font-bold text-[#3D3028]">{tipNode.name}</p>
-                  <p className="text-[11px] text-[#8B7355]">In-degree: {vizData.indegree[tipNode.id]}</p>
+                  <p className="text-[11px] text-[#8B7355]">Community {(vizData.metrics.community[tipNode.id] ?? 0) + 1}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-1.5">
                 {[
                   { l: 'Received', v: vizData.indegree[tipNode.id], c: '#2D6A4F' },
                   { l: 'Sent', v: vizData.edges.filter(e => e[0] === tipNode.id).length, c: '#457B9D' },
+                  { l: 'Betweenness', v: (vizData.metrics.betweenness[tipNode.id] ?? 0).toFixed(3), c: '#E76F51' },
+                  { l: 'Closeness', v: (vizData.metrics.closeness[tipNode.id] ?? 0).toFixed(3), c: '#9D4EDD' },
                 ].map(s => (
                   <div key={s.l} className="bg-[#FAF8F4] rounded-lg p-2 text-center">
                     <p className="text-sm font-black" style={{ color: s.c }}>{s.v}</p>
