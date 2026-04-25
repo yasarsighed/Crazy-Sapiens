@@ -34,6 +34,7 @@ export async function POST(
     trials: Array<{
       blockNumber:       number
       blockLabel:        string
+      blockType:         string
       trialNumber:       number
       stimulusText:      string
       stimulusCategory:  string
@@ -81,9 +82,10 @@ export async function POST(
     session_id:           body.sessionId,
     block_number:         t.blockNumber,
     block_label:          t.blockLabel,
+    block_type:           t.blockType,
     trial_number:         t.trialNumber,
     stimulus_text:        t.stimulusText,
-    stimulus_category:    t.stimulusCategory,
+    stimulus_category:    ({ conceptA: 'concept_a', conceptB: 'concept_b', attrA: 'attribute_a', attrB: 'attribute_b' } as Record<string, string>)[t.stimulusCategory] ?? t.stimulusCategory,
     correct_key:          t.correctKey,
     pressed_key:          t.pressedKey,
     response_time_ms:     t.responseTimeMs,

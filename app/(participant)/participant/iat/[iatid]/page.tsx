@@ -356,6 +356,7 @@ export default function IATPage() {
       trials: finalResponses.map(r => ({
         blockNumber:         r.blockNum,
         blockLabel:          r.blockLabel,
+        blockType:           [4, 7].includes(r.blockNum) ? 'test' : 'practice',
         trialNumber:         r.trialNum,
         stimulusText:        r.word,
         stimulusCategory:    r.wordCat,
