@@ -25,6 +25,7 @@ interface DbParticipant {
   id: string
   participant_id: string
   display_name: string
+  has_submitted: boolean
 }
 
 interface DbNomination {
@@ -48,6 +49,7 @@ interface VizNode extends SimulationNodeDatum {
   short: string
   dept: string
   role: string
+  hasSubmitted: boolean
 }
 
 type EdgeTuple = [number, number, string, number]
@@ -173,6 +175,7 @@ export default function SociogramResultsPage() {
   const [minScore, setMinScore]   = useState(1)
   const [activeRelTypes, setActiveRelTypes] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'betweenness' | 'closeness' | 'eigenvector' | 'in' | 'out'>('betweenness')
+  const [showDataIssues, setShowDataIssues] = useState(false)
 
   const stateRef = useRef({ focusNode, search, showLabels, activeRelTypes, minScore, vizData })
   stateRef.current = { focusNode, search, showLabels, activeRelTypes, minScore, vizData }
@@ -201,7 +204,7 @@ export default function SociogramResultsPage() {
       const [partRes, nomRes, relRes, subRes] = await Promise.all([
         supabase
           .from('sociogram_participants')
-          .select('id, participant_id, display_name')
+          .select('id, participant_id, display_name, has_submitted')
           .eq('sociogram_id', sociogram.id)
           .eq('is_active', true),
         supabase
@@ -242,6 +245,7 @@ export default function SociogramResultsPage() {
           short: initials(p.display_name),
           dept: 'Participant',
           role: p.display_name,
+          hasSubmitted: p.has_submitted ?? false,
         }
       })
 
@@ -378,8 +382,11 @@ export default function SociogramResultsPage() {
       [1, 2, 3, 4, 5].forEach(s => {
         defs.append('marker')
           .attr('id', `ar-${typeId.replace(/[^a-zA-Z0-9]/g, '_')}-${s}`)
-          .attr('viewBox', '0 -4 8 8').attr('refX', 18).attr('refY', 0)
-          .attr('markerWidth', 4 + s * 0.35).attr('markerHeight', 4 + s * 0.35)
+          .attr('viewBox', '0 -4 8 8')
+          .attr('refX', 8)
+          .attr('refY', 0)
+          .attr('markerWidth', 4 + s * 0.4)
+          .attr('markerHeight', 4 + s * 0.4)
           .attr('orient', 'auto')
           .append('path').attr('d', 'M0,-4L8,0L0,4')
           .attr('fill', cfg.color).attr('opacity', 0.9)
@@ -417,11 +424,27 @@ export default function SociogramResultsPage() {
       ...(vd.edgeCfg[typeId] || { label: typeId, color: '#999', dash: null, opacity: () => 0.4 }),
     }))
 
+    // Pre-compute lateral offsets for parallel edges between same pair
+    const pairCount = new Map<string, number>()
+    const pairIdx   = new Map<string, number>()
+    links.forEach(lk => {
+      const key = `${Math.min(lk.source as number, lk.target as number)}-${Math.max(lk.source as number, lk.target as number)}`
+      pairCount.set(key, (pairCount.get(key) ?? 0) + 1)
+    })
+    links.forEach((lk: any) => {
+      const key = `${Math.min(lk.source as number, lk.target as number)}-${Math.max(lk.source as number, lk.target as number)}`
+      const count = pairCount.get(key) ?? 1
+      const idx   = pairIdx.get(key) ?? 0
+      lk.edgeOffset = (idx - (count - 1) / 2) * 9
+      pairIdx.set(key, idx + 1)
+    })
+
     const edgeG = g.append('g')
-    const edge = edgeG.selectAll('line').data(links).join('line')
+    const edge = edgeG.selectAll('path').data(links).join('path')
       .attr('class', 'edge')
+      .attr('fill', 'none')
       .attr('stroke', (d: any) => d.color)
-      .attr('stroke-width', (d: any) => Math.max(0.8, d.score * 0.5))
+      .attr('stroke-width', (d: any) => Math.max(1, d.score * 0.55))
       .attr('stroke-opacity', (d: any) => (d.opacity as (s: number) => number)(d.score))
       .attr('stroke-dasharray', (d: any) => d.dash || null)
       .attr('marker-end', (d: any) => `url(#ar-${d.typeId.replace(/[^a-zA-Z0-9]/g, '_')}-${Math.max(1, Math.min(5, Math.round(d.score)))})`)
@@ -476,6 +499,16 @@ export default function SociogramResultsPage() {
     node.append('circle')
       .attr('r', (d) => rScale(d.id, vd.indegree, vd.nodes) + 3)
       .attr('fill', '#F5F0E8').attr('stroke', 'none').attr('filter', 'url(#nshadow)')
+
+    // Not-submitted warning ring (dashed amber, behind community ring)
+    node.append('circle')
+      .attr('r', (d) => rScale(d.id, vd.indegree, vd.nodes) + 5)
+      .attr('fill', 'none')
+      .attr('stroke', (d) => d.hasSubmitted ? 'transparent' : '#E9C46A')
+      .attr('stroke-width', (d) => d.hasSubmitted ? 0 : 2)
+      .attr('stroke-dasharray', '4 3')
+      .attr('opacity', 0.9)
+      .attr('pointer-events', 'none')
 
     // Community ring
     node.append('circle')
@@ -545,6 +578,27 @@ export default function SociogramResultsPage() {
       }
     })
 
+    // Out-degree badge at the bottom of each node
+    node.append('circle')
+      .attr('cx', 0)
+      .attr('cy', (d) => rScale(d.id, vd.indegree, vd.nodes) + 7)
+      .attr('r', 7)
+      .attr('fill', '#457B9D')
+      .attr('stroke', '#F5F0E8')
+      .attr('stroke-width', 1.5)
+      .attr('opacity', (d) => (vd.metrics.outDegree[d.id] ?? 0) > 0 ? 1 : 0)
+
+    node.append('text')
+      .attr('x', 0)
+      .attr('y', (d) => rScale(d.id, vd.indegree, vd.nodes) + 7)
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'middle')
+      .attr('font-size', '7px')
+      .attr('font-weight', '800')
+      .attr('fill', 'white')
+      .attr('pointer-events', 'none')
+      .text((d) => vd.metrics.outDegree[d.id] ?? 0)
+
     // ── Force simulation ───────────────────────────────────────────────────
 
     const sim = d3.forceSimulation<VizNode>(nodeData)
@@ -560,8 +614,19 @@ export default function SociogramResultsPage() {
     let tc = 0
     sim.on('tick', () => {
       tc++; if (tc % 2 !== 0) return
-      edge.attr('x1', (d: any) => d.source.x).attr('y1', (d: any) => d.source.y)
-          .attr('x2', (d: any) => d.target.x).attr('y2', (d: any) => d.target.y)
+      edge.attr('d', (d: any) => {
+        const src = d.source, tgt = d.target
+        if (!src || !tgt) return ''
+        const rSrc = rScale(src.id, vd.indegree, vd.nodes)
+        const rTgt = rScale(tgt.id, vd.indegree, vd.nodes)
+        const sx  = (src.x ?? 0) + (d.edgeOffset ?? 0) * 0.3
+        const sy  = (src.y ?? 0) + rSrc                  // bottom of source
+        const ex  = (tgt.x ?? 0) + (d.edgeOffset ?? 0) * 0.3
+        const ey  = (tgt.y ?? 0) - rTgt                  // top of target
+        const K   = Math.max(38, Math.hypot(ex - sx, ey - sy) * 0.38)
+        // Cubic bezier: exit downward from source bottom, arrive downward at target top
+        return `M${sx.toFixed(1)},${sy.toFixed(1)} C${sx.toFixed(1)},${(sy + K).toFixed(1)} ${ex.toFixed(1)},${(ey - K).toFixed(1)} ${ex.toFixed(1)},${ey.toFixed(1)}`
+      })
       node.attr('transform', d => `translate(${d.x ?? 0},${d.y ?? 0})`)
 
       // Update minimap every 6 ticks to keep it cheap
@@ -688,6 +753,9 @@ export default function SociogramResultsPage() {
     .slice(0, 10)
     : []
 
+  const noNomNodes = vizData ? vizData.nodes.filter(n => (vizData.metrics.outDegree[n.id] ?? 0) === 0) : []
+  const notSubmitted = vizData ? vizData.nodes.filter(n => !n.hasSubmitted) : []
+
   const exportEdgeListCSV = () => {
     if (!vizData) return
     const labels = Object.fromEntries(vizData.relTypes.map(rt => [rt.id, rt.label]))
@@ -778,6 +846,37 @@ export default function SociogramResultsPage() {
                 </button>
               )
             })}
+          </div>
+        )}
+
+        {/* Data quality warnings */}
+        {(noNomNodes.length > 0 || notSubmitted.length > 0) && (
+          <div className="px-4 py-3 border-b border-[#E8E0D5]">
+            <button
+              onClick={() => setShowDataIssues(p => !p)}
+              className="w-full flex items-center justify-between text-[11px] font-bold text-[#E76F51] uppercase tracking-wider mb-1"
+            >
+              <span>⚠ Data gaps ({noNomNodes.length + notSubmitted.length})</span>
+              <span>{showDataIssues ? '▲' : '▼'}</span>
+            </button>
+            {showDataIssues && (
+              <div className="mt-1.5 space-y-1">
+                {notSubmitted.map(n => (
+                  <div key={n.id} className="flex items-center gap-2 text-[10px] text-[#8B7355]">
+                    <span className="w-2 h-2 rounded-full border-2 border-[#E9C46A] border-dashed flex-shrink-0" />
+                    <span className="truncate">{n.name}</span>
+                    <span className="text-[9px] text-[#E9C46A] ml-auto">no submit</span>
+                  </div>
+                ))}
+                {noNomNodes.filter(n => n.hasSubmitted).map(n => (
+                  <div key={n.id} className="flex items-center gap-2 text-[10px] text-[#8B7355]">
+                    <span className="w-2 h-2 rounded-full bg-[#E76F51] flex-shrink-0" />
+                    <span className="truncate">{n.name}</span>
+                    <span className="text-[9px] text-[#E76F51] ml-auto">0 sent</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -951,25 +1050,49 @@ export default function SociogramResultsPage() {
 
         {/* Legend — bottom left */}
         <div className="absolute bottom-4 left-4">
-          <div className="bg-white/85 backdrop-blur border border-[#E8E0D5] rounded-xl px-4 py-2.5 shadow-sm">
-            <div className="flex items-center gap-5">
+          <div className="bg-white/90 backdrop-blur border border-[#E8E0D5] rounded-xl px-3 py-2.5 shadow-sm max-w-[260px]">
+            <p className="text-[8px] font-bold text-[#8B7355] uppercase tracking-wider mb-2">Legend</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
               <div>
-                <p className="text-[8px] font-bold text-[#8B7355] uppercase tracking-wider mb-1.5">Node size</p>
-                <div className="flex items-center gap-1.5">
-                  {[8, 12, 16, 20, 24].map(s => (
-                    <div key={s} className="rounded-full bg-[#2D6A4F] opacity-60" style={{ width: s / 3 * 2, height: s / 3 * 2 }} />
+                <p className="text-[8px] text-[#8B7355] mb-1">Node size</p>
+                <div className="flex items-end gap-1">
+                  {[8, 14, 20].map(s => (
+                    <div key={s} className="rounded-full bg-[#2D6A4F] opacity-70" style={{ width: s/2, height: s/2 }} />
                   ))}
-                  <span className="text-[11px] text-[#8B7355] ml-1">= in-degree</span>
+                  <span className="text-[9px] text-[#8B7355] ml-0.5">in-degree</span>
                 </div>
               </div>
-              <div className="w-px h-8 bg-[#E8E0D5]" />
               <div>
-                <p className="text-[8px] font-bold text-[#8B7355] uppercase tracking-wider mb-1.5">Node colour</p>
-                <div className="flex items-center gap-1.5">
-                  {COMMUNITY_COLORS.slice(0, 5).map((c, i) => (
+                <p className="text-[8px] text-[#8B7355] mb-1">Node color</p>
+                <div className="flex items-center gap-1">
+                  {COMMUNITY_COLORS.slice(0, 4).map((c, i) => (
                     <div key={i} className="w-3 h-3 rounded-full" style={{ background: c }} />
                   ))}
-                  <span className="text-[11px] text-[#8B7355] ml-1">= community</span>
+                  <span className="text-[9px] text-[#8B7355] ml-0.5">community</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-[8px] text-[#8B7355] mb-1">Bottom badge</p>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-[#457B9D] flex items-center justify-center">
+                    <span className="text-white font-bold" style={{ fontSize: 7 }}>5</span>
+                  </div>
+                  <span className="text-[9px] text-[#8B7355]">out-degree (sent)</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-[8px] text-[#8B7355] mb-1">Dashed ring</p>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full border-2 border-[#E9C46A] border-dashed" />
+                  <span className="text-[9px] text-[#8B7355]">not submitted</span>
+                </div>
+              </div>
+              <div className="col-span-2 mt-0.5">
+                <p className="text-[8px] text-[#8B7355] mb-1">Arrow direction</p>
+                <div className="flex items-center gap-1.5 text-[9px] text-[#8B7355]">
+                  <span>↑ arrives at top</span>
+                  <span className="text-[#DDD6CC]">·</span>
+                  <span>exits bottom ↓</span>
                 </div>
               </div>
             </div>
@@ -1003,18 +1126,40 @@ export default function SociogramResultsPage() {
                   <p className="text-[11px] text-[#8B7355]">Community {(vizData.metrics.community[tipNode.id] ?? 0) + 1}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {[
-                  { l: 'Received', v: vizData.indegree[tipNode.id], c: '#2D6A4F' },
-                  { l: 'Sent', v: vizData.edges.filter(e => e[0] === tipNode.id).length, c: '#457B9D' },
-                  { l: 'Betweenness', v: (vizData.metrics.betweenness[tipNode.id] ?? 0).toFixed(3), c: '#E76F51' },
-                  { l: 'Closeness', v: (vizData.metrics.closeness[tipNode.id] ?? 0).toFixed(3), c: '#9D4EDD' },
-                ].map(s => (
-                  <div key={s.l} className="bg-[#FAF8F4] rounded-lg p-2 text-center">
-                    <p className="text-sm font-black" style={{ color: s.c }}>{s.v}</p>
-                    <p className="text-[8px] text-[#8B7355] leading-tight mt-0.5">{s.l}</p>
-                  </div>
-                ))}
+              <div className="space-y-1.5 mb-2">
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { l: 'Received', v: vizData.indegree[tipNode.id], c: '#2D6A4F' },
+                    { l: 'Sent', v: vizData.edges.filter(e => e[0] === tipNode.id).length, c: '#457B9D' },
+                    { l: 'Betweenness', v: (vizData.metrics.betweenness[tipNode.id] ?? 0).toFixed(3), c: '#E76F51' },
+                    { l: 'Closeness', v: (vizData.metrics.closeness[tipNode.id] ?? 0).toFixed(3), c: '#9D4EDD' },
+                  ].map(s => (
+                    <div key={s.l} className="bg-[#FAF8F4] rounded-lg p-2 text-center">
+                      <p className="text-sm font-black" style={{ color: s.c }}>{s.v}</p>
+                      <p className="text-[8px] text-[#8B7355] leading-tight mt-0.5">{s.l}</p>
+                    </div>
+                  ))}
+                </div>
+                {/* Per-type breakdown */}
+                <div className="pt-1 border-t border-[#E8E0D5]">
+                  {vizData.relTypes.map(rt => {
+                    const cfg = vizData.edgeCfg[rt.id]
+                    const sent = vizData.edges.filter(e => e[0] === tipNode.id && e[2] === rt.id).length
+                    const recv = vizData.edges.filter(e => e[1] === tipNode.id && e[2] === rt.id).length
+                    if (sent === 0 && recv === 0) return null
+                    return (
+                      <div key={rt.id} className="flex items-center gap-1.5 text-[10px] py-0.5">
+                        <span className="w-2.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg?.color ?? '#999' }} />
+                        <span className="flex-1 text-[#8B7355] truncate">{rt.label}</span>
+                        <span className="text-[#457B9D] font-mono">↑{recv}</span>
+                        <span className="text-[#2D6A4F] font-mono">↓{sent}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+                {!tipNode.hasSubmitted && (
+                  <p className="text-[9px] text-[#E9C46A] pt-1 border-t border-[#E8E0D5]">⚠ Has not submitted nominations</p>
+                )}
               </div>
             </div>
           </div>

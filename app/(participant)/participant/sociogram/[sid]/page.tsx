@@ -163,7 +163,7 @@ export default function SociogramNominationPage() {
             is_active:       true,
             has_submitted:   false,
           })
-          .select('id')
+          .select('id, has_submitted')
           .single()
 
         if (enrollErr) {
