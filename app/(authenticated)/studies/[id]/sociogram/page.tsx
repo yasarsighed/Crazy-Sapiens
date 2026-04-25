@@ -50,6 +50,7 @@ interface VizNode extends SimulationNodeDatum {
   dept: string
   role: string
   hasSubmitted: boolean
+  occupation: string
 }
 
 type EdgeTuple = [number, number, string, number]
@@ -89,6 +90,16 @@ interface VizData {
 const DEFAULT_COLORS = ['#2D6A4F', '#457B9D', '#E76F51', '#E9C46A', '#6D6875', '#A8DADC']
 const COMMUNITY_COLORS = ['#2D6A4F', '#457B9D', '#E76F51', '#E9C46A', '#9D4EDD', '#F4A261', '#1D3557', '#E63946', '#2A9D8F', '#B5838D']
 const communityColor = (c: number) => COMMUNITY_COLORS[c % COMMUNITY_COLORS.length]
+
+const OCCUPATION_PALETTE: Record<string, string> = {
+  'Baby Intern': '#FF6B6B',
+  'MA 1':        '#4ECDC4',
+  'MA 2':        '#9D4EDD',
+}
+const FALLBACK_OCC_COLORS = ['#F4A261', '#2A9D8F', '#E63946', '#457B9D', '#E9C46A', '#6D6875']
+function occupationColor(occ: string): string {
+  return OCCUPATION_PALETTE[occ] ?? FALLBACK_OCC_COLORS[Math.abs(occ.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % FALLBACK_OCC_COLORS.length]
+}
 
 function initials(name: string) {
   return name.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2) || '?'
@@ -143,7 +154,7 @@ function drawMinimap(
     if (n.x == null || n.y == null) continue
     ctx.beginPath()
     ctx.arc(n.x * scaleX, n.y * scaleY, 2.5, 0, Math.PI * 2)
-    ctx.fillStyle = communityColor(0)
+    ctx.fillStyle = occupationColor(n.occupation)
     ctx.fill()
   }
 }
@@ -236,6 +247,15 @@ export default function SociogramResultsPage() {
       }
 
       const nodeIdxById: Record<string, number> = {}
+      const participantAuthIds = participants.map(p => p.participant_id)
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('id, occupation')
+        .in('id', participantAuthIds)
+      const profileOccupation: Record<string, string> = {}
+      for (const pr of profileRows ?? []) {
+        profileOccupation[pr.id] = pr.occupation ?? 'Participant'
+      }
       const nodes: VizNode[] = participants.map((p, i) => {
         nodeIdxById[p.id] = i
         nodeIdxById[p.participant_id] = i
@@ -243,9 +263,10 @@ export default function SociogramResultsPage() {
           id: i,
           name: p.display_name,
           short: initials(p.display_name),
-          dept: 'Participant',
+          dept: profileOccupation[p.participant_id] ?? 'Participant',
           role: p.display_name,
           hasSubmitted: p.has_submitted ?? false,
+          occupation: profileOccupation[p.participant_id] ?? 'Participant',
         }
       })
 
@@ -393,13 +414,13 @@ export default function SociogramResultsPage() {
       })
     })
 
-    // Per-node radial gradients coloured by community
+    // Per-node radial gradients coloured by occupation
     vd.nodes.forEach(n => {
-      const col = communityColor(vd.metrics.community[n.id] ?? 0)
+      const col = occupationColor(n.occupation)
       const g = defs.append('radialGradient')
         .attr('id', `gr-${n.id}`).attr('cx', '38%').attr('cy', '35%').attr('r', '65%')
-      g.append('stop').attr('offset', '0%').attr('stop-color', col).attr('stop-opacity', 0.72)
-      g.append('stop').attr('offset', '100%').attr('stop-color', col)
+      g.append('stop').attr('offset', '0%').attr('stop-color', '#ffffff').attr('stop-opacity', 0.55)
+      g.append('stop').attr('offset', '100%').attr('stop-color', col).attr('stop-opacity', 0.40)
     })
 
     svg.append('rect').attr('width', W).attr('height', H).attr('fill', '#F5F0E8')
@@ -510,12 +531,12 @@ export default function SociogramResultsPage() {
       .attr('opacity', 0.9)
       .attr('pointer-events', 'none')
 
-    // Community ring
+    // Occupation ring — thick colored stroke = ⭕ effect
     node.append('circle')
       .attr('r', (d) => rScale(d.id, vd.indegree, vd.nodes) + 2)
       .attr('fill', 'none')
-      .attr('stroke', (d) => communityColor(vd.metrics.community[d.id] ?? 0))
-      .attr('stroke-width', 2.5).attr('opacity', 0.7)
+      .attr('stroke', (d) => occupationColor(d.occupation))
+      .attr('stroke-width', 4).attr('opacity', 1)
 
     // Main filled circle
     node.append('circle')
@@ -890,7 +911,7 @@ export default function SociogramResultsPage() {
                 onClick={() => setFocusNode(p => p === n.id ? null : n.id)}
                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] mb-1 transition-all ${focusNode === n.id ? 'bg-[#EDF7F2]' : 'hover:bg-[#FAF8F4]'}`}
               >
-                <span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-black text-white" style={{ background: '#2D6A4F' }}>
+                <span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-black text-white" style={{ background: occupationColor(n.occupation) }}>
                   {i + 1}
                 </span>
                 <span className="flex-1 font-medium text-[#3D3028] truncate text-left">{n.name}</span>
@@ -980,7 +1001,7 @@ export default function SociogramResultsPage() {
                   >
                     <span
                       className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ background: communityColor(r.community) }}
+                      style={{ background: occupationColor(r.node.occupation) }}
                     />
                     <span className="flex-1 truncate text-left text-[#3D3028]">{r.node.name}</span>
                     <span className="font-mono font-semibold text-[#2D6A4F] tabular-nums">{val}</span>
@@ -1063,12 +1084,14 @@ export default function SociogramResultsPage() {
                 </div>
               </div>
               <div>
-                <p className="text-[8px] text-[#8B7355] mb-1">Node color</p>
-                <div className="flex items-center gap-1">
-                  {COMMUNITY_COLORS.slice(0, 4).map((c, i) => (
-                    <div key={i} className="w-3 h-3 rounded-full" style={{ background: c }} />
+                <p className="text-[8px] text-[#8B7355] mb-1">Ring color</p>
+                <div className="flex flex-col gap-0.5">
+                  {Object.entries(OCCUPATION_PALETTE).map(([label, color]) => (
+                    <div key={label} className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded-full border-2 flex-shrink-0" style={{ borderColor: color, background: color + '22' }} />
+                      <span className="text-[8px] text-[#8B7355]">{label}</span>
+                    </div>
                   ))}
-                  <span className="text-[9px] text-[#8B7355] ml-0.5">community</span>
                 </div>
               </div>
               <div>
@@ -1113,17 +1136,17 @@ export default function SociogramResultsPage() {
         {/* Tooltip */}
         {tooltip && tipNode && vizData && (
           <div className="absolute z-40 pointer-events-none" style={{ left: tooltip.x, top: tooltip.y }}>
-            <div className="bg-white border border-[#E8E0D5] rounded-2xl p-4 shadow-xl min-w-[180px]" style={{ borderLeftColor: communityColor(vizData.metrics.community[tipNode.id] ?? 0), borderLeftWidth: 3 }}>
+            <div className="bg-white border border-[#E8E0D5] rounded-2xl p-4 shadow-xl min-w-[180px]" style={{ borderLeftColor: occupationColor(tipNode.occupation), borderLeftWidth: 3 }}>
               <div className="flex items-center gap-3 mb-3">
                 <div
                   className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-black text-sm"
-                  style={{ background: communityColor(vizData.metrics.community[tipNode.id] ?? 0) }}
+                  style={{ background: occupationColor(tipNode.occupation) }}
                 >
                   {tipNode.short}
                 </div>
                 <div>
                   <p className="text-xs font-bold text-[#3D3028]">{tipNode.name}</p>
-                  <p className="text-[11px] text-[#8B7355]">Community {(vizData.metrics.community[tipNode.id] ?? 0) + 1}</p>
+                  <p className="text-[11px] text-[#8B7355]">{tipNode.occupation}</p>
                 </div>
               </div>
               <div className="space-y-1.5 mb-2">

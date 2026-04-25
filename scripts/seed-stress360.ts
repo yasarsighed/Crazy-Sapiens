@@ -404,15 +404,13 @@ async function main() {
       .upsert(socPRows, { onConflict: 'sociogram_id,participant_id' })
     if (spErr) console.error(`  ⚠ Participant register error: ${spErr.message}`)
 
-    // Build nominations: each person nominates 4-8 others per relationship type
+    // Build nominations: each person nominates ALL others per relationship type
     const nominations: Record<string, unknown>[] = []
     for (const nominator of participants) {
       for (const rt of relTypes) {
         const pool = participants.filter(p => p.id !== nominator.id)
-        const shuffled = [...pool].sort(() => Math.random() - 0.5)
-        const count = randInt(4, Math.min(8, pool.length))
 
-        for (const nominee of shuffled.slice(0, count)) {
+        for (const nominee of pool) {
           const score = rt.is_negative_dimension
             ? randInt(1, 3)   // low scores on negative ties
             : randInt(3, 5)   // positive ties scored higher
