@@ -303,10 +303,11 @@ export const AAQ2: BuiltInScale = {
     },
   ],
   severity_bands: [
-    { label: 'Flexible', category: 'flexible', min: 7, max: 17, color: '#52B788' },
-    { label: 'Average', category: 'average', min: 18, max: 24, color: '#90BE6D' },
-    { label: 'Elevated', category: 'elevated', min: 25, max: 28, color: '#E9C46A' },
-    { label: 'High Inflexibility', category: 'high', min: 29, max: 49, color: '#E63946' },
+    // category values must match DB CHECK: minimal|mild|moderate|moderately_severe|severe
+    { label: 'Flexible',          category: 'minimal',          min: 7,  max: 17, color: '#52B788' },
+    { label: 'Average',           category: 'mild',             min: 18, max: 24, color: '#90BE6D' },
+    { label: 'Elevated',          category: 'moderate',         min: 25, max: 28, color: '#E9C46A' },
+    { label: 'High Inflexibility',category: 'severe',           min: 29, max: 49, color: '#E63946' },
   ],
 }
 
@@ -369,9 +370,14 @@ export const MPFI: BuiltInScale = {
     { code: 'MPFI_PI12', text: 'I give up on my goals when things get difficult.', is_reverse_scored: false, is_clinical_flag_item: false, display_order: 24 },
   ],
   severity_bands: [
-    { label: 'Low Inflexibility', category: 'low',      min: 12, max: 24, color: '#52B788' },
-    { label: 'Moderate',          category: 'moderate',  min: 25, max: 36, color: '#E9C46A' },
-    { label: 'High Inflexibility',category: 'high',      min: 37, max: 72, color: '#E63946' },
+    // category values must match DB CHECK: minimal|mild|moderate|moderately_severe|severe
+    // Thresholds based on Rolffs et al. (2018) PI-subscale norms (range 12–72);
+    // getSeverityBand() uses the actual total_score which may differ if more items are used.
+    // Thresholds: Rolffs et al. (2018) PI-subscale norms (range 12–72).
+    // The High band max is open-ended to accommodate longer questionnaire variants.
+    { label: 'Low Inflexibility', category: 'minimal', min: 12, max: 24,   color: '#52B788' },
+    { label: 'Moderate',          category: 'moderate', min: 25, max: 36,   color: '#E9C46A' },
+    { label: 'High Inflexibility',category: 'severe',   min: 37, max: 9999, color: '#E63946' },
   ],
 }
 

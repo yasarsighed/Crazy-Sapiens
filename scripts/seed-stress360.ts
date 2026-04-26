@@ -98,8 +98,12 @@ function severityFromScore(scale: string | null, total: number, nItems: number, 
     return { label: 'Flexible', category: 'minimal' }
   }
   if (scale === 'MPFI') {
-    if (total >= 37) return { label: 'High Inflexibility', category: 'severe' }
-    if (total >= 25) return { label: 'Moderate', category: 'moderate' }
+    // Rolffs et al. (2018) PI-subscale norms: 37+/72 = 51%, 25+/72 = 35%.
+    // Use percentage of max possible so thresholds work for any item count variant.
+    const maxPossible = nItems * rMax
+    const pct = maxPossible > 0 ? total / maxPossible : 0
+    if (pct >= 0.51) return { label: 'High Inflexibility', category: 'severe' }
+    if (pct >= 0.35) return { label: 'Moderate', category: 'moderate' }
     return { label: 'Low Inflexibility', category: 'minimal' }
   }
   // Generic: use percentage of max possible
