@@ -5,14 +5,23 @@
  * and generates plausible mock data for every instrument in that study
  * (questionnaires, IATs, sociogram).
  *
- * Run:
- *   NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co \
- *   SUPABASE_SERVICE_ROLE_KEY=eyJhb... \
+ * Run (reads .env.local automatically):
  *   npx tsx scripts/seed-stress360.ts
  */
 
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+// Load .env.local automatically so no manual env-var export is needed
+try {
+  const envPath = resolve(process.cwd(), '.env.local')
+  for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
+    const m = line.match(/^([^#=\s][^=]*)=(.*)$/)
+    if (m) process.env[m[1].trim()] = m[2].trim().replace(/^['"]|['"]$/g, '')
+  }
+} catch { /* .env.local not found — rely on env vars already set */ }
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
