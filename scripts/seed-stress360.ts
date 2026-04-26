@@ -435,37 +435,19 @@ async function main() {
       .upsert(socPRows, { onConflict: 'sociogram_id,participant_id' })
     if (spErr) console.error(`  ⚠ Participant register error: ${spErr.message}`)
 
-    // Fetch back row UUIDs — nominations must use sociogram_participants.id,
-    // NOT the auth UUID, because of the FK constraint on the nominations table
-    const { data: socPartRows } = await svc
-      .from('sociogram_participants')
-      .select('id, participant_id')
-      .eq('sociogram_id', soc.id)
-      .eq('is_active', true)
-
-    const authToRowId = new Map<string, string>(
-      (socPartRows ?? []).map(r => [r.participant_id as string, r.id as string])
-    )
-
-    // Wipe any stale nominations (old seed used auth UUIDs which may have
-    // violated the FK or left partial data) then re-insert clean all-to-all set
+    // Wipe stale nominations then re-insert a clean all-to-all set.
+    // nominator_id / nominee_id FK → profiles.id, so use auth UUIDs directly.
     await svc.from('sociogram_nominations').delete().eq('sociogram_id', soc.id)
 
     const nominations: Record<string, unknown>[] = []
     for (const nominator of allSocPeople) {
-      const nominatorRowId = authToRowId.get(nominator.authId)
-      if (!nominatorRowId) continue
-
       for (const rt of relTypes) {
         for (const nominee of allSocPeople) {
           if (nominee.authId === nominator.authId) continue
-          const nomineeRowId = authToRowId.get(nominee.authId)
-          if (!nomineeRowId) continue
-
           nominations.push({
             sociogram_id:         soc.id,
-            nominator_id:         nominatorRowId,   // row UUID ✓
-            nominee_id:           nomineeRowId,     // row UUID ✓
+            nominator_id:         nominator.authId,  // auth UUID (FK → profiles.id)
+            nominee_id:           nominee.authId,    // auth UUID
             relationship_type_id: rt.id,
             score:                rt.is_negative_dimension ? randInt(1, 3) : randInt(3, 5),
             is_negative_tie:      rt.is_negative_dimension,
