@@ -389,63 +389,102 @@ async function main() {
     if (!relTypes?.length) { console.log('  ⚠ No relationship types — skipping\n'); continue }
     console.log(`  Relationship types: ${relTypes.map(r => r.label).join(', ')}`)
 
-    // Register all participants as sociogram_participants
-    const socPRows = participants.map(p => ({
+    // Fetch ALL enrolled participants (not just the 16 in PARTICIPANTS —
+    // real users enrolled outside the seed must also appear in the sociogram)
+    const { data: allEnrollments } = await svc
+      .from('study_enrollments')
+      .select('participant_id')
+      .eq('study_id', study.id)
+      .eq('status', 'active')
+
+    const allAuthIds = (allEnrollments ?? []).map(e => e.participant_id as string)
+    const { data: allProfileRows } = await svc
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', allAuthIds)
+
+    const allSocPeople = (allProfileRows ?? []).map(pr => ({
+      authId: pr.id as string,
+      name:   (pr.full_name as string | null) ?? pr.id.slice(0, 8),
+    }))
+
+    console.log(`  Enrolled participants: ${allSocPeople.length} (seed list: ${participants.length})`)
+
+    // Register ALL enrolled participants as sociogram_participants
+    const socPRows = allSocPeople.map(p => ({
       sociogram_id:      soc.id,
-      participant_id:    p.id,
+      participant_id:    p.authId,
       display_name:      p.name,
       anonymised_label:  p.name,
       is_active:         true,
       has_submitted:     true,
       submitted_at:      now,
     }))
+
     const { error: spErr } = await svc
       .from('sociogram_participants')
       .upsert(socPRows, { onConflict: 'sociogram_id,participant_id' })
     if (spErr) console.error(`  ⚠ Participant register error: ${spErr.message}`)
 
-    // Build nominations: each person nominates ALL others per relationship type
-    const nominations: Record<string, unknown>[] = []
-    for (const nominator of participants) {
-      for (const rt of relTypes) {
-        const pool = participants.filter(p => p.id !== nominator.id)
+    // Fetch back row UUIDs — nominations must use sociogram_participants.id,
+    // NOT the auth UUID, because of the FK constraint on the nominations table
+    const { data: socPartRows } = await svc
+      .from('sociogram_participants')
+      .select('id, participant_id')
+      .eq('sociogram_id', soc.id)
+      .eq('is_active', true)
 
-        for (const nominee of pool) {
-          const score = rt.is_negative_dimension
-            ? randInt(1, 3)   // low scores on negative ties
-            : randInt(3, 5)   // positive ties scored higher
+    const authToRowId = new Map<string, string>(
+      (socPartRows ?? []).map(r => [r.participant_id as string, r.id as string])
+    )
+
+    // Wipe any stale nominations (old seed used auth UUIDs which may have
+    // violated the FK or left partial data) then re-insert clean all-to-all set
+    await svc.from('sociogram_nominations').delete().eq('sociogram_id', soc.id)
+
+    const nominations: Record<string, unknown>[] = []
+    for (const nominator of allSocPeople) {
+      const nominatorRowId = authToRowId.get(nominator.authId)
+      if (!nominatorRowId) continue
+
+      for (const rt of relTypes) {
+        for (const nominee of allSocPeople) {
+          if (nominee.authId === nominator.authId) continue
+          const nomineeRowId = authToRowId.get(nominee.authId)
+          if (!nomineeRowId) continue
+
           nominations.push({
-            sociogram_id:        soc.id,
-            nominator_id:        nominator.id,
-            nominee_id:          nominee.id,
+            sociogram_id:         soc.id,
+            nominator_id:         nominatorRowId,   // row UUID ✓
+            nominee_id:           nomineeRowId,     // row UUID ✓
             relationship_type_id: rt.id,
-            score,
-            is_negative_tie:     rt.is_negative_dimension,
-            is_valid:            true,
-            nomination_round:    1,
-            submitted_at:        now,
+            score:                rt.is_negative_dimension ? randInt(1, 3) : randInt(3, 5),
+            is_negative_tie:      rt.is_negative_dimension,
+            is_valid:             true,
+            nomination_round:     1,
+            submitted_at:         now,
           })
         }
       }
     }
 
-    const { error: nomErr } = await svc
-      .from('sociogram_nominations')
-      .upsert(nominations, {
-        onConflict: 'sociogram_id,nominator_id,nominee_id,relationship_type_id',
-        ignoreDuplicates: true,
-      })
-
-    if (nomErr && !nomErr.message?.includes('unique') && !nomErr.message?.includes('42P10')) {
-      console.error(`  ✗ Nomination error: ${nomErr.message}`)
-    } else {
-      console.log(`  ✓ ${nominations.length} nominations across ${relTypes.length} relationship type(s).\n`)
+    // Insert in batches of 200
+    let nomOk = 0
+    for (let i = 0; i < nominations.length; i += 200) {
+      const { error } = await svc.from('sociogram_nominations').insert(nominations.slice(i, i + 200))
+      if (error) {
+        console.error(`  ✗ Nomination batch ${Math.floor(i / 200) + 1} error: ${error.message}`)
+      } else {
+        nomOk += Math.min(200, nominations.length - i)
+      }
     }
+
+    console.log(`  ✓ ${nomOk}/${nominations.length} nominations for ${allSocPeople.length} participants across ${relTypes.length} relationship type(s).\n`)
   }
 
   console.log('═══════════════════════════════════════')
   console.log('✅  Seed complete.')
-  console.log(`   ${participants.length} participants · ${questionnaires.length} questionnaire(s) · ${iats.length} IAT(s) · ${sociograms.length} sociogram(s)`)
+  console.log(`   ${participants.length} seeded participants · ${questionnaires.length} questionnaire(s) · ${iats.length} IAT(s) · ${sociograms.length} sociogram(s) (sociogram includes all enrolled users)`)
   console.log('═══════════════════════════════════════')
 }
 
