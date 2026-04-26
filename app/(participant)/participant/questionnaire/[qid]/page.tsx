@@ -50,6 +50,31 @@ interface QuestionnaireInstrument {
   clinical_alert_threshold: number | null
 }
 
+// ─── Scale debrief copy ───────────────────────────────────────────────────────
+
+const SCALE_DEBRIEF: Record<string, { what: string; interpret: string; note: string }> = {
+  'PHQ-9': {
+    what: 'The PHQ-9 screens for symptoms of depression over the past two weeks.',
+    interpret: 'A higher score reflects more frequent depressive symptoms. Scores do not diagnose depression — only a qualified clinician can do that.',
+    note: 'If you are experiencing distress, please reach out to a counsellor, your GP, or iCall (India): 9152987821.',
+  },
+  'GAD-7': {
+    what: 'The GAD-7 screens for generalised anxiety symptoms over the past two weeks.',
+    interpret: 'Higher scores indicate more frequent anxiety symptoms. This is a screening tool, not a diagnosis.',
+    note: 'If worry or anxiety is significantly affecting your daily life, speaking with a mental health professional is worthwhile.',
+  },
+  'AAQ-II': {
+    what: 'The AAQ-II measures psychological flexibility — your ability to act on your values even when difficult thoughts and feelings show up.',
+    interpret: 'Higher scores suggest that internal experiences (thoughts, memories, feelings) may be getting in the way of valued action. This is extremely common and can be developed.',
+    note: 'Psychological flexibility is a skill, not a fixed trait. Acceptance-based practices (like ACT) are evidence-based approaches to developing it.',
+  },
+  'MPFI': {
+    what: 'The MPFI measures psychological flexibility and inflexibility across several processes (acceptance, defusion, values, present-moment awareness).',
+    interpret: 'Higher inflexibility scores suggest these processes may need attention. This is useful self-knowledge, not a judgment.',
+    note: 'Your result is one snapshot in time and can change with awareness and practice.',
+  },
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function QuestionnairePage() {
@@ -467,6 +492,39 @@ export default function QuestionnairePage() {
             ))}
           </div>
         )}
+
+        {/* About your result — debrief */}
+        {(() => {
+          const scaleName = questionnaire?.validated_scale_name ?? null
+          const debrief = scaleName ? SCALE_DEBRIEF[scaleName] : null
+          return (
+            <div className="max-w-sm mx-auto mb-6 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-4 text-left space-y-3">
+              <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 uppercase tracking-wide">About your result</p>
+              {debrief ? (
+                <>
+                  <div>
+                    <p className="text-[11px] font-medium text-amber-800 dark:text-amber-300 mb-0.5">What this measures</p>
+                    <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">{debrief.what}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-medium text-amber-800 dark:text-amber-300 mb-0.5">How to read your result</p>
+                    <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">{debrief.interpret}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-medium text-amber-800 dark:text-amber-300 mb-0.5">A note</p>
+                    <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">{debrief.note}</p>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+                  Thank you for completing this questionnaire. Your responses contribute to understanding{' '}
+                  {questionnaire?.title ? `"${questionnaire.title}"` : 'this domain'}.
+                  Results will be interpreted alongside all other measures in the study.
+                </p>
+              )}
+            </div>
+          )
+        })()}
 
         <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed mb-6">
           Scores reflect patterns — not your identity or fixed traits. If you are concerned about

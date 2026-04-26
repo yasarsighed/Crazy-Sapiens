@@ -7,10 +7,11 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Users, BarChart3, Timer } from 'lucide-react'
+import { Users, BarChart3, Timer, Download } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -246,6 +247,33 @@ export function DataExplorer({
 }: Props) {
   const [selectedStudyId, setSelectedStudyId] = useState<string>('all')
   const [groupBy, setGroupBy]                 = useState<GroupByKey>('none')
+  const [downloading, setDownloading]         = useState(false)
+
+  async function handleDownloadWideCSV() {
+    if (downloading) return
+    const studyIdParam = selectedStudyId === 'all' ? studies[0]?.id : selectedStudyId
+    if (!studyIdParam) return
+    setDownloading(true)
+    try {
+      const res = await fetch(`/api/export/wide?studyId=${studyIdParam}`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Export failed' }))
+        alert(err.error ?? 'Export failed')
+        return
+      }
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      a.download = `stress360_wide.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('Download failed — check your network connection.')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   // ── Derive active scope ──────────────────────────────────────────────────
   const activeStudyIds = useMemo(() =>
@@ -373,11 +401,23 @@ export function DataExplorer({
     <div className="p-6 lg:p-8 max-w-screen-xl">
 
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="font-serif text-2xl mb-1">Data Explorer</h1>
-        <p className="text-sm text-muted-foreground">
-          Compare all measures across any participant variable. Pick a grouping and the charts update instantly.
-        </p>
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h1 className="font-serif text-2xl mb-1">Data Explorer</h1>
+          <p className="text-sm text-muted-foreground">
+            Compare all measures across any participant variable. Pick a grouping and the charts update instantly.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDownloadWideCSV}
+          disabled={downloading || studies.length === 0}
+          className="shrink-0 gap-1.5"
+        >
+          <Download className="w-3.5 h-3.5" />
+          {downloading ? 'Exporting…' : 'Download Wide CSV'}
+        </Button>
       </div>
 
       {/* Controls */}

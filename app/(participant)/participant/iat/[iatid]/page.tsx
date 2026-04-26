@@ -740,6 +740,21 @@ export default function IATPage() {
       : null
     const isClinical = cfg.key === 'death_suicide'
 
+    // Instrument-specific context paragraph
+    const TYPE_CONTEXT: Record<string, string> = {
+      gender_career:
+        'Research (Nosek et al. 2009, PNAS) finds that over 75% of people globally associate Male with Career more strongly than Female — a pattern especially pronounced in India. This reflects decades of cultural exposure to gendered roles in media, education, and the workplace, not personal sexism.',
+      gender_science:
+        'In Nosek et al. (2009), India showed one of the largest implicit Male–Science associations globally. This mirrors real gender gaps in STEM participation and reflects societal stereotypes absorbed over years, not your beliefs about anyone\'s abilities.',
+      hindu_muslim:
+        'Implicit evaluative associations between religious groups reflect the social environment people grow up in — media narratives, personal networks, historical stories. Having an association in one direction does not imply conscious prejudice.',
+      modi_pm:
+        'Political implicit associations are shaped heavily by media exposure. They often diverge substantially from considered political opinions and should not be taken as a reliable indicator of how you would vote or reason about policy.',
+      death_suicide:
+        'Research (Nock et al. 2010; Millner et al. 2019) shows that even people who have never had suicidal thoughts can show a Self–Death association, and vice versa. This test has moderate sensitivity and specificity at the group level — it should never be used to judge an individual.',
+    }
+    const typeContext = TYPE_CONTEXT[cfg.key] ?? null
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-6 py-12">
         <div className="max-w-md w-full">
@@ -766,6 +781,31 @@ export default function IATPage() {
             </div>
           )}
 
+          {/* What does this mean — general IAT debrief */}
+          <div className="border border-border rounded-xl p-5 mb-5 space-y-3 bg-muted/10">
+            <h2 className="font-serif text-base font-semibold">What does this mean?</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              The IAT measures the strength of mental associations — patterns built up over years of
+              cultural exposure, media, and social learning. A strong association in one direction does{' '}
+              <strong>not</strong> mean you consciously endorse that attitude or that you will act on it.
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Most people show implicit associations that differ from their stated values. This is normal
+              and reflects the world we grew up in, not our character.
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Your result is one data point. It should be interpreted with caution and never used to
+              label or judge you.
+            </p>
+
+            {/* Instrument-specific context */}
+            {typeContext && (
+              <div className="border-t border-border pt-3">
+                <p className="text-xs text-muted-foreground leading-relaxed italic">{typeContext}</p>
+              </div>
+            )}
+          </div>
+
           {dataNote && (
             <div className="border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 rounded-xl p-4 mb-5">
               <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">{dataNote}</p>
@@ -781,9 +821,18 @@ export default function IATPage() {
             </div>
           )}
 
-          <Button className="w-full" onClick={() => router.push('/participant/dashboard')}>
-            Back to dashboard
-          </Button>
+          <div className="flex flex-col gap-3">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => window.print()}
+            >
+              Download my result
+            </Button>
+            <Button className="w-full" onClick={() => router.push('/participant/dashboard')}>
+              Back to dashboard
+            </Button>
+          </div>
         </div>
       </div>
     )
