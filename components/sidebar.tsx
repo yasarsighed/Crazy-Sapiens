@@ -20,8 +20,12 @@ import {
   Library,
   Database,
   ClipboardCheck,
-  ChevronDown,
   LogOut,
+  ChevronRight,
+  Bell,
+  Sparkles,
+  Brain,
+  Network,
 } from 'lucide-react'
 import {
   Tooltip,
@@ -30,6 +34,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 interface SidebarProps {
   profile: Profile | null
@@ -39,56 +44,79 @@ interface NavItem {
   href:    string
   label:   string
   icon:    typeof LayoutDashboard
-  tooltip?:string | null
-  stub?:   boolean
+  tooltip?: string | null
+  badge?:  string
 }
 
 interface NavGroup {
-  title: string
-  items: NavItem[]
+  title:  string
+  emoji:  string
+  items:  NavItem[]
 }
 
-// Dashboard stays pinned at the top; everything else grouped by intent.
 const pinnedItem: NavItem = {
-  href: '/dashboard',
-  label: 'Dashboard',
-  icon: LayoutDashboard,
+  href:    '/dashboard',
+  label:   'Dashboard',
+  icon:    LayoutDashboard,
   tooltip: 'The big picture',
 }
 
 const navGroups: NavGroup[] = [
   {
     title: 'Design',
+    emoji: '🎨',
     items: [
-      { href: '/studies',       label: 'Studies',       icon: FlaskConical, tooltip: 'Your experiments' },
-      { href: '/instruments',   label: 'Instruments',   icon: FileText },
-      { href: '/scale-library', label: 'Scale library', icon: Library },
-      { href: '/cohorts',       label: 'Cohorts',       icon: Database, tooltip: 'Participant pools' },
+      { href: '/studies',       label: 'Studies',       icon: FlaskConical,  tooltip: 'Your experiments' },
+      { href: '/instruments',   label: 'Instruments',   icon: FileText,      tooltip: 'Questionnaires, IATs & sociograms' },
+      { href: '/scale-library', label: 'Scale Library', icon: Library,       tooltip: 'Validated psychological scales' },
+      { href: '/cohorts',       label: 'Cohorts',       icon: Database,      tooltip: 'Participant pools' },
     ],
   },
   {
     title: 'Run',
+    emoji: '🚀',
     items: [
-      { href: '/participants',    label: 'Participants',    icon: Users, tooltip: 'The brave ones' },
-      { href: '/supervisors',     label: 'Supervisors',     icon: Shield },
-      { href: '/admin/requests',  label: 'Requests',        icon: ClipboardCheck, tooltip: 'Cohort & study approval queue' },
+      { href: '/participants',   label: 'Participants',  icon: Users,         tooltip: 'The brave ones 🦸' },
+      { href: '/supervisors',    label: 'Supervisors',   icon: Shield,        tooltip: 'Your oversight team' },
+      { href: '/admin/requests', label: 'Requests',      icon: ClipboardCheck,tooltip: 'Cohort & study approval queue' },
     ],
   },
   {
     title: 'Analyse',
+    emoji: '🔬',
     items: [
-      { href: '/analysis',      label: 'Analysis',      icon: BarChart3, tooltip: 'Cross-study statistics' },
-      { href: '/audit-log',     label: 'Audit log',     icon: ClipboardList },
+      { href: '/analysis',  label: 'Analysis',  icon: BarChart3,    tooltip: 'Cross-study statistics' },
+      { href: '/audit-log', label: 'Audit Log', icon: ClipboardList, tooltip: 'Who did what, when' },
     ],
   },
 ]
 
-const settingsNavItems: NavItem[] = [
+const adminItems: NavItem[] = [
   { href: '/users',    label: 'Users',    icon: UserCog },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
-// Shared nav-link renders the active indicator, icon, label, and optional tooltip.
+// Role meta
+const ROLE_META: Record<string, { label: string; emoji: string; color: string }> = {
+  admin:      { label: 'Admin',      emoji: '⚡', color: '#4338CA' },
+  supervisor: { label: 'Supervisor', emoji: '🔭', color: '#1D4ED8' },
+  researcher: { label: 'Researcher', emoji: '🧪', color: 'var(--researcher-color)' },
+}
+
+// Fun quips for the footer
+const QUIPS = [
+  'making research slightly less boring since 2026 🎉',
+  'where science meets chaos (professionally) 🌪️',
+  'your data is safe with us. probably. 🤞',
+  'powered by caffeine & existential curiosity ☕',
+  'p < 0.05 or it didn\'t happen 📊',
+]
+
+function getInitials(name: string | null): string {
+  if (!name) return '?'
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
 function NavLink({
   item,
   pathname,
@@ -100,50 +128,44 @@ function NavLink({
 }) {
   const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
   const Icon = item.icon
+
   const link = (
     <Link
       href={item.href}
       className={cn(
-        'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors relative',
+        'group flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] transition-all duration-150 relative',
         isActive
-          ? 'bg-primary/10 text-primary font-medium'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          ? 'font-semibold text-white shadow-sm'
+          : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent',
       )}
+      style={isActive ? { backgroundColor: accentColor } : undefined}
     >
-      {isActive && (
-        <div
-          className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-l"
-          style={{ backgroundColor: accentColor }}
-        />
+      <Icon className={cn('w-4 h-4 shrink-0 transition-transform duration-150', 'group-hover:scale-110')} />
+      <span className="flex-1 truncate">{item.label}</span>
+      {item.badge && (
+        <span className="ml-auto text-[10px] font-bold bg-destructive text-white rounded-full px-1.5 py-0.5 leading-none">
+          {item.badge}
+        </span>
       )}
-      <Icon className="w-4 h-4 shrink-0" />
-      <span className="flex-1">{item.label}</span>
     </Link>
   )
+
   if (!item.tooltip) return link
   return (
     <Tooltip>
       <TooltipTrigger asChild>{link}</TooltipTrigger>
-      <TooltipContent side="right" className="text-xs">{item.tooltip}</TooltipContent>
+      <TooltipContent side="right" className="text-xs max-w-[180px]">
+        {item.tooltip}
+      </TooltipContent>
     </Tooltip>
   )
 }
 
-function getInitials(name: string | null): string {
-  if (!name) return '?'
-  return name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
 export function Sidebar({ profile }: SidebarProps) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const supabase = createClient()
+  const pathname   = usePathname()
+  const router     = useRouter()
+  const [showAdmin, setShowAdmin] = useState(false)
+  const supabase   = createClient()
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -151,95 +173,134 @@ export function Sidebar({ profile }: SidebarProps) {
     router.refresh()
   }
 
-  const researcherColor = profile?.researcher_color || '#2D6A4F'
+  const role = profile?.role || 'researcher'
+  const accentColor = role === 'admin'
+    ? '#4338CA'
+    : role === 'supervisor'
+      ? '#1D4ED8'
+      : (profile?.researcher_color || '#6D28D9')
+
+  const roleMeta = ROLE_META[role] || ROLE_META.researcher
+  const quip = QUIPS[Math.floor(Date.now() / 86400000) % QUIPS.length] // changes daily
+
+  // Header gradient per role
+  const headerGradient =
+    role === 'admin'
+      ? 'linear-gradient(135deg, #1E1B4B, #312E81)'
+      : role === 'supervisor'
+        ? 'linear-gradient(135deg, #1E3A8A, #1D4ED8)'
+        : `linear-gradient(135deg, color-mix(in srgb, ${accentColor} 80%, black), ${accentColor})`
 
   return (
-    <TooltipProvider delayDuration={300}>
-      <aside className="w-[210px] h-screen bg-card border-r border-border flex flex-col fixed left-0 top-0">
-        {/* Logo area */}
-        <div className="p-4 border-b border-border">
+    <TooltipProvider delayDuration={200}>
+      <aside
+        className="w-[240px] h-screen flex flex-col fixed left-0 top-0 z-40 bg-sidebar border-r border-sidebar-border"
+        style={{ '--researcher-color': accentColor } as React.CSSProperties}
+      >
+        {/* ── Header: logo + role badge ── */}
+        <div
+          className="px-4 pt-5 pb-4 shrink-0"
+          style={{ background: headerGradient }}
+        >
           <Logo size="sm" />
+          <div className="mt-3 flex items-center gap-2">
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white/90 bg-white/20 backdrop-blur-sm"
+            >
+              {roleMeta.emoji} {roleMeta.label}
+            </span>
+            {role === 'admin' && (
+              <span className="text-[10px] text-white/60 flex items-center gap-0.5">
+                <Sparkles className="w-2.5 h-2.5" /> Full Access
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Researcher avatar pill */}
-        <Link href="/settings" className="block p-4 border-b border-border hover:bg-muted/40 transition-colors group">
-          <div className="flex items-center gap-3">
-            {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={profile.full_name ?? 'Avatar'}
-                className="w-9 h-9 rounded-full object-cover shrink-0 border border-border"
-              />
-            ) : (
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0"
-                style={{ backgroundColor: researcherColor }}
-              >
-                {getInitials(profile?.full_name)}
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-foreground truncate">
-                {profile?.full_name || 'Researcher'}
-              </p>
-              <p className="text-[10px] text-muted-foreground capitalize">
-                {profile?.role || 'researcher'}
-              </p>
+        {/* ── User avatar / settings link ── */}
+        <Link
+          href="/settings"
+          className="flex items-center gap-3 px-4 py-3 border-b border-sidebar-border hover:bg-sidebar-accent/50 transition-colors group shrink-0"
+        >
+          {profile?.avatar_url ? (
+            <img
+              src={profile.avatar_url}
+              alt={profile.full_name ?? 'Avatar'}
+              className="w-9 h-9 rounded-xl object-cover shrink-0 border-2 border-white shadow-sm"
+            />
+          ) : (
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm"
+              style={{ background: accentColor }}
+            >
+              {getInitials(profile?.full_name)}
             </div>
-            <Settings className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors shrink-0" />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-sidebar-foreground truncate leading-tight">
+              {profile?.full_name || 'Researcher'}
+            </p>
+            <p className="text-[10px] text-sidebar-foreground/50 truncate">
+              {profile?.email || 'No email'}
+            </p>
           </div>
+          <Settings className="w-3.5 h-3.5 text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60 transition-colors shrink-0" />
         </Link>
 
-        <nav className="flex-1 p-2 overflow-y-auto">
-          <NavLink item={pinnedItem} pathname={pathname} accentColor={researcherColor} />
+        {/* ── Navigation ── */}
+        <nav className="flex-1 p-3 overflow-y-auto space-y-1">
+          {/* Pinned dashboard */}
+          <NavLink item={pinnedItem} pathname={pathname} accentColor={accentColor} />
 
+          {/* Grouped nav */}
           {navGroups.map(group => (
             <div key={group.title} className="mt-4">
-              <p className="px-3 mb-1 text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
+              <p className="section-label px-3 mb-1.5 flex items-center gap-1">
+                <span className="text-base leading-none">{group.emoji}</span>
                 {group.title}
               </p>
               <div className="space-y-0.5">
                 {group.items.map(item => (
-                  <NavLink key={item.href} item={item} pathname={pathname} accentColor={researcherColor} />
+                  <NavLink key={item.href} item={item} pathname={pathname} accentColor={accentColor} />
                 ))}
               </div>
             </div>
           ))}
 
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center gap-2 px-3 py-2 w-full text-[11px] text-muted-foreground hover:text-foreground transition-colors mt-4"
-          >
-            <ChevronDown className={cn('w-3 h-3 transition-transform', showAdvanced && 'rotate-180')} />
-            <span>{showAdvanced ? 'Hide' : 'Admin & settings'}</span>
-          </button>
-
-          {showAdvanced && (
-            <div className="space-y-0.5 pt-1">
-              {settingsNavItems.map(item => (
-                <NavLink key={item.href} item={item} pathname={pathname} accentColor={researcherColor} />
-              ))}
-            </div>
-          )}
+          {/* Admin & settings collapse */}
+          <div className="mt-4">
+            <button
+              onClick={() => setShowAdmin(!showAdmin)}
+              className="flex items-center gap-2 px-3 py-1.5 w-full text-[11px] text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors rounded-lg hover:bg-sidebar-accent"
+            >
+              <ChevronRight className={cn('w-3 h-3 transition-transform duration-200', showAdmin && 'rotate-90')} />
+              <span className="font-semibold tracking-wider uppercase">Admin & Settings</span>
+            </button>
+            {showAdmin && (
+              <div className="space-y-0.5 mt-1 animate-slide-up">
+                {adminItems.map(item => (
+                  <NavLink key={item.href} item={item} pathname={pathname} accentColor={accentColor} />
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
 
-        {/* Sign out button */}
-        <div className="p-2 border-t border-border">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-muted-foreground hover:text-foreground text-[13px]"
+        {/* ── Sign out ── */}
+        <div className="p-3 border-t border-sidebar-border shrink-0">
+          <button
             onClick={handleSignOut}
+            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-[13px] text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all duration-150 group"
           >
-            <LogOut className="w-4 h-4 mr-3" />
-            Sign out
-          </Button>
+            <LogOut className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" />
+            <span>Sign out</span>
+          </button>
         </div>
 
-        {/* Copyright */}
-        <div className="p-4 border-t border-border">
-          <p className="text-[9px] text-muted-foreground/60 leading-relaxed">
-            &copy; 2026 Crazy Sapiens &mdash; Syed, Sharma &amp; Poddar &mdash; making research slightly less boring since 2026
+        {/* ── Footer quip ── */}
+        <div className="px-4 pb-4 shrink-0">
+          <p className="text-[9px] text-sidebar-foreground/30 leading-relaxed italic">
+            &copy; 2026 Crazy Sapiens &mdash; {quip}
           </p>
         </div>
       </aside>

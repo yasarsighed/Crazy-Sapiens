@@ -3,7 +3,10 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ClipboardList, CheckCircle, Clock, Users, Timer, FlaskConical, Trophy, User } from 'lucide-react'
+import {
+  ClipboardList, CheckCircle2, Clock, Users, Timer,
+  FlaskConical, Trophy, User, Sparkles, Star, ArrowRight, Lock,
+} from 'lucide-react'
 import { LeaveStudyButton } from '@/components/leave-study-button'
 
 function getInitials(name: string | null) {
@@ -13,9 +16,28 @@ function getInitials(name: string | null) {
 
 function greeting() {
   const h = new Date().getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
-  return 'Good evening'
+  if (h < 5)  return 'Up late? 🌙'
+  if (h < 12) return 'Good morning ☀️'
+  if (h < 17) return 'Good afternoon 🌤️'
+  return 'Good evening 🌙'
+}
+
+function ProgressRing({ pct, color = '#059669', size = 56 }: { pct: number; color?: string; size?: number }) {
+  const r = (size - 8) / 2
+  const circ = 2 * Math.PI * r
+  const dash = circ - (pct / 100) * circ
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#D1FAE5" strokeWidth="6" />
+      <circle
+        cx={size/2} cy={size/2} r={r} fill="none"
+        stroke={pct === 100 ? color : color} strokeWidth="6"
+        strokeDasharray={circ} strokeDashoffset={dash}
+        strokeLinecap="round"
+        style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.34,1.56,0.64,1)' }}
+      />
+    </svg>
+  )
 }
 
 export default async function ParticipantDashboardPage() {
@@ -23,14 +45,12 @@ export default async function ParticipantDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Fetch profile
   const { data: profile } = await supabase
     .from('profiles')
     .select('full_name, avatar_url')
     .eq('id', user.id)
     .maybeSingle()
 
-  // Fetch active enrollments
   const { data: enrollments } = await supabase
     .from('study_enrollments')
     .select('study_id, status, consented_at')
@@ -38,11 +58,7 @@ export default async function ParticipantDashboardPage() {
     .eq('status', 'active')
 
   const studyIds = enrollments?.map(e => e.study_id) ?? []
-  const consentedStudyIds = new Set(
-    (enrollments ?? []).filter(e => e.consented_at).map(e => e.study_id)
-  )
 
-  // Fetch study details + researcher info
   const { data: studyDetails } = studyIds.length > 0
     ? await supabase
         .from('studies')
@@ -50,292 +66,333 @@ export default async function ParticipantDashboardPage() {
         .in('id', studyIds)
     : { data: [] }
 
-  const studyById = Object.fromEntries(
-    (studyDetails ?? []).map((s: any) => [s.id, s])
-  )
+  const studyById = Object.fromEntries((studyDetails ?? []).map((s: any) => [s.id, s]))
 
-  // Fetch instruments
-  const { data: questionnaires } = studyIds.length > 0
-    ? await supabase
-        .from('questionnaire_instruments')
-        .select('id, study_id, title, estimated_duration_minutes, validated_scale_name, status')
-        .in('study_id', studyIds)
-        .eq('status', 'active')
-    : { data: [] }
+  // Instruments
+  const [{ data: questionnaires }, { data: sociograms }, { data: iats }] = await Promise.all([
+    studyIds.length
+      ? supabase.from('questionnaire_instruments').select('id,study_id,title,estimated_duration_minutes,validated_scale_name,status').in('study_id', studyIds).eq('status', 'active')
+      : { data: [] },
+    studyIds.length
+      ? supabase.from('sociogram_instruments').select('id,study_id,title,status').in('study_id', studyIds).eq('status', 'active')
+      : { data: [] },
+    studyIds.length
+      ? supabase.from('iat_instruments').select('id,study_id,title').in('study_id', studyIds)
+      : { data: [] },
+  ])
 
-  const { data: completedResults } = await supabase
-    .from('questionnaire_scored_results')
-    .select('questionnaire_id')
-    .eq('participant_id', user.id)
-    .eq('is_complete', true)
+  // Completed
+  const { data: completedResults } = await supabase.from('questionnaire_scored_results').select('questionnaire_id').eq('participant_id', user.id).eq('is_complete', true)
   const completedQIds = new Set(completedResults?.map(r => r.questionnaire_id) ?? [])
 
-  const { data: sociograms } = studyIds.length > 0
-    ? await supabase
-        .from('sociogram_instruments')
-        .select('id, study_id, title, status')
-        .in('study_id', studyIds)
-        .eq('status', 'active')
-    : { data: [] }
-
-  const { data: submittedSociograms } = await supabase
-    .from('sociogram_participants')
-    .select('sociogram_id')
-    .eq('participant_id', user.id)
-    .eq('has_submitted', true)
+  const { data: submittedSociograms } = await supabase.from('sociogram_participants').select('sociogram_id').eq('participant_id', user.id).eq('has_submitted', true)
   const submittedSocIds = new Set(submittedSociograms?.map(s => s.sociogram_id) ?? [])
-
-  const { data: iats } = studyIds.length > 0
-    ? await supabase.from('iat_instruments').select('id, study_id, title').in('study_id', studyIds)
-    : { data: [] }
 
   const iatIds = (iats ?? []).map((i: any) => i.id)
   const [{ data: completedIatSessions }, { data: completedIatTrials }] = await Promise.all([
-    iatIds.length > 0
-      ? supabase.from('iat_session_results').select('iat_id').eq('participant_id', user.id).in('iat_id', iatIds)
-      : { data: [] },
-    iatIds.length > 0
-      ? supabase.from('iat_trial_log').select('iat_id').eq('participant_id', user.id).in('iat_id', iatIds).limit(iatIds.length * 10)
-      : { data: [] },
+    iatIds.length ? supabase.from('iat_session_results').select('iat_id').eq('participant_id', user.id).in('iat_id', iatIds) : { data: [] },
+    iatIds.length ? supabase.from('iat_trial_log').select('iat_id').eq('participant_id', user.id).in('iat_id', iatIds).limit(iatIds.length * 10) : { data: [] },
   ])
   const completedIatIds = new Set([
     ...(completedIatSessions ?? []).map((r: any) => r.iat_id),
-    ...(completedIatTrials ?? []).map((r: any) => r.iat_id),
+    ...(completedIatTrials  ?? []).map((r: any) => r.iat_id),
   ])
 
-  // Build per-study instrument maps
-  type StudyData = {
-    pendingQ: typeof questionnaires extends null ? never[] : NonNullable<typeof questionnaires>
-    pendingSoc: typeof sociograms extends null ? never[] : NonNullable<typeof sociograms>
-    pendingIat: any[]
-    completedQ: NonNullable<typeof questionnaires>
-    completedSoc: NonNullable<typeof sociograms>
-    completedIat: any[]
-    totalCount: number
-    completedCount: number
-  }
+  // Build per-study data
+  const studyMap: Record<string, {
+    pendingQ: any[]; pendingSoc: any[]; pendingIat: any[]
+    completedQ: any[]; completedSoc: any[]; completedIat: any[]
+    totalCount: number; completedCount: number
+  }> = {}
 
-  const studyMap: Record<string, StudyData> = {}
   for (const sid of studyIds) {
-    const allQ = (questionnaires ?? []).filter(q => q.study_id === sid)
-    const allS = (sociograms ?? []).filter(s => s.study_id === sid)
-    const allI = (iats ?? []).filter((i: any) => i.study_id === sid)
-    const pQ = allQ.filter(q => !completedQIds.has(q.id))
-    const pS = allS.filter(s => !submittedSocIds.has(s.id))
-    const pI = allI.filter((i: any) => !completedIatIds.has(i.id))
-    const cQ = allQ.filter(q => completedQIds.has(q.id))
-    const cS = allS.filter(s => submittedSocIds.has(s.id))
-    const cI = allI.filter((i: any) => completedIatIds.has(i.id))
+    const allQ = (questionnaires ?? []).filter((q: any) => q.study_id === sid)
+    const allS = (sociograms    ?? []).filter((s: any) => s.study_id === sid)
+    const allI = (iats          ?? []).filter((i: any) => i.study_id === sid)
     studyMap[sid] = {
-      pendingQ: pQ as any, pendingSoc: pS as any, pendingIat: pI,
-      completedQ: cQ as any, completedSoc: cS as any, completedIat: cI,
-      totalCount: allQ.length + allS.length + allI.length,
-      completedCount: cQ.length + cS.length + cI.length,
+      pendingQ:   allQ.filter((q: any) => !completedQIds.has(q.id)),
+      pendingSoc: allS.filter((s: any) => !submittedSocIds.has(s.id)),
+      pendingIat: allI.filter((i: any) => !completedIatIds.has(i.id)),
+      completedQ: allQ.filter((q: any) => completedQIds.has(q.id)),
+      completedSoc:allS.filter((s: any) => submittedSocIds.has(s.id)),
+      completedIat:allI.filter((i: any) => completedIatIds.has(i.id)),
+      totalCount:     allQ.length + allS.length + allI.length,
+      completedCount: allQ.filter((q:any)=>completedQIds.has(q.id)).length +
+                      allS.filter((s:any)=>submittedSocIds.has(s.id)).length +
+                      allI.filter((i:any)=>completedIatIds.has(i.id)).length,
     }
   }
 
-  const grandTotalPending = studyIds.reduce((acc, sid) => {
-    const d = studyMap[sid]
-    return acc + d.pendingQ.length + d.pendingSoc.length + d.pendingIat.length
-  }, 0)
+  const grandTotal   = studyIds.reduce((a, sid) => a + studyMap[sid].totalCount, 0)
+  const grandDone    = studyIds.reduce((a, sid) => a + studyMap[sid].completedCount, 0)
+  const grandPending = grandTotal - grandDone
+  const overallPct   = grandTotal > 0 ? Math.round((grandDone / grandTotal) * 100) : 0
+  const allDone      = grandTotal > 0 && grandPending === 0
+
+  const name = profile?.full_name?.split(' ')[0] || 'there'
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 animate-slide-up">
 
-      {/* Welcome header */}
-      <div className="flex items-center gap-4 mb-8">
-        {profile?.avatar_url ? (
-          <img src={profile.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border border-border shrink-0" />
-        ) : (
-          <div className="w-12 h-12 rounded-full bg-[#2D6A4F] flex items-center justify-center text-white font-medium text-lg shrink-0">
-            {getInitials(profile?.full_name ?? null)}
-          </div>
-        )}
-        <div>
-          <h1 className="font-serif text-2xl text-foreground">
-            {greeting()}{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}.
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {grandTotalPending > 0
-              ? `You have ${grandTotalPending} pending instrument${grandTotalPending > 1 ? 's' : ''}. Take your time.`
-              : studyIds.length > 0
-                ? 'All instruments completed. Science thanks you.'
-                : 'You are not enrolled in any studies yet.'}
-          </p>
+      {/* ── Hero / Welcome ── */}
+      <div className="mb-8 text-center">
+        {/* Avatar */}
+        <div className="relative inline-block mb-4">
+          {profile?.avatar_url ? (
+            <img
+              src={profile.avatar_url} alt=""
+              className="w-16 h-16 rounded-2xl object-cover border-4 border-white shadow-lg"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+              {getInitials(profile?.full_name ?? null)}
+            </div>
+          )}
+          {allDone && studyIds.length > 0 && (
+            <div className="absolute -top-2 -right-2 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-sm text-xs">🏆</div>
+          )}
         </div>
-        <Link href="/participant/profile" className="ml-auto">
-          <Button variant="outline" size="sm">
-            <User className="w-3.5 h-3.5 mr-1.5" /> Profile
-          </Button>
-        </Link>
+
+        <h1 className="font-serif text-2xl font-bold text-gray-900">
+          {greeting()}{name !== 'there' ? ` ${name}` : ''}
+        </h1>
+
+        {/* Grand progress summary */}
+        {grandTotal > 0 ? (
+          <div className="mt-4 flex items-center justify-center gap-6">
+            <div className="relative">
+              <ProgressRing pct={overallPct} color="#059669" size={64} />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-[11px] font-bold text-emerald-700">{overallPct}%</span>
+              </div>
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-gray-800">
+                {grandDone} of {grandTotal} tasks complete
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {allDone
+                  ? '🎉 All done — you are awesome!'
+                  : `${grandPending} remaining · you got this!`}
+              </p>
+            </div>
+          </div>
+        ) : studyIds.length > 0 ? (
+          <p className="text-sm text-gray-500 mt-2">No tasks added yet. Check back soon!</p>
+        ) : null}
       </div>
 
-      {/* No enrollment state */}
+      {/* ── No enrolment state ── */}
       {studyIds.length === 0 && (
-        <div className="text-center py-20 border border-dashed border-border rounded-2xl">
-          <FlaskConical className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
-          <p className="font-serif text-xl mb-2">Not enrolled in any studies</p>
-          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            Your researcher will send you an invite link. Check your email or ask them directly.
+        <div className="text-center py-16 rounded-3xl border-2 border-dashed border-emerald-200 bg-white/60">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+            <FlaskConical className="w-8 h-8 text-emerald-400" />
+          </div>
+          <p className="font-serif text-xl font-semibold text-gray-800 mb-2">Not in any studies yet</p>
+          <p className="text-sm text-gray-500 max-w-xs mx-auto leading-relaxed">
+            Your researcher will send you an invitation link. Check your email or ask them directly!
           </p>
         </div>
       )}
 
-      {/* Per-study cards */}
-      <div className="space-y-6">
+      {/* ── Per-study cards ── */}
+      <div className="space-y-5">
         {studyIds.map(sid => {
           const study = studyById[sid] as any
           const { pendingQ, pendingSoc, pendingIat, completedQ, completedSoc, completedIat, totalCount, completedCount } = studyMap[sid]
           const pendingCount = pendingQ.length + pendingSoc.length + pendingIat.length
-          const isAllDone = totalCount > 0 && completedCount === totalCount
-          const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
-          const researcher = study?.profiles
+          const isAllDone    = totalCount > 0 && completedCount === totalCount
+          const pct          = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+          const researcher   = study?.profiles
 
           return (
-            <div key={sid} className="border border-border rounded-2xl overflow-hidden">
+            <div
+              key={sid}
+              className="rounded-3xl overflow-hidden bg-white/80 backdrop-blur-sm border border-white shadow-sm"
+            >
               {/* Study header */}
-              <div className="p-5 border-b border-border bg-muted/30">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <FlaskConical className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <h2 className="font-serif text-base font-semibold text-foreground truncate">{study?.title ?? 'Study'}</h2>
-                      {researcher && (
-                        <div className="flex items-center gap-1.5 mt-1">
-                          {researcher.avatar_url ? (
-                            <img src={researcher.avatar_url} alt="" className="w-4 h-4 rounded-full object-cover" />
-                          ) : (
-                            <div
-                              className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px]"
-                              style={{ backgroundColor: researcher.researcher_color ?? '#2D6A4F' }}
-                            >
-                              {getInitials(researcher.full_name)}
-                            </div>
-                          )}
-                          <span className="text-xs text-muted-foreground">{researcher.full_name}</span>
-                        </div>
+              <div
+                className="px-6 pt-5 pb-4"
+                style={{
+                  background: isAllDone
+                    ? 'linear-gradient(135deg, #D1FAE5, #A7F3D0)'
+                    : 'linear-gradient(135deg, #F0FDF4, #ECFDF5)',
+                }}
+              >
+                <div className="flex items-start gap-4">
+                  {/* Progress ring */}
+                  <div className="relative shrink-0">
+                    <ProgressRing
+                      pct={pct}
+                      color={isAllDone ? '#059669' : (researcher?.researcher_color ?? '#059669')}
+                      size={52}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {isAllDone
+                        ? <span className="text-sm">✅</span>
+                        : <span className="text-[10px] font-bold text-emerald-700">{pct}%</span>
+                      }
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <h2 className="font-serif text-base font-bold text-gray-900 leading-tight">
+                      {study?.title ?? 'Study'}
+                    </h2>
+                    {researcher && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        {researcher.avatar_url ? (
+                          <img src={researcher.avatar_url} alt="" className="w-4 h-4 rounded-full object-cover" />
+                        ) : (
+                          <div
+                            className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold"
+                            style={{ backgroundColor: researcher.researcher_color ?? '#059669' }}
+                          >
+                            {getInitials(researcher.full_name)}
+                          </div>
+                        )}
+                        <span className="text-xs text-gray-500">by {researcher.full_name}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        {completedCount}/{totalCount} done
+                      </span>
+                      {pendingCount > 0 && (
+                        <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                          {pendingCount} pending
+                        </span>
                       )}
                     </div>
                   </div>
-                  {totalCount > 0 && (
-                    <div className="text-right shrink-0">
-                      <p className="text-xs font-medium text-foreground">{completedCount}/{totalCount}</p>
-                      <p className="text-[10px] text-muted-foreground">complete</p>
-                    </div>
-                  )}
                 </div>
-
-                {/* Progress bar */}
-                {totalCount > 0 && (
-                  <div className="mt-3">
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${progressPct}%`,
-                          backgroundColor: isAllDone ? '#52B788' : (researcher?.researcher_color ?? '#2D6A4F'),
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
 
-              {/* Instruments */}
-              <div className="p-5 space-y-3">
-                {/* All done */}
+              {/* Tasks */}
+              <div className="px-6 py-4 space-y-2.5">
+
+                {/* All done celebration */}
                 {isAllDone && (
-                  <div className="flex items-center gap-3 p-4 bg-[#52B788]/10 border border-[#52B788]/30 rounded-xl">
-                    <Trophy className="w-5 h-5 text-[#52B788] shrink-0" />
+                  <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                    <span className="text-2xl">🏆</span>
                     <div>
-                      <p className="text-sm font-medium text-foreground">All done — thank you!</p>
-                      <p className="text-xs text-muted-foreground">Your contributions support meaningful research.</p>
+                      <p className="text-sm font-bold text-amber-900">All done — amazing!</p>
+                      <p className="text-xs text-amber-700">Your contributions support meaningful research.</p>
                     </div>
                   </div>
                 )}
 
                 {/* Pending questionnaires */}
                 {pendingQ.map((q: any) => (
-                  <div key={q.id} className="flex items-center justify-between gap-3 p-3 border border-[#457B9D]/30 bg-[#457B9D]/5 rounded-xl">
+                  <div key={q.id} className="task-card flex items-center justify-between gap-3 p-4 rounded-2xl border border-sky-200 bg-sky-50/50">
                     <div className="flex items-center gap-3 min-w-0">
-                      <ClipboardList className="w-4 h-4 text-[#457B9D] shrink-0" />
+                      <div className="w-9 h-9 rounded-xl bg-sky-100 flex items-center justify-center shrink-0">
+                        <ClipboardList className="w-4 h-4 text-sky-600" />
+                      </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{q.title}</p>
+                        <p className="text-[13px] font-semibold text-gray-900 truncate">{q.title}</p>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           {q.validated_scale_name && (
-                            <span className="text-[10px] text-muted-foreground">{q.validated_scale_name}</span>
+                            <span className="text-[10px] text-sky-600 bg-sky-100 px-1.5 py-px rounded-full font-medium">{q.validated_scale_name}</span>
                           )}
                           {q.estimated_duration_minutes && (
-                            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <span className="text-[10px] text-gray-500 flex items-center gap-0.5">
                               <Clock className="w-2.5 h-2.5" />~{q.estimated_duration_minutes} min
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <Button asChild size="sm" className="shrink-0">
-                      <Link href={`/participant/questionnaire/${q.id}`}>Begin</Link>
+                    <Button asChild size="sm" className="shrink-0 bg-sky-600 hover:bg-sky-700 text-white rounded-xl border-none gap-1.5">
+                      <Link href={`/participant/questionnaire/${q.id}`}>
+                        Begin <ArrowRight className="w-3 h-3" />
+                      </Link>
                     </Button>
                   </div>
                 ))}
 
                 {/* Pending sociograms */}
                 {pendingSoc.map((s: any) => (
-                  <div key={s.id} className="flex items-center justify-between gap-3 p-3 border border-[#2D6A4F]/30 bg-[#2D6A4F]/5 rounded-xl">
+                  <div key={s.id} className="task-card flex items-center justify-between gap-3 p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50">
                     <div className="flex items-center gap-3 min-w-0">
-                      <Users className="w-4 h-4 text-[#2D6A4F] shrink-0" />
+                      <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                        <Users className="w-4 h-4 text-emerald-600" />
+                      </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{s.title}</p>
-                        <p className="text-[10px] text-muted-foreground">Peer nomination network</p>
+                        <p className="text-[13px] font-semibold text-gray-900 truncate">{s.title}</p>
+                        <p className="text-[10px] text-emerald-600 bg-emerald-100 px-1.5 py-px rounded-full font-medium inline-block mt-0.5">Peer nomination</p>
                       </div>
                     </div>
-                    <Button asChild size="sm" className="shrink-0 bg-[#2D6A4F] hover:bg-[#235a41] text-white border-0">
-                      <Link href={`/participant/sociogram/${s.id}`}>Begin</Link>
+                    <Button asChild size="sm" className="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl border-none gap-1.5">
+                      <Link href={`/participant/sociogram/${s.id}`}>
+                        Begin <ArrowRight className="w-3 h-3" />
+                      </Link>
                     </Button>
                   </div>
                 ))}
 
                 {/* Pending IATs */}
                 {pendingIat.map((iat: any) => (
-                  <div key={iat.id} className="flex items-center justify-between gap-3 p-3 border border-[#F4A261]/30 bg-[#F4A261]/5 rounded-xl">
+                  <div key={iat.id} className="task-card flex items-center justify-between gap-3 p-4 rounded-2xl border border-amber-200 bg-amber-50/50">
                     <div className="flex items-center gap-3 min-w-0">
-                      <Timer className="w-4 h-4 text-[#F4A261] shrink-0" />
+                      <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                        <Timer className="w-4 h-4 text-amber-600" />
+                      </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{iat.title}</p>
-                        <p className="text-[10px] text-amber-600">Requires physical keyboard</p>
+                        <p className="text-[13px] font-semibold text-gray-900 truncate">{iat.title}</p>
+                        <p className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-px rounded-full font-medium inline-block mt-0.5">⌨️ Needs keyboard</p>
                       </div>
                     </div>
-                    <Button asChild size="sm" className="shrink-0 bg-[#F4A261] hover:bg-[#e8934a] text-white border-0">
-                      <Link href={`/participant/iat/${iat.id}`}>Begin</Link>
+                    <Button asChild size="sm" className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white rounded-xl border-none gap-1.5">
+                      <Link href={`/participant/iat/${iat.id}`}>
+                        Begin <ArrowRight className="w-3 h-3" />
+                      </Link>
                     </Button>
                   </div>
                 ))}
 
                 {/* Completed items */}
-                {[...completedQ.map((q: any) => ({ ...q, _type: 'questionnaire' })),
-                  ...completedSoc.map((s: any) => ({ ...s, _type: 'sociogram' })),
-                  ...completedIat.map((i: any) => ({ ...i, _type: 'iat' }))
-                ].filter(i => i.study_id === sid).map((item: any) => (
+                {[
+                  ...completedQ.map((q: any)   => ({ ...q, _type: 'questionnaire', _icon: <ClipboardList className="w-3.5 h-3.5 text-gray-400" /> })),
+                  ...completedSoc.map((s: any) => ({ ...s, _type: 'sociogram',     _icon: <Users className="w-3.5 h-3.5 text-gray-400" />         })),
+                  ...completedIat.map((i: any) => ({ ...i, _type: 'iat',           _icon: <Timer className="w-3.5 h-3.5 text-gray-400" />          })),
+                ].filter(item => item.study_id === sid).map((item: any) => (
                   <div key={item.id} className="flex items-center gap-3 py-2 px-3 opacity-50">
-                    <CheckCircle className="w-3.5 h-3.5 text-[#52B788] shrink-0" />
-                    <p className="text-xs text-foreground flex-1 truncate">{item.title}</p>
-                    <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-px">Done</span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <p className="text-[12px] text-gray-600 flex-1 truncate line-through">{item.title}</p>
+                    <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-px rounded-full shrink-0">Done</span>
                   </div>
                 ))}
 
                 {totalCount === 0 && (
-                  <p className="text-sm text-muted-foreground italic text-center py-4">No instruments added yet.</p>
+                  <div className="text-center py-6">
+                    <Lock className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400 italic">No tasks added yet — check back soon</p>
+                  </div>
                 )}
               </div>
 
-              {/* Leave study footer */}
-              <div className="px-5 pb-4 border-t border-border pt-3">
+              {/* Leave study */}
+              <div className="px-6 pb-5 pt-2 border-t border-gray-100">
                 <LeaveStudyButton studyId={sid} studyTitle={study?.title ?? 'this study'} />
               </div>
             </div>
           )
         })}
       </div>
+
+      {/* Profile link */}
+      {studyIds.length > 0 && (
+        <div className="mt-8 text-center">
+          <Link href="/participant/profile"
+            className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors"
+          >
+            <User className="w-4 h-4" />
+            Update my profile
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

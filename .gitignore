@@ -1,3 +1,6 @@
+# Claude Code internal files (contains sensitive permissions/tokens)
+.claude/
+
 # v0 sandbox internal files
 __v0_runtime_loader.js
 __v0_devtools.tsx
