@@ -22,10 +22,9 @@ import {
   ClipboardCheck,
   LogOut,
   ChevronRight,
-  Bell,
   Sparkles,
   Brain,
-  Network,
+  Search,
 } from 'lucide-react'
 import {
   Tooltip,
@@ -35,6 +34,8 @@ import {
 } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { DarkModeToggle } from './dark-mode-toggle'
+import { NotificationBell } from './notification-bell'
 
 interface SidebarProps {
   profile: Profile | null
@@ -285,6 +286,24 @@ export function Sidebar({ profile }: SidebarProps) {
             )}
           </div>
         </nav>
+
+        {/* ── Bottom tools: dark mode + notifications ── */}
+        <div className="flex items-center gap-1 px-3 pb-2 pt-1 border-t border-sidebar-border shrink-0">
+          <NotificationBell />
+          <DarkModeToggle />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
+                className="flex items-center gap-1.5 ml-auto px-2 py-1 rounded-lg text-[10px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors border border-sidebar-border/50"
+              >
+                <Search className="w-3 h-3" />
+                <span>⌘K</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">Command palette (Ctrl+K)</TooltipContent>
+          </Tooltip>
+        </div>
 
         {/* ── Sign out ── */}
         <div className="p-3 border-t border-sidebar-border shrink-0">

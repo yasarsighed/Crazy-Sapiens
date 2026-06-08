@@ -10,11 +10,15 @@ import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Network, Download, Plus, X, ChevronDown,
   ClipboardList, Users, Timer, ExternalLink, Trash2, Link2, FileText, AlertTriangle,
+  UserPlus, QrCode,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AddQuestionnaireDialog } from '@/components/add-questionnaire-dialog'
 import { AddSociogramDialog } from '@/components/add-sociogram-dialog'
 import { AddIatDialog } from '@/components/add-iat-dialog'
+import { InviteLinkDialog } from '@/components/invite-link-dialog'
+import { StatusBadge } from '@/components/status-badge'
+import { CopyButton } from '@/components/copy-button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +52,7 @@ export default function StudyPage() {
   const [deletingStudy, setDeletingStudy] = useState(false)
   const [showDeleteStudyConfirm, setShowDeleteStudyConfirm] = useState(false)
   const [showConsentEditor, setShowConsentEditor] = useState(false)
+  const [showInviteLink, setShowInviteLink] = useState(false)
   const [manualMode, setManualMode] = useState<'existing' | 'single' | 'bulk'>('existing')
   const [bulkText, setBulkText] = useState('')
   const [bulkSubmitting, setBulkSubmitting] = useState(false)
@@ -369,9 +374,9 @@ export default function StudyPage() {
           <Download className="w-4 h-4 mr-2" />
           Codebook
         </Button>
-        <Button variant="outline" onClick={copyInviteLink}>
-          <Link2 className="w-4 h-4 mr-2" />
-          {inviteLinkCopied ? 'Copied!' : 'Copy invite link'}
+        <Button variant="outline" onClick={() => setShowInviteLink(true)}>
+          <UserPlus className="w-4 h-4 mr-2" />
+          Invite Link
         </Button>
         <Button variant="outline" onClick={() => setShowConsentEditor(v => !v)}>
           <FileText className="w-4 h-4 mr-2" />
@@ -529,6 +534,12 @@ export default function StudyPage() {
       <AddQuestionnaireDialog studyId={studyId} open={showAddQuestionnaire} onClose={() => setShowAddQuestionnaire(false)} onSuccess={loadData} />
       <AddSociogramDialog    studyId={studyId} open={showAddSociogram}    onClose={() => setShowAddSociogram(false)}    onSuccess={loadData} />
       <AddIatDialog          studyId={studyId} open={showAddIat}          onClose={() => setShowAddIat(false)}          onSuccess={loadData} />
+      <InviteLinkDialog
+        open={showInviteLink}
+        onOpenChange={setShowInviteLink}
+        studyId={studyId}
+        studyTitle={study?.title ?? 'Study'}
+      />
 
       {/* Delete study confirmation */}
       {showDeleteStudyConfirm && (

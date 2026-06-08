@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Plus_Jakarta_Sans, Fraunces, Permanent_Marker, Caveat } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/sonner'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 const plusJakartaSans = Plus_Jakarta_Sans({ 
@@ -69,9 +70,18 @@ export default function RootLayout({
       className={`${plusJakartaSans.variable} ${fraunces.variable} ${permanentMarker.variable} ${caveat.variable} bg-background`}
     >
       <body className="font-sans antialiased">
-        {children}
-        <Toaster position="bottom-right" richColors />
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {/* Skip to main content — accessibility */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:text-sm focus:font-semibold focus:shadow-lg"
+          >
+            Skip to main content
+          </a>
+          {children}
+          <Toaster position="bottom-right" richColors />
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </ThemeProvider>
       </body>
     </html>
   )

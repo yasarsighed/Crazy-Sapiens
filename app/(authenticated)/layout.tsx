@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/sidebar'
+import { GlobalProviders } from '@/components/global-providers'
+import { OnboardingChecklist } from '@/components/onboarding-checklist'
 import type { Profile } from '@/types/database'
 
 export default async function AuthenticatedLayout({
@@ -29,16 +31,23 @@ export default async function AuthenticatedLayout({
 
   const role = profile?.role || 'researcher'
   const researcherColor = profile?.researcher_color || '#6D28D9'
+  const isNewUser = !profile?.researcher_color // no color set = likely new
 
   return (
-    <div
-      className={`min-h-screen bg-background role-${role}`}
-      style={{ '--researcher-color': researcherColor } as React.CSSProperties}
-    >
-      <Sidebar profile={profile as Profile | null} />
-      <main className="ml-[240px] min-h-screen">
-        {children}
-      </main>
-    </div>
+    <GlobalProviders>
+      <div
+        className={`min-h-screen bg-background role-${role}`}
+        style={{ '--researcher-color': researcherColor } as React.CSSProperties}
+      >
+        <Sidebar profile={profile as Profile | null} />
+        <main id="main-content" className="ml-[240px] min-h-screen">
+          {children}
+        </main>
+        {/* Onboarding for new researchers */}
+        {(role === 'researcher' || role === 'admin') && isNewUser && (
+          <OnboardingChecklist />
+        )}
+      </div>
+    </GlobalProviders>
   )
 }
