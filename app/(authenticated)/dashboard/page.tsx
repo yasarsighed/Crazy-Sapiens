@@ -42,18 +42,18 @@ function firstName(full: string | null) {
 // ── Quick action items ──
 const QUICK_ACTIONS = [
   { label: 'New Study',         href: '/studies/new',   icon: FlaskConical, color: 'bg-primary'       },
-  { label: 'Scale Library',    href: '/scale-library', icon: BookOpen,     color: 'bg-[#5A8870]'     },
-  { label: 'View Participants', href: '/participants',  icon: Users,        color: 'bg-[#4E8A5A]'     },
-  { label: 'Audit Log',        href: '/audit-log',     icon: ClipboardList,color: 'bg-[#C09040]'     },
+  { label: 'Scale Library',    href: '/scale-library', icon: BookOpen,     color: 'bg-[#6845A5]'     },
+  { label: 'View Participants', href: '/participants',  icon: Users,        color: 'bg-[#4A7A40]'     },
+  { label: 'Audit Log',        href: '/audit-log',     icon: ClipboardList,color: 'bg-[#D06828]'     },
 ]
 
 // ── Activity icon / colour helpers ──
 function activityDot(type: string) {
-  if (type === 'enrollment' || type === 'enroll') return 'bg-[#4E8A5A]'
-  if (type === 'alert')      return 'bg-[#C0524A]'
-  if (type === 'completion') return 'bg-[#C09040]'
-  if (type === 'submit')     return 'bg-[#5A8870]'
-  return 'bg-[#C07840]'
+  if (type === 'enrollment' || type === 'enroll') return 'bg-[#4A7A40]'
+  if (type === 'alert')      return 'bg-[#A81010]'
+  if (type === 'completion') return 'bg-[#D06828]'
+  if (type === 'submit')     return 'bg-[#6845A5]'
+  return 'bg-[#D06828]'
 }
 
 function activityLabel(row: { action_type: string; entity_type: string }) {
@@ -139,7 +139,7 @@ export default async function DashboardPage() {
   }
 
   const name   = firstName(profile?.full_name)
-  const researcherColor = profile?.researcher_color || '#C0524A'
+  const researcherColor = profile?.researcher_color || '#A81010'
 
   return (
     <div className="min-h-screen bg-background">
@@ -149,7 +149,7 @@ export default async function DashboardPage() {
         className="px-8 pt-8 pb-6 relative overflow-hidden"
         style={{
           background: isAdmin
-            ? 'color-mix(in srgb, #8A4A38 14%, #EFEBE2)'
+            ? 'color-mix(in srgb, #7A1010 14%, #EFEBE2)'
             : `color-mix(in srgb, ${researcherColor} 10%, #EFEBE2)`,
           borderBottom: '1px solid var(--border)',
         }}
@@ -207,8 +207,8 @@ export default async function DashboardPage() {
         <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
           {[
             { label: isAdmin ? 'Platform Studies' : 'Active Studies', value: activeStudiesCount ?? 0, icon: FlaskConical, color: researcherColor, sub: 'running now' },
-            { label: 'Participants',    value: totalParticipants  ?? 0, icon: Users,         color: '#4E8A5A', sub: 'enrolled'     },
-            { label: 'Responses',       value: responsesCount     ?? 0, icon: CheckCircle2,  color: '#5A8870', sub: 'completed'    },
+            { label: 'Participants',    value: totalParticipants  ?? 0, icon: Users,         color: '#4A7A40', sub: 'enrolled'     },
+            { label: 'Responses',       value: responsesCount     ?? 0, icon: CheckCircle2,  color: '#6845A5', sub: 'completed'    },
             { label: 'Clinical Alerts', value: alertsCount        ?? 0, icon: AlertTriangle, color: alertsCount ? '#DC2626' : '#6B6B80', sub: alertsCount ? '⚠️ needs attention' : 'all clear 🎉' },
           ].map(stat => (
             <div
@@ -312,7 +312,7 @@ export default async function DashboardPage() {
                     <div key={r.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted/50 transition-colors">
                       <div
                         className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm"
-                        style={{ backgroundColor: r.researcher_color || '#C0524A' }}
+                        style={{ backgroundColor: r.researcher_color || '#A81010' }}
                       >
                         {r.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
                       </div>
@@ -343,7 +343,7 @@ export default async function DashboardPage() {
                       <div key={r.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors">
                         <div
                           className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                          style={{ backgroundColor: r.researcher_color || '#C0524A' }}
+                          style={{ backgroundColor: r.researcher_color || '#A81010' }}
                         >
                           {r.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
                         </div>

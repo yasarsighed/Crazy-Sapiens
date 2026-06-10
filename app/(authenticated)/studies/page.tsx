@@ -83,7 +83,7 @@ export default function StudiesPage() {
         const byId = Object.fromEntries((creators || []).map(c => [c.id, c]))
         list.forEach(s => {
           s.creator_name  = byId[s.created_by]?.full_name  ?? 'Unknown'
-          s.creator_color = byId[s.created_by]?.researcher_color ?? '#C0524A'
+          s.creator_color = byId[s.created_by]?.researcher_color ?? '#A81010'
         })
       }
 
@@ -259,7 +259,7 @@ export default function StudiesPage() {
                   {/* Researcher color accent */}
                   <div
                     className={cn(view === 'grid' ? 'h-1 w-full' : 'w-1 h-full absolute left-0 top-0', 'shrink-0')}
-                    style={{ backgroundColor: study.creator_color || '#C0524A' }}
+                    style={{ backgroundColor: study.creator_color || '#A81010' }}
                   />
 
                   <div className={cn('p-5 flex-1', view === 'list' && 'flex items-center gap-4')}>

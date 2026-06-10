@@ -114,9 +114,9 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
   // ── Completion funnel ─────────────────────────────────────────────────────
   const enrolled = enrolledCount ?? 0
   const TYPE_COLORS: Record<string, string> = {
-    questionnaire: '#5A8870',
-    iat: '#C0524A',
-    sociogram: '#4E8A5A',
+    questionnaire: '#6845A5',
+    iat: '#A81010',
+    sociogram: '#4A7A40',
   }
 
   const funnelRows: FunnelRow[] = [
@@ -194,9 +194,9 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
         {/* ── KPI strip ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Enrolled',      value: enrolled,        icon: Users,         color: '#C0524A' },
-            { label: 'Instruments',   value: totalInstruments,icon: ClipboardList, color: '#5A8870' },
-            { label: 'Avg completion',value: `${avgCompletion}%`, icon: TrendingUp,color: '#4E8A5A' },
+            { label: 'Enrolled',      value: enrolled,        icon: Users,         color: '#A81010' },
+            { label: 'Instruments',   value: totalInstruments,icon: ClipboardList, color: '#6845A5' },
+            { label: 'Avg completion',value: `${avgCompletion}%`, icon: TrendingUp,color: '#4A7A40' },
             { label: 'Open alerts',   value: alertsCount ?? 0,icon: Timer,         color: (alertsCount ?? 0) > 0 ? '#DC2626' : '#6B6B80' },
           ].map(stat => (
             <div key={stat.label} className="bg-card border border-border rounded-2xl p-4">

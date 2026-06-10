@@ -99,8 +99,8 @@ const adminItems: NavItem[] = [
 
 // Role meta
 const ROLE_META: Record<string, { label: string; emoji: string; color: string }> = {
-  admin:      { label: 'Admin',      emoji: '⚡', color: '#8A4A38' },
-  supervisor: { label: 'Supervisor', emoji: '🔭', color: '#7A6040' },
+  admin:      { label: 'Admin',      emoji: '⚡', color: '#7A1010' },
+  supervisor: { label: 'Supervisor', emoji: '🔭', color: '#6845A5' },
   researcher: { label: 'Researcher', emoji: '🧪', color: 'var(--researcher-color)' },
 }
 
@@ -176,10 +176,10 @@ export function Sidebar({ profile }: SidebarProps) {
 
   const role = profile?.role || 'researcher'
   const accentColor = role === 'admin'
-    ? '#8A4A38'
+    ? '#7A1010'
     : role === 'supervisor'
-      ? '#7A6040'
-      : (profile?.researcher_color || '#C0524A')
+      ? '#6845A5'
+      : (profile?.researcher_color || '#A81010')
 
   const roleMeta = ROLE_META[role] || ROLE_META.researcher
   const quip = QUIPS[Math.floor(Date.now() / 86400000) % QUIPS.length] // changes daily
@@ -187,9 +187,9 @@ export function Sidebar({ profile }: SidebarProps) {
   // Header background per role — flat warm colour, no gradients
   const headerBg =
     role === 'admin'
-      ? '#8A4A38'
+      ? '#7A1010'
       : role === 'supervisor'
-        ? '#7A6040'
+        ? '#6845A5'
         : accentColor
 
   return (

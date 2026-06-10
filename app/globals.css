@@ -4,141 +4,149 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════════════
-   CRAZY SAPIENS — DESIGN SYSTEM v5
-   reMarkable Paper Surface · Flat Poster Colours
+   CRAZY SAPIENS — DESIGN SYSTEM v6
+   Brand Identity: pulled directly from the Crazy Sapiens artwork
    ─────────────────────────────────────────────────────────────
-   Background: warm off-white, like the reMarkable e-ink surface.
-   Colours: muted poster paint — red, ochre, sage. No blue. No purple.
+   Deep crimson red · Warm purple · Hot magenta · Burnt orange
+   Dark chocolate · Warm ivory
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Paper surface (reMarkable-inspired) ── */
-  --background:         #EFEBE2;   /* warm off-white paper     */
-  --foreground:         #1E1A16;   /* deep ink                 */
-  --card:               #F8F5EF;   /* slightly lighter paper   */
-  --card-foreground:    #1E1A16;
-  --popover:            #F8F5EF;
-  --popover-foreground: #1E1A16;
+  /* ── Surfaces ── */
+  --background:         #FBF6EF;   /* warm ivory — like the mascot's skin     */
+  --foreground:         #1C0808;   /* dark chocolate — from the afro           */
+  --card:               #FFFFFF;
+  --card-foreground:    #1C0808;
+  --popover:            #FFFFFF;
+  --popover-foreground: #1C0808;
 
-  /* ── Primary: poster red (muted, chalky, flat) ── */
-  --primary:            #C0524A;
-  --primary-foreground: #F8F5EF;
+  /* ── Primary: the painting's crimson red ── */
+  --primary:            #A81010;
+  --primary-foreground: #FBF6EF;
 
-  /* ── Secondary: pale paper tint ── */
-  --secondary:          #E5DFD3;
-  --secondary-foreground: #1E1A16;
+  /* ── Secondary: warm cream ── */
+  --secondary:          #F2E8DA;
+  --secondary-foreground: #1C0808;
 
   /* ── Muted ── */
-  --muted:              #DDD7CB;
-  --muted-foreground:   #7A7268;
+  --muted:              #EDE0CE;
+  --muted-foreground:   #7A5040;
 
-  /* ── Accent: poster ochre / warm amber ── */
-  --accent:             #C09040;
-  --accent-foreground:  #1E1A16;
+  /* ── Accent: burnt orange from the spiral eye ── */
+  --accent:             #D06828;
+  --accent-foreground:  #FBF6EF;
 
-  --destructive:        #B84040;
-  --destructive-foreground: #F8F5EF;
+  --destructive:        #A81010;
+  --destructive-foreground: #FBF6EF;
 
-  --border:             #CEC8BB;
-  --input:              #CEC8BB;
-  --ring:               #C0524A;
+  --border:             #D8C8B0;
+  --input:              #D8C8B0;
+  --ring:               #A81010;
 
-  /* ── Named accents (kept for component compat) ── */
-  --accent-orange:  #C07840;   /* burnt orange poster         */
-  --accent-blue:    #5A8870;   /* desaturated teal (no blue)  */
-  --accent-yellow:  #C09040;   /* ochre                       */
-  --accent-pink:    #B85868;   /* dusty rose                  */
-  --success:        #4E8A5A;   /* poster green                */
-  --alert-red:      #B84040;
-  --text-primary:   #1E1A16;
-  --text-secondary: #7A7268;
+  /* ── Extended brand palette ── */
+  --brand-red:      #A81010;   /* painting background / primary       */
+  --brand-purple:   #6845A5;   /* face paint purple                   */
+  --brand-magenta:  #C41890;   /* the magenta belt                    */
+  --brand-orange:   #D06828;   /* spiral eye / hands                  */
+  --brand-dark:     #1C0808;   /* the deep afro brown-black           */
+  --brand-cream:    #EED8B8;   /* warm ivory skin tone                */
 
-  /* ── Gradients: flat fallbacks ── */
-  --gradient-brand:   #C0524A;
-  --gradient-purple:  #C0524A;
-  --gradient-warm:    #C09040;
-  --gradient-cool:    #5A8870;
-  --gradient-success: #4E8A5A;
+  /* ── Keep old aliases working ── */
+  --accent-orange:  #D06828;
+  --accent-blue:    #6845A5;   /* purple fills this slot now          */
+  --accent-yellow:  #D09028;
+  --accent-pink:    #C41890;
+  --success:        #4A7A40;
+  --alert-red:      #A81010;
+  --text-primary:   #1C0808;
+  --text-secondary: #7A5040;
 
-  /* ── Role colours — warm poster tones, no blue/purple ── */
-  --role-admin:       #8A4A38;   /* dark terracotta            */
-  --role-researcher:  var(--researcher-color, #C0524A);
-  --role-participant: #4A7A58;   /* poster green               */
-  --role-supervisor:  #7A6040;   /* warm umber                 */
-  --researcher-color: #C0524A;
+  --gradient-brand:   #A81010;
+  --gradient-purple:  #6845A5;
+  --gradient-warm:    #D06828;
+  --gradient-cool:    #6845A5;
+  --gradient-success: #4A7A40;
 
-  /* ── Charts ── */
-  --chart-1: #C0524A;   /* poster red      */
-  --chart-2: #4E8A5A;   /* poster green    */
-  --chart-3: #C09040;   /* ochre           */
-  --chart-4: #C07840;   /* burnt orange    */
-  --chart-5: #7A6040;   /* warm umber      */
+  /* ── Role colours — from the painting's palette ── */
+  --role-admin:       #7A1010;   /* darker crimson — authority          */
+  --role-researcher:  var(--researcher-color, #A81010);
+  --role-participant: #4A7A40;   /* earthy green — growth               */
+  --role-supervisor:  #6845A5;   /* the painting's purple — oversight   */
+  --researcher-color: #A81010;
 
-  /* ── Radius: friendly, soft corners ── */
-  --radius: 0.5rem;
+  /* ── Charts — full brand palette ── */
+  --chart-1: #A81010;   /* crimson       */
+  --chart-2: #6845A5;   /* purple        */
+  --chart-3: #D06828;   /* orange        */
+  --chart-4: #C41890;   /* magenta       */
+  --chart-5: #4A7A40;   /* earthy green  */
+
+  --radius: 0.75rem;    /* rounded but not a circle — brushstroke feel */
 
   /* ── Sidebar ── */
-  --sidebar:                    #E8E2D5;
-  --sidebar-foreground:         #1E1A16;
-  --sidebar-primary:            #C0524A;
-  --sidebar-primary-foreground: #F8F5EF;
-  --sidebar-accent:             #DDD7CB;
-  --sidebar-accent-foreground:  #1E1A16;
-  --sidebar-border:             #CEC8BB;
-  --sidebar-ring:               #C0524A;
+  --sidebar:                    #F5EDE0;
+  --sidebar-foreground:         #1C0808;
+  --sidebar-primary:            #A81010;
+  --sidebar-primary-foreground: #FBF6EF;
+  --sidebar-accent:             #EDE0CE;
+  --sidebar-accent-foreground:  #1C0808;
+  --sidebar-border:             #D8C8B0;
+  --sidebar-ring:               #A81010;
   --sidebar-width:              240px;
 }
 
-/* ── Dark mode: lamplight on warm desk ── */
+/* ── Dark mode ── */
 .dark {
-  --background:         #1C1814;
-  --foreground:         #EDE8DF;
-  --card:               #252018;
-  --card-foreground:    #EDE8DF;
-  --popover:            #252018;
-  --popover-foreground: #EDE8DF;
-  --primary:            #D4705A;
-  --primary-foreground: #1C1814;
-  --secondary:          #2E2820;
-  --secondary-foreground: #EDE8DF;
-  --muted:              #2E2820;
-  --muted-foreground:   #9A9080;
-  --accent:             #C8A850;
-  --accent-foreground:  #1C1814;
-  --destructive:        #C04848;
-  --destructive-foreground: #EDE8DF;
-  --border:             #3C3428;
-  --input:              #3C3428;
-  --ring:               #D4705A;
-  --chart-1: #D4705A;
-  --chart-2: #62A870;
-  --chart-3: #C8A850;
-  --chart-4: #C89050;
-  --chart-5: #9A8058;
-  --sidebar:                    #252018;
-  --sidebar-foreground:         #EDE8DF;
-  --sidebar-primary:            #D4705A;
-  --sidebar-primary-foreground: #1C1814;
-  --sidebar-accent:             #2E2820;
-  --sidebar-accent-foreground:  #EDE8DF;
-  --sidebar-border:             #3C3428;
-  --sidebar-ring:               #D4705A;
+  --background:         #140808;
+  --foreground:         #F5EDE0;
+  --card:               #1E0E0E;
+  --card-foreground:    #F5EDE0;
+  --popover:            #1E0E0E;
+  --popover-foreground: #F5EDE0;
+  --primary:            #D42020;
+  --primary-foreground: #140808;
+  --secondary:          #2A1818;
+  --secondary-foreground: #F5EDE0;
+  --muted:              #2A1818;
+  --muted-foreground:   #A08070;
+  --accent:             #E07830;
+  --accent-foreground:  #140808;
+  --destructive:        #C82020;
+  --destructive-foreground: #F5EDE0;
+  --border:             #3A2020;
+  --input:              #3A2020;
+  --ring:               #D42020;
+  --chart-1: #D42020;
+  --chart-2: #8858C8;
+  --chart-3: #E07830;
+  --chart-4: #D828A8;
+  --chart-5: #5A9050;
+  --sidebar:                    #1E0E0E;
+  --sidebar-foreground:         #F5EDE0;
+  --sidebar-primary:            #D42020;
+  --sidebar-primary-foreground: #140808;
+  --sidebar-accent:             #2A1818;
+  --sidebar-accent-foreground:  #F5EDE0;
+  --sidebar-border:             #3A2020;
+  --sidebar-ring:               #D42020;
 }
 
 /* ── Role body themes ── */
 body.role-admin {
-  --sidebar:            #281E18;
-  --sidebar-foreground: #EDE0D0;
-  --sidebar-primary:    #D4705A;
-  --sidebar-accent:     #332820;
-  --sidebar-border:     #40302A;
-  --role-accent:        #8A4A38;
+  --sidebar:            #200808;
+  --sidebar-foreground: #F5E8D8;
+  --sidebar-primary:    #E02020;
+  --sidebar-accent:     #2C1010;
+  --sidebar-border:     #3A1818;
+  --role-accent:        #7A1010;
 }
-body.role-supervisor { --role-accent: #7A6040; }
+body.role-supervisor {
+  --role-accent: #6845A5;
+}
 body.role-participant {
-  --primary:     #4A7A58;
-  --ring:        #4A7A58;
-  --role-accent: #4A7A58;
+  --primary:     #4A7A40;
+  --ring:        #4A7A40;
+  --role-accent: #4A7A40;
 }
 
 /* ── Tailwind bridge ── */
@@ -185,11 +193,11 @@ body.role-participant {
   --color-role-participant: var(--role-participant);
   --color-role-supervisor:  var(--role-supervisor);
 
-  --radius-sm:  calc(var(--radius) - 2px);
+  --radius-sm:  calc(var(--radius) - 4px);
   --radius-md:  var(--radius);
   --radius-lg:  calc(var(--radius) + 2px);
   --radius-xl:  calc(var(--radius) + 6px);
-  --radius-2xl: calc(var(--radius) + 10px);
+  --radius-2xl: calc(var(--radius) + 12px);
 
   --color-sidebar:                    var(--sidebar);
   --color-sidebar-foreground:         var(--sidebar-foreground);
@@ -221,8 +229,12 @@ body.role-participant {
 
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+  ::-webkit-scrollbar-thumb {
+    background: var(--brand-red);
+    border-radius: 99px;
+    opacity: 0.4;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--brand-red); }
 
   :focus-visible {
     outline: 2px solid var(--ring);
@@ -231,9 +243,78 @@ body.role-participant {
   }
 
   ::selection {
-    background: color-mix(in srgb, var(--primary) 20%, transparent);
+    background: color-mix(in srgb, var(--brand-red) 22%, transparent);
     color: var(--foreground);
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BRAND UTILITIES
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Brand gradient — crimson → magenta, like the painting's intensity */
+.gradient-text {
+  background: linear-gradient(135deg, var(--brand-red), var(--brand-magenta));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.gradient-text-purple {
+  background: linear-gradient(135deg, var(--brand-purple), var(--brand-magenta));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card surfaces */
+.glass {
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  border: 1px solid var(--border);
+}
+.glass-dark {
+  background: color-mix(in srgb, var(--background) 88%, black);
+  border: 1px solid var(--border);
+}
+
+/* Dot grid background */
+.dot-grid {
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Stripe */
+.stripe-pattern {
+  background-image: repeating-linear-gradient(
+    -45deg, transparent, transparent 5px,
+    color-mix(in srgb, var(--border) 35%, transparent) 5px,
+    color-mix(in srgb, var(--border) 35%, transparent) 6px
+  );
+}
+
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(135deg, var(--brand-red), var(--brand-purple), var(--brand-magenta));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Glow — brand-tinted */
+.glow-purple {
+  box-shadow: 0 0 20px color-mix(in srgb, var(--brand-purple) 30%, transparent),
+              0 0 40px color-mix(in srgb, var(--brand-purple) 10%, transparent);
+}
+.glow-orange {
+  box-shadow: 0 0 20px color-mix(in srgb, var(--brand-orange) 30%, transparent),
+              0 0 40px color-mix(in srgb, var(--brand-orange) 10%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -255,38 +336,15 @@ body.role-participant {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   COMPAT HELPERS (used by existing components)
-   ═══════════════════════════════════════════════════════════════ */
-.gradient-text        { color: var(--primary); }
-.gradient-text-purple { color: var(--primary); }
-.glass      { background: color-mix(in srgb, var(--card) 92%, transparent); border: 1px solid var(--border); }
-.glass-dark { background: color-mix(in srgb, var(--background) 88%, black);  border: 1px solid var(--border); }
-.dot-grid {
-  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
-  background-size: 22px 22px;
-}
-.stripe-pattern {
-  background-image: repeating-linear-gradient(
-    -45deg, transparent, transparent 5px,
-    color-mix(in srgb, var(--border) 35%, transparent) 5px,
-    color-mix(in srgb, var(--border) 35%, transparent) 6px
-  );
-}
-.gradient-border { border: 1px solid var(--border); }
-.gradient-border::before { display: none; }
-.glow-purple { box-shadow: none; }
-.glow-orange  { box-shadow: none; }
-
-/* ═══════════════════════════════════════════════════════════════
    ANIMATIONS
    ═══════════════════════════════════════════════════════════════ */
 @keyframes wiggle {
-  0%, 100% { transform: rotate(-2deg); }
-  50%       { transform: rotate(2deg); }
+  0%, 100% { transform: rotate(-3deg); }
+  50%       { transform: rotate(3deg); }
 }
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-4px); }
+  50%       { transform: translateY(-6px); }
 }
 @keyframes shimmer {
   0%   { background-position: -200% center; }
@@ -294,10 +352,10 @@ body.role-participant {
 }
 @keyframes pulse-ring {
   0%   { transform: scale(1);   opacity: 1; }
-  100% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.5); opacity: 0; }
 }
 @keyframes slide-up {
-  from { transform: translateY(6px); opacity: 0; }
+  from { transform: translateY(8px); opacity: 0; }
   to   { transform: translateY(0);   opacity: 1; }
 }
 @keyframes count-up {
@@ -308,14 +366,14 @@ body.role-participant {
 .animate-wiggle   { animation: wiggle   0.4s ease-in-out infinite; }
 .animate-float    { animation: float    3s   ease-in-out infinite; }
 .animate-shimmer  { animation: shimmer  2s   linear      infinite; }
-.animate-slide-up { animation: slide-up 0.25s ease-out   both; }
-.animate-count-up { animation: count-up 0.3s  ease-out   both; }
+.animate-slide-up { animation: slide-up 0.3s ease-out    both; }
+.animate-count-up { animation: count-up 0.4s ease-out    both; }
 
 .shimmer-bg {
   background: linear-gradient(
     90deg,
     var(--muted) 25%,
-    color-mix(in srgb, var(--muted) 50%, var(--card)) 50%,
+    color-mix(in srgb, var(--muted) 50%, white) 50%,
     var(--muted) 75%
   );
   background-size: 200% 100%;
@@ -325,15 +383,15 @@ body.role-participant {
 /* ═══════════════════════════════════════════════════════════════
    ROLE SIDEBAR HEADERS
    ═══════════════════════════════════════════════════════════════ */
-.sidebar-admin-header      { background: var(--role-admin, #8A4A38);     color: #EDE8DF; }
-.sidebar-researcher-header { background: var(--researcher-color, #C0524A); color: #F8F5EF; }
-.sidebar-supervisor-header { background: var(--role-supervisor, #7A6040); color: #EDE8DF; }
+.sidebar-admin-header      { background: var(--role-admin,  #7A1010); color: #F5EDE0; }
+.sidebar-researcher-header { background: var(--researcher-color, #A81010); color: #FBF6EF; }
+.sidebar-supervisor-header { background: var(--role-supervisor, #6845A5); color: #F5EDE0; }
 
 /* ═══════════════════════════════════════════════════════════════
    PARTICIPANT PORTAL
    ═══════════════════════════════════════════════════════════════ */
 .participant-hero {
-  background: color-mix(in srgb, var(--role-participant, #4A7A58) 10%, var(--background));
+  background: color-mix(in srgb, var(--role-participant, #4A7A40) 10%, var(--background));
 }
 .progress-ring-track { stroke: var(--muted); }
 .progress-ring-fill {
@@ -342,28 +400,31 @@ body.role-participant {
   transition: stroke-dashoffset 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .task-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
-.task-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.07); }
+.task-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(168, 16, 16, 0.1);
+}
 
 /* ═══════════════════════════════════════════════════════════════
    STAT CARDS
    ═══════════════════════════════════════════════════════════════ */
 .stat-card-researcher {
-  background: color-mix(in srgb, var(--researcher-color) 8%, var(--card));
+  background: color-mix(in srgb, var(--researcher-color) 8%, white);
   border-color: color-mix(in srgb, var(--researcher-color) 20%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════════
    ADMIN HEADER
    ═══════════════════════════════════════════════════════════════ */
-.admin-header { background: var(--role-admin, #8A4A38); color: #EDE8DF; }
+.admin-header { background: var(--role-admin, #7A1010); color: #F5EDE0; }
 
 /* ═══════════════════════════════════════════════════════════════
    CARD HOVER
    ═══════════════════════════════════════════════════════════════ */
 .card-hover { transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
 .card-hover:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(168, 16, 16, 0.08);
   border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
 }
 
@@ -371,11 +432,11 @@ body.role-participant {
    ONBOARDING
    ═══════════════════════════════════════════════════════════════ */
 .onboarding-step-done {
-  background: color-mix(in srgb, var(--success) 10%, var(--card));
+  background: color-mix(in srgb, var(--success) 10%, white);
   border-color: color-mix(in srgb, var(--success) 28%, transparent);
 }
 .onboarding-step-active {
-  background: color-mix(in srgb, var(--primary) 8%, var(--card));
+  background: color-mix(in srgb, var(--primary) 8%, white);
   border-color: color-mix(in srgb, var(--primary) 28%, transparent);
 }
 
@@ -386,22 +447,22 @@ body.role-participant {
   position: absolute;
   top: -4px; right: -4px;
   min-width: 16px; height: 16px;
-  background: var(--alert-red);
+  background: var(--brand-magenta);
   color: white;
   border-radius: 99px;
   font-size: 9px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   padding: 0 3px;
   border: 2px solid var(--sidebar);
-  animation: pulse-ring 2s ease infinite;
+  animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
 }
 
 /* ═══════════════════════════════════════════════════════════════
    INSTRUMENT COLOURS
    ═══════════════════════════════════════════════════════════════ */
-.instr-questionnaire { --instr-color: #5A8870; }
-.instr-iat           { --instr-color: #C0524A; }
-.instr-sociogram     { --instr-color: #4E8A5A; }
+.instr-questionnaire { --instr-color: var(--brand-purple);  }
+.instr-iat           { --instr-color: var(--brand-red);     }
+.instr-sociogram     { --instr-color: var(--brand-orange);  }
 
 /* ═══════════════════════════════════════════════════════════════
    MISC

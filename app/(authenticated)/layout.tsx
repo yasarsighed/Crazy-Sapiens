@@ -30,7 +30,7 @@ export default async function AuthenticatedLayout({
   }
 
   const role = profile?.role || 'researcher'
-  const researcherColor = profile?.researcher_color || '#C0524A'
+  const researcherColor = profile?.researcher_color || '#A81010'
   const isNewUser = !profile?.researcher_color // no color set = likely new
 
   return (
