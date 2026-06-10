@@ -1,30 +1,30 @@
 import type { Metadata, Viewport } from 'next'
-import { Plus_Jakarta_Sans, Fraunces, Permanent_Marker, Caveat } from 'next/font/google'
+import { Libre_Baskerville, Cormorant, Caveat } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
-const plusJakartaSans = Plus_Jakarta_Sans({ 
+/* Body text — vintage editorial serif, excellent legibility */
+const libreBaskerville = Libre_Baskerville({
+  weight: ['400', '700'],
+  style: ['normal', 'italic'],
   subsets: ['latin'],
-  variable: '--font-plus-jakarta-sans',
+  variable: '--font-libre-baskerville',
   display: 'swap',
 })
 
-const fraunces = Fraunces({ 
+/* Display / headings — refined old-style, evokes engraved letterhead */
+const cormorant = Cormorant({
+  weight: ['300', '400', '500', '600'],
+  style: ['normal', 'italic'],
   subsets: ['latin'],
-  variable: '--font-fraunces',
+  variable: '--font-cormorant',
   display: 'swap',
 })
 
-const permanentMarker = Permanent_Marker({ 
-  weight: '400',
-  subsets: ['latin'],
-  variable: '--font-permanent-marker',
-  display: 'swap',
-})
-
-const caveat = Caveat({ 
+/* Handwritten accent — field notes, margin annotations */
+const caveat = Caveat({
   subsets: ['latin'],
   variable: '--font-caveat',
   display: 'swap',
@@ -65,9 +65,9 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html 
-      lang="en" 
-      className={`${plusJakartaSans.variable} ${fraunces.variable} ${permanentMarker.variable} ${caveat.variable} bg-background`}
+    <html
+      lang="en"
+      className={`${libreBaskerville.variable} ${cormorant.variable} ${caveat.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>

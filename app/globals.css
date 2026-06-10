@@ -4,149 +4,155 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════════════
-   CRAZY SAPIENS — DESIGN SYSTEM v2
-   "Professionally Unhinged"
+   CRAZY SAPIENS — DESIGN SYSTEM v3
+   "Vintage Postal · Extremely Minimalist"
+   ─────────────────────────────────────────────────────────────
+   Palette drawn from aged parchment, postal ink, sealing wax,
+   envelope folds, and the muted greens of old PTT services.
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
   /* ── Core palette ── */
-  --background: #FAFAF8;
-  --foreground: #0F0F1A;
-  --card: #FFFFFF;
-  --card-foreground: #0F0F1A;
-  --popover: #FFFFFF;
-  --popover-foreground: #0F0F1A;
+  --background:         #F2E9D8;   /* aged parchment          */
+  --foreground:         #1C1410;   /* dense ink               */
+  --card:               #FAF5EC;   /* clean laid paper        */
+  --card-foreground:    #1C1410;
+  --popover:            #FAF5EC;
+  --popover-foreground: #1C1410;
 
-  /* Primary: Signature Crazy Purple */
-  --primary: #6D28D9;
-  --primary-foreground: #FFFFFF;
+  /* Primary: postal green — old PTT / Royal Mail field offices */
+  --primary:            #2D4A3E;
+  --primary-foreground: #F2E9D8;
 
-  --secondary: #F5F0E8;
-  --secondary-foreground: #0F0F1A;
+  /* Secondary: faded envelope linen */
+  --secondary:          #E0D4BC;
+  --secondary-foreground: #1C1410;
 
-  --muted: #F0EBE3;
-  --muted-foreground: #6B6B80;
+  /* Muted: worn canvas */
+  --muted:              #D8CEBC;
+  --muted-foreground:   #6B5F52;
 
-  /* Accent: Electric Orange */
-  --accent: #F97316;
-  --accent-foreground: #FFFFFF;
+  /* Accent: sealing wax / stamp red */
+  --accent:             #8B3530;
+  --accent-foreground:  #FAF5EC;
 
-  --destructive: #DC2626;
-  --destructive-foreground: #FFFFFF;
+  --destructive:        #A03020;
+  --destructive-foreground: #FAF5EC;
 
-  --border: #E5E0D8;
-  --input: #E5E0D8;
-  --ring: #6D28D9;
+  --border:             #B8A98C;   /* envelope fold crease    */
+  --input:              #C8BAA0;
+  --ring:               #2D4A3E;
 
   /* ── Extended palette ── */
-  --accent-orange: #F97316;
-  --accent-blue:   #0EA5E9;
-  --accent-yellow: #EAB308;
-  --accent-pink:   #EC4899;
-  --success:       #10B981;
-  --alert-red:     #DC2626;
-  --text-primary:  #0F0F1A;
-  --text-secondary:#6B6B80;
+  --accent-slate:       #3A5068;   /* postal blue-grey        */
+  --accent-ochre:       #A0722A;   /* postmark ochre          */
+  --accent-sienna:      #8B3530;   /* sealing wax             */
+  --accent-sage:        #4A6741;   /* field sage              */
+  --success:            #3A5C3A;   /* dark botanical green    */
+  --alert-red:          #A03020;
+  --text-primary:       #1C1410;
+  --text-secondary:     #6B5F52;
 
-  /* ── Brand gradients ── */
-  --gradient-brand:    linear-gradient(135deg, #6D28D9 0%, #EC4899 50%, #F97316 100%);
-  --gradient-purple:   linear-gradient(135deg, #6D28D9, #8B5CF6);
-  --gradient-warm:     linear-gradient(135deg, #F97316, #EAB308);
-  --gradient-cool:     linear-gradient(135deg, #0EA5E9, #6D28D9);
-  --gradient-success:  linear-gradient(135deg, #10B981, #0EA5E9);
+  /* ── No gradients — flat postal colour only ── */
+  --gradient-brand:    #2D4A3E;   /* fallback flat            */
+  --gradient-purple:   #2D4A3E;
+  --gradient-warm:     #A0722A;
+  --gradient-cool:     #3A5068;
+  --gradient-success:  #3A5C3A;
 
-  /* ── Role colours ── */
-  --role-admin:       #4338CA;   /* Indigo — power */
-  --role-researcher:  var(--researcher-color, #6D28D9);
-  --role-participant: #059669;   /* Emerald — growth */
-  --role-supervisor:  #1D4ED8;   /* Blue — oversight */
+  /* ── Role colours — postal dispatch palette ── */
+  --role-admin:       #1C3040;   /* prussian despatch blue   */
+  --role-researcher:  var(--researcher-color, #2D4A3E);
+  --role-participant: #3B4A2E;   /* field notebook green     */
+  --role-supervisor:  #3A5068;   /* postal slate             */
 
   /* ── Researcher personalization ── */
-  --researcher-color: #6D28D9;
+  --researcher-color: #2D4A3E;
 
-  /* ── Charts ── */
-  --chart-1: #6D28D9;
-  --chart-2: #0EA5E9;
-  --chart-3: #F97316;
-  --chart-4: #EAB308;
-  --chart-5: #10B981;
+  /* ── Charts — muted postal tones ── */
+  --chart-1: #2D4A3E;   /* postal green  */
+  --chart-2: #3A5068;   /* slate blue    */
+  --chart-3: #8B3530;   /* sealing wax   */
+  --chart-4: #A0722A;   /* ochre         */
+  --chart-5: #4A6741;   /* field sage    */
 
-  --radius: 0.875rem;
+  /* ── Shape — near-square, like old paper forms ── */
+  --radius: 0.125rem;   /* 2px           */
 
   /* ── Sidebar ── */
-  --sidebar:                    #FFFFFF;
-  --sidebar-foreground:         #0F0F1A;
-  --sidebar-primary:            #6D28D9;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent:             #F5F0E8;
-  --sidebar-accent-foreground:  #0F0F1A;
-  --sidebar-border:             #E5E0D8;
-  --sidebar-ring:               #6D28D9;
+  --sidebar:                    #E8DFC8;
+  --sidebar-foreground:         #1C1410;
+  --sidebar-primary:            #2D4A3E;
+  --sidebar-primary-foreground: #F2E9D8;
+  --sidebar-accent:             #D8CEBC;
+  --sidebar-accent-foreground:  #1C1410;
+  --sidebar-border:             #B8A98C;
+  --sidebar-ring:               #2D4A3E;
   --sidebar-width:              240px;
 }
 
-/* ── Dark mode ── */
+/* ── Dark mode — night postal desk, typewriter under lamplight ── */
 .dark {
-  --background: #0F0F1A;
-  --foreground: #F8F8FC;
-  --card:       #1A1A2E;
-  --card-foreground: #F8F8FC;
-  --popover:    #1A1A2E;
-  --popover-foreground: #F8F8FC;
-  --primary:    #8B5CF6;
-  --primary-foreground: #FFFFFF;
-  --secondary:  #1A1A2E;
-  --secondary-foreground: #F8F8FC;
-  --muted:      #2A2A3E;
-  --muted-foreground: #9B9BAB;
-  --accent:     #F97316;
-  --accent-foreground: #FFFFFF;
-  --destructive: #DC2626;
-  --destructive-foreground: #FFFFFF;
-  --border: #2A2A3E;
-  --input:  #2A2A3E;
-  --ring:   #8B5CF6;
-  --chart-1: #8B5CF6;
-  --chart-2: #38BDF8;
-  --chart-3: #FB923C;
-  --chart-4: #FBBF24;
-  --chart-5: #34D399;
-  --sidebar:                    #1A1A2E;
-  --sidebar-foreground:         #F8F8FC;
-  --sidebar-primary:            #8B5CF6;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent:             #2A2A3E;
-  --sidebar-accent-foreground:  #F8F8FC;
-  --sidebar-border:             #2A2A3E;
-  --sidebar-ring:               #8B5CF6;
+  --background:         #1A1610;   /* oak desk surface        */
+  --foreground:         #E8DFC8;   /* lamplight parchment     */
+  --card:               #221E18;   /* dark envelope           */
+  --card-foreground:    #E8DFC8;
+  --popover:            #221E18;
+  --popover-foreground: #E8DFC8;
+  --primary:            #6B9E8A;   /* faded postal green      */
+  --primary-foreground: #1A1610;
+  --secondary:          #2C2820;
+  --secondary-foreground: #E8DFC8;
+  --muted:              #2C2820;
+  --muted-foreground:   #9A8E80;
+  --accent:             #C05548;   /* brighter sealing wax    */
+  --accent-foreground:  #1A1610;
+  --destructive:        #B84030;
+  --destructive-foreground: #E8DFC8;
+  --border:             #3A3228;
+  --input:              #3A3228;
+  --ring:               #6B9E8A;
+  --chart-1: #6B9E8A;
+  --chart-2: #7A9BB8;
+  --chart-3: #C05548;
+  --chart-4: #C09048;
+  --chart-5: #7A9E6A;
+  --sidebar:                    #221E18;
+  --sidebar-foreground:         #E8DFC8;
+  --sidebar-primary:            #6B9E8A;
+  --sidebar-primary-foreground: #1A1610;
+  --sidebar-accent:             #2C2820;
+  --sidebar-accent-foreground:  #E8DFC8;
+  --sidebar-border:             #3A3228;
+  --sidebar-ring:               #6B9E8A;
 }
 
-/* ── Role-specific body themes ── */
+/* ── Role body themes ── */
 body.role-admin {
-  --sidebar:         #0F0F1A;
-  --sidebar-foreground: #F8F8FC;
-  --sidebar-primary: #818CF8;
-  --sidebar-accent:  #1E1B4B;
-  --sidebar-border:  #312E81;
-  --role-accent:     #4338CA;
+  --sidebar:            #1C2830;
+  --sidebar-foreground: #E0D8C8;
+  --sidebar-primary:    #7A9EB8;
+  --sidebar-accent:     #242E38;
+  --sidebar-border:     #2C3840;
+  --role-accent:        #1C3040;
 }
 
 body.role-supervisor {
-  --role-accent: #1D4ED8;
+  --role-accent: #3A5068;
 }
 
 body.role-participant {
-  --primary: #059669;
-  --ring:    #059669;
-  --role-accent: #059669;
+  --primary:     #3B4A2E;
+  --ring:        #3B4A2E;
+  --role-accent: #3B4A2E;
 }
 
 /* ── Tailwind theme bridge ── */
 @theme inline {
-  --font-sans: var(--font-plus-jakarta-sans), 'Plus Jakarta Sans', system-ui, sans-serif;
-  --font-serif: var(--font-fraunces), 'Fraunces', Georgia, serif;
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
-  --font-logo-crazy:   var(--font-permanent-marker), 'Permanent Marker', cursive;
+  --font-sans:         var(--font-libre-baskerville), 'Libre Baskerville', Georgia, serif;
+  --font-serif:        var(--font-cormorant), 'Cormorant', 'Cormorant Garamond', Georgia, serif;
+  --font-mono:         'Courier New', 'Courier', monospace;
+  --font-logo-crazy:   var(--font-cormorant), 'Cormorant', serif;
   --font-logo-sapiens: var(--font-caveat), 'Caveat', cursive;
 
   --color-background:   var(--background);
@@ -174,22 +180,22 @@ body.role-participant {
   --color-chart-4:      var(--chart-4);
   --color-chart-5:      var(--chart-5);
 
-  --color-researcher:      var(--researcher-color);
-  --color-accent-orange:   var(--accent-orange);
-  --color-accent-blue:     var(--accent-blue);
-  --color-accent-yellow:   var(--accent-yellow);
-  --color-accent-pink:     var(--accent-pink);
-  --color-success:         var(--success);
-  --color-alert-red:       var(--alert-red);
-  --color-role-admin:      var(--role-admin);
-  --color-role-participant:var(--role-participant);
-  --color-role-supervisor: var(--role-supervisor);
+  --color-researcher:       var(--researcher-color);
+  --color-accent-orange:    var(--accent-ochre);
+  --color-accent-blue:      var(--accent-slate);
+  --color-accent-yellow:    var(--accent-ochre);
+  --color-accent-pink:      var(--accent-sienna);
+  --color-success:          var(--success);
+  --color-alert-red:        var(--alert-red);
+  --color-role-admin:       var(--role-admin);
+  --color-role-participant: var(--role-participant);
+  --color-role-supervisor:  var(--role-supervisor);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-sm:  calc(var(--radius));
+  --radius-md:  calc(var(--radius));
+  --radius-lg:  calc(var(--radius) + 2px);
+  --radius-xl:  calc(var(--radius) + 2px);
+  --radius-2xl: calc(var(--radius) + 4px);
 
   --color-sidebar:                    var(--sidebar);
   --color-sidebar-foreground:         var(--sidebar-foreground);
@@ -208,262 +214,325 @@ body.role-participant {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-feature-settings: 'kern', 'liga', 'onum';
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  /* Minimal scrollbar — like a ruler edge */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
     background: var(--border);
-    border-radius: 999px;
+    border-radius: 0;
   }
   ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
 
-  /* Focus ring */
+  /* Focus ring — clean single line */
   :focus-visible {
-    outline: 2px solid var(--ring);
+    outline: 1px solid var(--ring);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 0;
   }
 
-  /* Selection */
+  /* Selection — ink wash */
   ::selection {
-    background: color-mix(in srgb, var(--primary) 20%, transparent);
+    background: color-mix(in srgb, var(--primary) 18%, transparent);
     color: var(--foreground);
+  }
+
+  /* Headings inherit serif by default */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.01em;
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   CUSTOM UTILITIES
+   TYPOGRAPHY
    ═══════════════════════════════════════════════════════════════ */
 
-/* Gradient text */
+/* Display — for large titles, hero headings */
+.display-heading {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+/* Section label — spaced caps, like old form field labels */
+.section-label {
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  font-family: var(--font-sans);
+}
+
+/* Postmark text — tracking, all caps, for stamps / badges */
+.postmark {
+  font-family: var(--font-sans);
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Telegram — monospaced, like old typewriter copy */
+.telegram {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SURFACE UTILITIES
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Paper — base surface, slight texture suggestion via shadow */
+.paper {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 1px 1px 0 rgba(0,0,0,0.04), 2px 2px 0 rgba(0,0,0,0.02);
+}
+
+/* Parchment — the aged background surface */
+.parchment {
+  background: var(--background);
+  border: 1px solid var(--border);
+}
+
+/* Envelope — folded edge effect via double border */
+.envelope {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-bottom: 2px solid var(--border);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+}
+
+/* Stamp border — dashed, like a perforated stamp */
+.stamp-border {
+  border: 1px dashed var(--border);
+  padding: 0.75rem;
+}
+
+/* Ruled line — like lined paper */
+.ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent calc(1.75rem - 1px),
+    var(--border) calc(1.75rem - 1px),
+    var(--border) 1.75rem
+  );
+}
+
+/* Ledger grid — for data tables and forms */
+.ledger-grid {
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 1rem 1rem;
+  opacity: 0.3;
+}
+
+/* Inset — sunken form field look */
+.inset-field {
+  background: color-mix(in srgb, var(--background) 80%, var(--muted));
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PREVIOUSLY GRADIENT-BASED — NOW FLAT POSTAL
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Was gradient text — now just primary colour */
 .gradient-text {
-  background: var(--gradient-brand);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--primary);
 }
 
 .gradient-text-purple {
-  background: var(--gradient-purple);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--primary);
 }
 
-/* Glass effect */
+/* Was glass — now clean paper */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: color-mix(in srgb, var(--card) 95%, transparent);
+  border: 1px solid var(--border);
 }
 
 .glass-dark {
-  background: rgba(15, 15, 26, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--background) 90%, black);
+  border: 1px solid var(--border);
 }
 
-/* Dot grid background */
+/* Was dot-grid — now fine dot ledger */
 .dot-grid {
-  background-image: radial-gradient(circle, #E5E0D8 1px, transparent 1px);
-  background-size: 24px 24px;
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0.5;
 }
 
-/* Diagonal stripe pattern */
+/* Was stripe pattern — now hairline rule */
 .stripe-pattern {
   background-image: repeating-linear-gradient(
     -45deg,
     transparent,
-    transparent 4px,
-    rgba(109, 40, 217, 0.05) 4px,
-    rgba(109, 40, 217, 0.05) 8px
+    transparent 6px,
+    color-mix(in srgb, var(--border) 40%, transparent) 6px,
+    color-mix(in srgb, var(--border) 40%, transparent) 7px
   );
 }
 
-/* Gradient border trick */
+/* Was gradient border — now plain 1px rule */
 .gradient-border {
-  position: relative;
+  border: 1px solid var(--border);
 }
-.gradient-border::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px;
-  background: var(--gradient-brand);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
+.gradient-border::before { display: none; }
 
-/* Glow effects */
-.glow-purple {
-  box-shadow: 0 0 20px rgba(109, 40, 217, 0.3), 0 0 40px rgba(109, 40, 217, 0.1);
-}
-.glow-orange {
-  box-shadow: 0 0 20px rgba(249, 115, 22, 0.3), 0 0 40px rgba(249, 115, 22, 0.1);
-}
+/* Was glows — removed entirely */
+.glow-purple { box-shadow: none; }
+.glow-orange  { box-shadow: none; }
 
 /* ═══════════════════════════════════════════════════════════════
-   ANIMATIONS
+   ANIMATIONS — Slower, considered, analogue feel
    ═══════════════════════════════════════════════════════════════ */
-@keyframes wiggle {
-  0%, 100% { transform: rotate(-3deg); }
-  50%       { transform: rotate(3deg);  }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-6px); }
+
+@keyframes slide-up {
+  from { transform: translateY(6px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
 }
+
+@keyframes stamp-in {
+  0%   { transform: scale(1.08) rotate(-1deg); opacity: 0; }
+  60%  { transform: scale(0.98) rotate(0.3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
 @keyframes shimmer {
   0%   { background-position: -200% center; }
   100% { background-position:  200% center; }
 }
-@keyframes pulse-ring {
-  0%   { transform: scale(1);    opacity: 1; }
-  100% { transform: scale(1.5);  opacity: 0; }
-}
-@keyframes slide-up {
-  from { transform: translateY(8px); opacity: 0; }
-  to   { transform: translateY(0);   opacity: 1; }
-}
-@keyframes confetti-fall {
-  0%   { transform: translateY(-10px) rotate(0deg);   opacity: 1; }
-  100% { transform: translateY(40px)  rotate(360deg); opacity: 0; }
-}
+
 @keyframes count-up {
   from { transform: translateY(4px); opacity: 0; }
   to   { transform: translateY(0);   opacity: 1; }
 }
 
-.animate-wiggle       { animation: wiggle      0.4s ease-in-out infinite; }
-.animate-float        { animation: float       3s   ease-in-out  infinite; }
-.animate-shimmer      { animation: shimmer     2s   linear       infinite; }
-.animate-slide-up     { animation: slide-up    0.3s ease-out     both; }
-.animate-count-up     { animation: count-up    0.4s ease-out     both; }
+@keyframes pulse-ring {
+  0%   { transform: scale(1);    opacity: 1; }
+  100% { transform: scale(1.4);  opacity: 0; }
+}
 
-/* Shimmer loading skeleton */
+/* Remove wiggle & float — not vintage */
+.animate-wiggle   { animation: fade-in    0.3s ease-out both; }
+.animate-float    { animation: fade-in    0.4s ease-out both; }
+.animate-shimmer  { animation: shimmer   2.5s linear   infinite; }
+.animate-slide-up { animation: slide-up  0.25s ease-out both; }
+.animate-count-up { animation: count-up  0.35s ease-out both; }
+.animate-stamp-in { animation: stamp-in  0.35s ease-out both; }
+
+/* Shimmer skeleton — muted */
 .shimmer-bg {
   background: linear-gradient(
     90deg,
     var(--muted) 25%,
-    color-mix(in srgb, var(--muted) 60%, white) 50%,
+    color-mix(in srgb, var(--muted) 50%, var(--card)) 50%,
     var(--muted) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 2s infinite;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ROLE-SPECIFIC SIDEBAR STYLES
+   SIDEBAR — ROLE THEMES  (flat, no gradients)
    ═══════════════════════════════════════════════════════════════ */
 .sidebar-admin-header {
-  background: linear-gradient(135deg, #1E1B4B, #312E81);
+  background: var(--role-admin, #1C3040);
+  color: #E0D8C8;
 }
 .sidebar-researcher-header {
-  background: linear-gradient(135deg,
-    color-mix(in srgb, var(--researcher-color) 80%, black),
-    var(--researcher-color)
-  );
+  background: var(--researcher-color, #2D4A3E);
+  color: var(--primary-foreground);
 }
 .sidebar-supervisor-header {
-  background: linear-gradient(135deg, #1E3A8A, #1D4ED8);
+  background: var(--role-supervisor, #3A5068);
+  color: #E0D8C8;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PARTICIPANT PORTAL STYLES
+   PARTICIPANT PORTAL
    ═══════════════════════════════════════════════════════════════ */
 .participant-hero {
-  background: linear-gradient(135deg,
-    color-mix(in srgb, var(--role-participant, #059669) 15%, white),
-    color-mix(in srgb, var(--accent-blue) 10%, white)
-  );
+  background: color-mix(in srgb, var(--role-participant, #3B4A2E) 8%, var(--background));
+  border-bottom: 1px solid var(--border);
 }
 
 /* Progress ring */
 .progress-ring-track { stroke: var(--muted); }
 .progress-ring-fill  {
   stroke: var(--success);
-  stroke-linecap: round;
-  transition: stroke-dashoffset 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  stroke-linecap: square;
+  transition: stroke-dashoffset 0.5s ease-out;
 }
 
-/* Task card hover */
+/* Task card */
 .task-card {
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .task-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  box-shadow: 1px 2px 6px rgba(0,0,0,0.07);
+  border-color: var(--muted-foreground);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   STAT CARD STYLES
+   STAT CARDS
    ═══════════════════════════════════════════════════════════════ */
 .stat-card-researcher {
-  background: linear-gradient(135deg,
-    color-mix(in srgb, var(--researcher-color) 8%, white),
-    color-mix(in srgb, var(--researcher-color) 4%, white)
-  );
-  border-color: color-mix(in srgb, var(--researcher-color) 20%, transparent);
+  background: color-mix(in srgb, var(--researcher-color) 6%, var(--card));
+  border-color: color-mix(in srgb, var(--researcher-color) 18%, var(--border));
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ADMIN COMMAND CENTER STYLES
+   ADMIN HEADER
    ═══════════════════════════════════════════════════════════════ */
 .admin-header {
-  background: linear-gradient(135deg, #0F0F1A, #1E1B4B);
-  color: #F8F8FC;
+  background: var(--role-admin, #1C3040);
+  color: #E0D8C8;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   TYPOGRAPHY ENHANCEMENTS
-   ═══════════════════════════════════════════════════════════════ */
-.display-heading {
-  font-family: var(--font-serif);
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-}
-
-.section-label {
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   CARD ENHANCEMENTS
+   CARD HOVER — no lift, just border emphasis
    ═══════════════════════════════════════════════════════════════ */
 .card-hover {
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .card-hover:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+  border-color: var(--muted-foreground);
+  box-shadow: 1px 1px 0 rgba(0,0,0,0.05), 2px 2px 0 rgba(0,0,0,0.03);
 }
 
 /* ═══════════════════════════════════════════════════════════════
    ONBOARDING CHECKLIST
    ═══════════════════════════════════════════════════════════════ */
 .onboarding-step-done {
-  background: color-mix(in srgb, var(--success) 10%, white);
-  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+  background: color-mix(in srgb, var(--success) 8%, var(--card));
+  border-color: color-mix(in srgb, var(--success) 25%, var(--border));
 }
 .onboarding-step-active {
-  background: color-mix(in srgb, var(--primary) 8%, white);
-  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+  background: color-mix(in srgb, var(--primary) 6%, var(--card));
+  border-color: color-mix(in srgb, var(--primary) 25%, var(--border));
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -473,40 +542,64 @@ body.role-participant {
   position: absolute;
   top: -4px;
   right: -4px;
-  min-width: 16px;
-  height: 16px;
+  min-width: 15px;
+  height: 15px;
   background: var(--alert-red);
-  color: white;
-  border-radius: 999px;
-  font-size: 9px;
+  color: #FAF5EC;
+  border-radius: 0;
+  font-size: 8px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 3px;
-  border: 2px solid var(--sidebar);
-  animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+  border: 1px solid var(--sidebar);
+  letter-spacing: 0.04em;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INSTRUMENT TYPE COLORS
+   INSTRUMENT TYPE COLOURS — postal dispatch categories
    ═══════════════════════════════════════════════════════════════ */
-.instr-questionnaire { --instr-color: #0EA5E9; }
-.instr-iat           { --instr-color: #F97316; }
-.instr-sociogram     { --instr-color: #10B981; }
+.instr-questionnaire { --instr-color: #3A5068; }   /* postal blue  */
+.instr-iat           { --instr-color: #8B3530; }   /* sealing wax  */
+.instr-sociogram     { --instr-color: #4A6741; }   /* field sage   */
 
 /* ═══════════════════════════════════════════════════════════════
    MISC UTILITIES
    ═══════════════════════════════════════════════════════════════ */
-/* Prevent text selection on interactive UI */
 .no-select { user-select: none; }
 
-/* Truncate with tooltip on hover pattern */
 .truncate-hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Smooth number transitions */
 .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Hairline rule — like a typed form underline */
+.hairline {
+  border-bottom: 1px solid var(--border);
+}
+
+/* Redaction bar — for sensitive data UI */
+.redacted {
+  background: var(--foreground);
+  color: transparent;
+  user-select: none;
+  border-radius: 0;
+}
+
+/* Wax seal circle utility */
+.wax-seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-radius: 50%;
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+}
