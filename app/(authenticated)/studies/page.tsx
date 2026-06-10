@@ -83,7 +83,7 @@ export default function StudiesPage() {
         const byId = Object.fromEntries((creators || []).map(c => [c.id, c]))
         list.forEach(s => {
           s.creator_name  = byId[s.created_by]?.full_name  ?? 'Unknown'
-          s.creator_color = byId[s.created_by]?.researcher_color ?? '#6D28D9'
+          s.creator_color = byId[s.created_by]?.researcher_color ?? '#C0524A'
         })
       }
 
@@ -139,7 +139,7 @@ export default function StudiesPage() {
           }
           crumbs={[{ label: isAdmin ? 'All Studies' : 'Your Studies' }]}
           badge={isAdmin ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-600 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
               <ShieldAlert className="w-3 h-3" /> Admin
             </span>
           ) : undefined}
@@ -259,7 +259,7 @@ export default function StudiesPage() {
                   {/* Researcher color accent */}
                   <div
                     className={cn(view === 'grid' ? 'h-1 w-full' : 'w-1 h-full absolute left-0 top-0', 'shrink-0')}
-                    style={{ backgroundColor: study.creator_color || '#6D28D9' }}
+                    style={{ backgroundColor: study.creator_color || '#C0524A' }}
                   />
 
                   <div className={cn('p-5 flex-1', view === 'list' && 'flex items-center gap-4')}>

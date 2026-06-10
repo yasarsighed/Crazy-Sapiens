@@ -41,19 +41,19 @@ function firstName(full: string | null) {
 
 // ── Quick action items ──
 const QUICK_ACTIONS = [
-  { label: 'New Study',        href: '/studies/new',   icon: FlaskConical, color: 'bg-violet-500' },
-  { label: 'Scale Library',   href: '/scale-library', icon: BookOpen,     color: 'bg-sky-500'    },
-  { label: 'View Participants',href: '/participants',  icon: Users,        color: 'bg-emerald-500'},
-  { label: 'Audit Log',       href: '/audit-log',     icon: ClipboardList,color: 'bg-amber-500'  },
+  { label: 'New Study',         href: '/studies/new',   icon: FlaskConical, color: 'bg-primary'       },
+  { label: 'Scale Library',    href: '/scale-library', icon: BookOpen,     color: 'bg-[#5A8870]'     },
+  { label: 'View Participants', href: '/participants',  icon: Users,        color: 'bg-[#4E8A5A]'     },
+  { label: 'Audit Log',        href: '/audit-log',     icon: ClipboardList,color: 'bg-[#C09040]'     },
 ]
 
 // ── Activity icon / colour helpers ──
 function activityDot(type: string) {
-  if (type === 'enrollment' || type === 'enroll') return 'bg-emerald-400'
-  if (type === 'alert')      return 'bg-red-400'
-  if (type === 'completion') return 'bg-violet-400'
-  if (type === 'submit')     return 'bg-sky-400'
-  return 'bg-amber-400'
+  if (type === 'enrollment' || type === 'enroll') return 'bg-[#4E8A5A]'
+  if (type === 'alert')      return 'bg-[#C0524A]'
+  if (type === 'completion') return 'bg-[#C09040]'
+  if (type === 'submit')     return 'bg-[#5A8870]'
+  return 'bg-[#C07840]'
 }
 
 function activityLabel(row: { action_type: string; entity_type: string }) {
@@ -139,7 +139,7 @@ export default async function DashboardPage() {
   }
 
   const name   = firstName(profile?.full_name)
-  const researcherColor = profile?.researcher_color || '#6D28D9'
+  const researcherColor = profile?.researcher_color || '#C0524A'
 
   return (
     <div className="min-h-screen bg-background">
@@ -149,8 +149,9 @@ export default async function DashboardPage() {
         className="px-8 pt-8 pb-6 relative overflow-hidden"
         style={{
           background: isAdmin
-            ? 'linear-gradient(135deg, #0F0F1A 0%, #1E1B4B 100%)'
-            : `linear-gradient(135deg, color-mix(in srgb, ${researcherColor} 12%, #FAFAF8), color-mix(in srgb, ${researcherColor} 5%, #FAFAF8))`,
+            ? 'color-mix(in srgb, #8A4A38 14%, #EFEBE2)'
+            : `color-mix(in srgb, ${researcherColor} 10%, #EFEBE2)`,
+          borderBottom: '1px solid var(--border)',
         }}
       >
         {/* Decorative dots */}
@@ -163,12 +164,12 @@ export default async function DashboardPage() {
             </div>
             <div>
               <h1
-                className={`font-serif text-2xl lg:text-3xl font-semibold leading-tight ${isAdmin ? 'text-white' : 'text-foreground'}`}
+                className="font-serif text-2xl lg:text-3xl font-semibold leading-tight text-foreground"
               >
                 {getGreeting(name)}
               </h1>
               {isAdmin && (
-                <p className="text-xs text-white/60 mt-1 flex items-center gap-1.5">
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
                   <ShieldAlert className="w-3 h-3" />
                   Admin view — all studies visible across platform
                 </p>
@@ -206,16 +207,16 @@ export default async function DashboardPage() {
         <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
           {[
             { label: isAdmin ? 'Platform Studies' : 'Active Studies', value: activeStudiesCount ?? 0, icon: FlaskConical, color: researcherColor, sub: 'running now' },
-            { label: 'Participants',    value: totalParticipants  ?? 0, icon: Users,         color: '#0EA5E9', sub: 'enrolled'     },
-            { label: 'Responses',       value: responsesCount     ?? 0, icon: CheckCircle2,  color: '#10B981', sub: 'completed'    },
+            { label: 'Participants',    value: totalParticipants  ?? 0, icon: Users,         color: '#4E8A5A', sub: 'enrolled'     },
+            { label: 'Responses',       value: responsesCount     ?? 0, icon: CheckCircle2,  color: '#5A8870', sub: 'completed'    },
             { label: 'Clinical Alerts', value: alertsCount        ?? 0, icon: AlertTriangle, color: alertsCount ? '#DC2626' : '#6B6B80', sub: alertsCount ? '⚠️ needs attention' : 'all clear 🎉' },
           ].map(stat => (
             <div
               key={stat.label}
-              className={`rounded-2xl border p-4 bg-white/80 backdrop-blur-sm ${isAdmin ? 'border-white/10 bg-white/5 text-white' : 'border-border'}`}
+              className="rounded-xl border border-border p-4 bg-card"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className={`text-[11px] font-semibold tracking-wide ${isAdmin ? 'text-white/60' : 'text-muted-foreground'}`}>
+                <span className="text-[11px] font-semibold tracking-wide text-muted-foreground">
                   {stat.label.toUpperCase()}
                 </span>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${stat.color}20` }}>
@@ -225,7 +226,7 @@ export default async function DashboardPage() {
               <p className="font-serif text-3xl font-bold tabular-nums animate-count-up" style={{ color: stat.color }}>
                 {stat.value.toLocaleString()}
               </p>
-              <p className={`text-[11px] mt-0.5 ${isAdmin ? 'text-white/50' : 'text-muted-foreground'}`}>{stat.sub}</p>
+              <p className="text-[11px] mt-0.5 text-muted-foreground">{stat.sub}</p>
             </div>
           ))}
         </div>
@@ -302,7 +303,7 @@ export default async function DashboardPage() {
               <Card className="border-border overflow-hidden">
                 <CardHeader className="pb-3 border-b border-border bg-muted/30">
                   <CardTitle className="font-serif text-base flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-violet-500" /> Researcher Activity
+                    <Brain className="w-4 h-4 text-primary" /> Researcher Activity
                   </CardTitle>
                   <p className="text-[11px] text-muted-foreground mt-1">Who&apos;s doing what</p>
                 </CardHeader>
@@ -311,7 +312,7 @@ export default async function DashboardPage() {
                     <div key={r.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted/50 transition-colors">
                       <div
                         className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm"
-                        style={{ backgroundColor: r.researcher_color || '#6D28D9' }}
+                        style={{ backgroundColor: r.researcher_color || '#C0524A' }}
                       >
                         {r.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
                       </div>
@@ -342,7 +343,7 @@ export default async function DashboardPage() {
                       <div key={r.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors">
                         <div
                           className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                          style={{ backgroundColor: r.researcher_color || '#6D28D9' }}
+                          style={{ backgroundColor: r.researcher_color || '#C0524A' }}
                         >
                           {r.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
                         </div>
@@ -391,7 +392,7 @@ export default async function DashboardPage() {
             <Card className="border-border overflow-hidden">
               <CardHeader className="pb-3 border-b border-border bg-muted/30">
                 <CardTitle className="font-serif text-base flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-violet-500" /> Live Activity
+                  <Activity className="w-4 h-4 text-primary" /> Live Activity
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3">

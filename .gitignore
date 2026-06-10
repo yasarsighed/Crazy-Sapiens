@@ -19,3 +19,6 @@ node_modules
 .DS_Store
 .vercel
 tsconfig.tsbuildinfo
+.claude/
+CLAUDE_MEMORY.md
+C*UsersDell*
