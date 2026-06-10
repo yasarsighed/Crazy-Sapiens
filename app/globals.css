@@ -4,130 +4,141 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════════════
-   CRAZY SAPIENS — DESIGN SYSTEM v4
-   Clean · Bright · Simple · Slightly Rounded
+   CRAZY SAPIENS — DESIGN SYSTEM v5
+   reMarkable Paper Surface · Flat Poster Colours
+   ─────────────────────────────────────────────────────────────
+   Background: warm off-white, like the reMarkable e-ink surface.
+   Colours: muted poster paint — red, ochre, sage. No blue. No purple.
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  --background:         #FDFAF5;
-  --foreground:         #1E1B18;
-  --card:               #FFFFFF;
-  --card-foreground:    #1E1B18;
-  --popover:            #FFFFFF;
-  --popover-foreground: #1E1B18;
+  /* ── Paper surface (reMarkable-inspired) ── */
+  --background:         #EFEBE2;   /* warm off-white paper     */
+  --foreground:         #1E1A16;   /* deep ink                 */
+  --card:               #F8F5EF;   /* slightly lighter paper   */
+  --card-foreground:    #1E1A16;
+  --popover:            #F8F5EF;
+  --popover-foreground: #1E1A16;
 
-  --primary:            #5A8A6A;   /* clear sky blue     */
-  --primary-foreground: #FFFFFF;
+  /* ── Primary: poster red (muted, chalky, flat) ── */
+  --primary:            #C0524A;
+  --primary-foreground: #F8F5EF;
 
-  --secondary:          #F3EFE7;
-  --secondary-foreground: #1E1B18;
+  /* ── Secondary: pale paper tint ── */
+  --secondary:          #E5DFD3;
+  --secondary-foreground: #1E1A16;
 
-  --muted:              #EDE9E1;
-  --muted-foreground:   #7A7469;
+  /* ── Muted ── */
+  --muted:              #DDD7CB;
+  --muted-foreground:   #7A7268;
 
-  --accent:             #C9663F;   /* warm terracotta    */
-  --accent-foreground:  #FFFFFF;
+  /* ── Accent: poster ochre / warm amber ── */
+  --accent:             #C09040;
+  --accent-foreground:  #1E1A16;
 
-  --destructive:        #C04040;
-  --destructive-foreground: #FFFFFF;
+  --destructive:        #B84040;
+  --destructive-foreground: #F8F5EF;
 
-  --border:             #DDD8CE;
-  --input:              #DDD8CE;
-  --ring:               #5A8A6A;
+  --border:             #CEC8BB;
+  --input:              #CEC8BB;
+  --ring:               #C0524A;
 
-  --success:            #4A8C5C;
-  --alert-red:          #C04040;
-  --text-primary:       #1E1B18;
-  --text-secondary:     #7A7469;
+  /* ── Named accents (kept for component compat) ── */
+  --accent-orange:  #C07840;   /* burnt orange poster         */
+  --accent-blue:    #5A8870;   /* desaturated teal (no blue)  */
+  --accent-yellow:  #C09040;   /* ochre                       */
+  --accent-pink:    #B85868;   /* dusty rose                  */
+  --success:        #4E8A5A;   /* poster green                */
+  --alert-red:      #B84040;
+  --text-primary:   #1E1A16;
+  --text-secondary: #7A7268;
 
-  /* kept for compat — single flat colour */
-  --gradient-brand:    #5A8A6A;
-  --gradient-purple:   #5A8A6A;
-  --gradient-warm:     #C9663F;
-  --gradient-cool:     #5A8A6A;
-  --gradient-success:  #4A8C5C;
+  /* ── Gradients: flat fallbacks ── */
+  --gradient-brand:   #C0524A;
+  --gradient-purple:  #C0524A;
+  --gradient-warm:    #C09040;
+  --gradient-cool:    #5A8870;
+  --gradient-success: #4E8A5A;
 
-  /* role colours — distinct but soft */
-  --role-admin:       #3A5F8A;
-  --role-researcher:  var(--researcher-color, #5A8A6A);
-  --role-participant: #4A7A5C;
-  --role-supervisor:  #6A5A8A;
-  --researcher-color: #5A8A6A;
+  /* ── Role colours — warm poster tones, no blue/purple ── */
+  --role-admin:       #8A4A38;   /* dark terracotta            */
+  --role-researcher:  var(--researcher-color, #C0524A);
+  --role-participant: #4A7A58;   /* poster green               */
+  --role-supervisor:  #7A6040;   /* warm umber                 */
+  --researcher-color: #C0524A;
 
-  /* accent aliases the old code still references */
-  --accent-orange:  #C9663F;
-  --accent-blue:    #5A8A6A;   /* mapped to sage for compat */
-  --accent-yellow:  #C8963A;
-  --accent-pink:    #C06070;
+  /* ── Charts ── */
+  --chart-1: #C0524A;   /* poster red      */
+  --chart-2: #4E8A5A;   /* poster green    */
+  --chart-3: #C09040;   /* ochre           */
+  --chart-4: #C07840;   /* burnt orange    */
+  --chart-5: #7A6040;   /* warm umber      */
 
-  --chart-1: #5A8A6A;
-  --chart-2: #C9663F;
-  --chart-3: #4A8C5C;
-  --chart-4: #C8963A;
-  --chart-5: #6A5A8A;
+  /* ── Radius: friendly, soft corners ── */
+  --radius: 0.5rem;
 
-  --radius: 0.5rem;   /* 8px — friendly, not boxy, not bubbly */
-
-  --sidebar:                    #F5F1E8;
-  --sidebar-foreground:         #1E1B18;
-  --sidebar-primary:            #5A8A6A;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent:             #EDE9E1;
-  --sidebar-accent-foreground:  #1E1B18;
-  --sidebar-border:             #DDD8CE;
-  --sidebar-ring:               #5A8A6A;
+  /* ── Sidebar ── */
+  --sidebar:                    #E8E2D5;
+  --sidebar-foreground:         #1E1A16;
+  --sidebar-primary:            #C0524A;
+  --sidebar-primary-foreground: #F8F5EF;
+  --sidebar-accent:             #DDD7CB;
+  --sidebar-accent-foreground:  #1E1A16;
+  --sidebar-border:             #CEC8BB;
+  --sidebar-ring:               #C0524A;
   --sidebar-width:              240px;
 }
 
+/* ── Dark mode: lamplight on warm desk ── */
 .dark {
-  --background:         #1A1815;
-  --foreground:         #EDE9E1;
-  --card:               #222018;
-  --card-foreground:    #EDE9E1;
-  --popover:            #222018;
-  --popover-foreground: #EDE9E1;
-  --primary:            #7AAE8A;
-  --primary-foreground: #0E0D0B;
-  --secondary:          #2A2820;
-  --secondary-foreground: #EDE9E1;
-  --muted:              #2A2820;
-  --muted-foreground:   #9A9088;
-  --accent:             #D4784F;
-  --accent-foreground:  #0E0D0B;
-  --destructive:        #B84040;
-  --destructive-foreground: #EDE9E1;
-  --border:             #383428;
-  --input:              #383428;
-  --ring:               #7AAE8A;
-  --chart-1: #7AAE8A;
-  --chart-2: #D4784F;
-  --chart-3: #5EAA74;
-  --chart-4: #D4A84F;
-  --chart-5: #8A7AAA;
-  --sidebar:                    #222018;
-  --sidebar-foreground:         #EDE9E1;
-  --sidebar-primary:            #7AAE8A;
-  --sidebar-primary-foreground: #0E0D0B;
-  --sidebar-accent:             #2A2820;
-  --sidebar-accent-foreground:  #EDE9E1;
-  --sidebar-border:             #383428;
-  --sidebar-ring:               #7AAE8A;
+  --background:         #1C1814;
+  --foreground:         #EDE8DF;
+  --card:               #252018;
+  --card-foreground:    #EDE8DF;
+  --popover:            #252018;
+  --popover-foreground: #EDE8DF;
+  --primary:            #D4705A;
+  --primary-foreground: #1C1814;
+  --secondary:          #2E2820;
+  --secondary-foreground: #EDE8DF;
+  --muted:              #2E2820;
+  --muted-foreground:   #9A9080;
+  --accent:             #C8A850;
+  --accent-foreground:  #1C1814;
+  --destructive:        #C04848;
+  --destructive-foreground: #EDE8DF;
+  --border:             #3C3428;
+  --input:              #3C3428;
+  --ring:               #D4705A;
+  --chart-1: #D4705A;
+  --chart-2: #62A870;
+  --chart-3: #C8A850;
+  --chart-4: #C89050;
+  --chart-5: #9A8058;
+  --sidebar:                    #252018;
+  --sidebar-foreground:         #EDE8DF;
+  --sidebar-primary:            #D4705A;
+  --sidebar-primary-foreground: #1C1814;
+  --sidebar-accent:             #2E2820;
+  --sidebar-accent-foreground:  #EDE8DF;
+  --sidebar-border:             #3C3428;
+  --sidebar-ring:               #D4705A;
 }
 
-/* role body themes */
+/* ── Role body themes ── */
 body.role-admin {
-  --sidebar:            #1E2A38;
-  --sidebar-foreground: #E0DCF0;
-  --sidebar-primary:    #7AAE8A;
-  --sidebar-accent:     #263445;
-  --sidebar-border:     #2E3E50;
-  --role-accent:        #3A5F8A;
+  --sidebar:            #281E18;
+  --sidebar-foreground: #EDE0D0;
+  --sidebar-primary:    #D4705A;
+  --sidebar-accent:     #332820;
+  --sidebar-border:     #40302A;
+  --role-accent:        #8A4A38;
 }
-body.role-supervisor { --role-accent: #6A5A8A; }
+body.role-supervisor { --role-accent: #7A6040; }
 body.role-participant {
-  --primary:    #4A7A5C;
-  --ring:       #4A7A5C;
-  --role-accent: #4A7A5C;
+  --primary:     #4A7A58;
+  --ring:        #4A7A58;
+  --role-accent: #4A7A58;
 }
 
 /* ── Tailwind bridge ── */
@@ -210,10 +221,7 @@ body.role-participant {
 
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 99px;
-  }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
 
   :focus-visible {
@@ -229,7 +237,7 @@ body.role-participant {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   TYPOGRAPHY HELPERS
+   TYPOGRAPHY
    ═══════════════════════════════════════════════════════════════ */
 .display-heading {
   font-family: var(--font-serif);
@@ -247,12 +255,12 @@ body.role-participant {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   COLOUR / SURFACE HELPERS
+   COMPAT HELPERS (used by existing components)
    ═══════════════════════════════════════════════════════════════ */
 .gradient-text        { color: var(--primary); }
 .gradient-text-purple { color: var(--primary); }
 .glass      { background: color-mix(in srgb, var(--card) 92%, transparent); border: 1px solid var(--border); }
-.glass-dark { background: color-mix(in srgb, var(--background) 88%, black); border: 1px solid var(--border); }
+.glass-dark { background: color-mix(in srgb, var(--background) 88%, black);  border: 1px solid var(--border); }
 .dot-grid {
   background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
   background-size: 22px 22px;
@@ -307,7 +315,7 @@ body.role-participant {
   background: linear-gradient(
     90deg,
     var(--muted) 25%,
-    color-mix(in srgb, var(--muted) 50%, white) 50%,
+    color-mix(in srgb, var(--muted) 50%, var(--card)) 50%,
     var(--muted) 75%
   );
   background-size: 200% 100%;
@@ -317,54 +325,37 @@ body.role-participant {
 /* ═══════════════════════════════════════════════════════════════
    ROLE SIDEBAR HEADERS
    ═══════════════════════════════════════════════════════════════ */
-.sidebar-admin-header {
-  background: var(--role-admin, #3A5F8A);
-  color: #EDE9E1;
-}
-.sidebar-researcher-header {
-  background: var(--researcher-color, #5A8A6A);
-  color: #FFFFFF;
-}
-.sidebar-supervisor-header {
-  background: var(--role-supervisor, #6A5A8A);
-  color: #EDE9E1;
-}
+.sidebar-admin-header      { background: var(--role-admin, #8A4A38);     color: #EDE8DF; }
+.sidebar-researcher-header { background: var(--researcher-color, #C0524A); color: #F8F5EF; }
+.sidebar-supervisor-header { background: var(--role-supervisor, #7A6040); color: #EDE8DF; }
 
 /* ═══════════════════════════════════════════════════════════════
    PARTICIPANT PORTAL
    ═══════════════════════════════════════════════════════════════ */
 .participant-hero {
-  background: color-mix(in srgb, var(--role-participant, #4A7A5C) 10%, var(--background));
+  background: color-mix(in srgb, var(--role-participant, #4A7A58) 10%, var(--background));
 }
-
 .progress-ring-track { stroke: var(--muted); }
 .progress-ring-fill {
   stroke: var(--success);
   stroke-linecap: round;
   transition: stroke-dashoffset 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
 .task-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
-.task-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.07);
-}
+.task-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.07); }
 
 /* ═══════════════════════════════════════════════════════════════
    STAT CARDS
    ═══════════════════════════════════════════════════════════════ */
 .stat-card-researcher {
-  background: color-mix(in srgb, var(--researcher-color) 8%, white);
+  background: color-mix(in srgb, var(--researcher-color) 8%, var(--card));
   border-color: color-mix(in srgb, var(--researcher-color) 20%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════════
    ADMIN HEADER
    ═══════════════════════════════════════════════════════════════ */
-.admin-header {
-  background: var(--role-admin, #3A5F8A);
-  color: #EDE9E1;
-}
+.admin-header { background: var(--role-admin, #8A4A38); color: #EDE8DF; }
 
 /* ═══════════════════════════════════════════════════════════════
    CARD HOVER
@@ -380,11 +371,11 @@ body.role-participant {
    ONBOARDING
    ═══════════════════════════════════════════════════════════════ */
 .onboarding-step-done {
-  background: color-mix(in srgb, var(--success) 10%, white);
+  background: color-mix(in srgb, var(--success) 10%, var(--card));
   border-color: color-mix(in srgb, var(--success) 28%, transparent);
 }
 .onboarding-step-active {
-  background: color-mix(in srgb, var(--primary) 8%, white);
+  background: color-mix(in srgb, var(--primary) 8%, var(--card));
   border-color: color-mix(in srgb, var(--primary) 28%, transparent);
 }
 
@@ -393,18 +384,13 @@ body.role-participant {
    ═══════════════════════════════════════════════════════════════ */
 .notification-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 16px;
-  height: 16px;
+  top: -4px; right: -4px;
+  min-width: 16px; height: 16px;
   background: var(--alert-red);
   color: white;
   border-radius: 99px;
-  font-size: 9px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
   padding: 0 3px;
   border: 2px solid var(--sidebar);
   animation: pulse-ring 2s ease infinite;
@@ -413,13 +399,13 @@ body.role-participant {
 /* ═══════════════════════════════════════════════════════════════
    INSTRUMENT COLOURS
    ═══════════════════════════════════════════════════════════════ */
-.instr-questionnaire { --instr-color: #5A8A6A; }
-.instr-iat           { --instr-color: #C9663F; }
-.instr-sociogram     { --instr-color: #4A8C5C; }
+.instr-questionnaire { --instr-color: #5A8870; }
+.instr-iat           { --instr-color: #C0524A; }
+.instr-sociogram     { --instr-color: #4E8A5A; }
 
 /* ═══════════════════════════════════════════════════════════════
    MISC
    ═══════════════════════════════════════════════════════════════ */
-.no-select    { user-select: none; }
+.no-select      { user-select: none; }
 .truncate-hover { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tabular-nums { font-variant-numeric: tabular-nums; }
+.tabular-nums   { font-variant-numeric: tabular-nums; }
