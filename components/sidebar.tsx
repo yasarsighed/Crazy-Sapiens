@@ -99,8 +99,8 @@ const adminItems: NavItem[] = [
 
 // Role meta
 const ROLE_META: Record<string, { label: string; emoji: string; color: string }> = {
-  admin:      { label: 'Admin',      emoji: '⚡', color: '#4338CA' },
-  supervisor: { label: 'Supervisor', emoji: '🔭', color: '#1D4ED8' },
+  admin:      { label: 'Admin',      emoji: '⚡', color: '#8A4A38' },
+  supervisor: { label: 'Supervisor', emoji: '🔭', color: '#7A6040' },
   researcher: { label: 'Researcher', emoji: '🧪', color: 'var(--researcher-color)' },
 }
 
@@ -176,21 +176,21 @@ export function Sidebar({ profile }: SidebarProps) {
 
   const role = profile?.role || 'researcher'
   const accentColor = role === 'admin'
-    ? '#4338CA'
+    ? '#8A4A38'
     : role === 'supervisor'
-      ? '#1D4ED8'
-      : (profile?.researcher_color || '#6D28D9')
+      ? '#7A6040'
+      : (profile?.researcher_color || '#C0524A')
 
   const roleMeta = ROLE_META[role] || ROLE_META.researcher
   const quip = QUIPS[Math.floor(Date.now() / 86400000) % QUIPS.length] // changes daily
 
-  // Header gradient per role
-  const headerGradient =
+  // Header background per role — flat warm colour, no gradients
+  const headerBg =
     role === 'admin'
-      ? 'linear-gradient(135deg, #1E1B4B, #312E81)'
+      ? '#8A4A38'
       : role === 'supervisor'
-        ? 'linear-gradient(135deg, #1E3A8A, #1D4ED8)'
-        : `linear-gradient(135deg, color-mix(in srgb, ${accentColor} 80%, black), ${accentColor})`
+        ? '#7A6040'
+        : accentColor
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -201,7 +201,7 @@ export function Sidebar({ profile }: SidebarProps) {
         {/* ── Header: logo + role badge ── */}
         <div
           className="px-4 pt-5 pb-4 shrink-0"
-          style={{ background: headerGradient }}
+          style={{ background: headerBg }}
         >
           <Logo size="sm" />
           <div className="mt-3 flex items-center gap-2">
