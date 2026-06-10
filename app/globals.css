@@ -16,7 +16,7 @@
   --popover:            #FFFFFF;
   --popover-foreground: #1E1B18;
 
-  --primary:            #4C7FA8;   /* clear sky blue     */
+  --primary:            #5A8A6A;   /* clear sky blue     */
   --primary-foreground: #FFFFFF;
 
   --secondary:          #F3EFE7;
@@ -33,7 +33,7 @@
 
   --border:             #DDD8CE;
   --input:              #DDD8CE;
-  --ring:               #4C7FA8;
+  --ring:               #5A8A6A;
 
   --success:            #4A8C5C;
   --alert-red:          #C04040;
@@ -41,26 +41,26 @@
   --text-secondary:     #7A7469;
 
   /* kept for compat — single flat colour */
-  --gradient-brand:    #4C7FA8;
-  --gradient-purple:   #4C7FA8;
+  --gradient-brand:    #5A8A6A;
+  --gradient-purple:   #5A8A6A;
   --gradient-warm:     #C9663F;
-  --gradient-cool:     #4C7FA8;
+  --gradient-cool:     #5A8A6A;
   --gradient-success:  #4A8C5C;
 
   /* role colours — distinct but soft */
   --role-admin:       #3A5F8A;
-  --role-researcher:  var(--researcher-color, #4C7FA8);
+  --role-researcher:  var(--researcher-color, #5A8A6A);
   --role-participant: #4A7A5C;
   --role-supervisor:  #6A5A8A;
-  --researcher-color: #4C7FA8;
+  --researcher-color: #5A8A6A;
 
   /* accent aliases the old code still references */
   --accent-orange:  #C9663F;
-  --accent-blue:    #4C7FA8;
+  --accent-blue:    #5A8A6A;   /* mapped to sage for compat */
   --accent-yellow:  #C8963A;
   --accent-pink:    #C06070;
 
-  --chart-1: #4C7FA8;
+  --chart-1: #5A8A6A;
   --chart-2: #C9663F;
   --chart-3: #4A8C5C;
   --chart-4: #C8963A;
@@ -70,12 +70,12 @@
 
   --sidebar:                    #F5F1E8;
   --sidebar-foreground:         #1E1B18;
-  --sidebar-primary:            #4C7FA8;
+  --sidebar-primary:            #5A8A6A;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent:             #EDE9E1;
   --sidebar-accent-foreground:  #1E1B18;
   --sidebar-border:             #DDD8CE;
-  --sidebar-ring:               #4C7FA8;
+  --sidebar-ring:               #5A8A6A;
   --sidebar-width:              240px;
 }
 
@@ -86,7 +86,7 @@
   --card-foreground:    #EDE9E1;
   --popover:            #222018;
   --popover-foreground: #EDE9E1;
-  --primary:            #6FA0C8;
+  --primary:            #7AAE8A;
   --primary-foreground: #0E0D0B;
   --secondary:          #2A2820;
   --secondary-foreground: #EDE9E1;
@@ -98,27 +98,27 @@
   --destructive-foreground: #EDE9E1;
   --border:             #383428;
   --input:              #383428;
-  --ring:               #6FA0C8;
-  --chart-1: #6FA0C8;
+  --ring:               #7AAE8A;
+  --chart-1: #7AAE8A;
   --chart-2: #D4784F;
   --chart-3: #5EAA74;
   --chart-4: #D4A84F;
   --chart-5: #8A7AAA;
   --sidebar:                    #222018;
   --sidebar-foreground:         #EDE9E1;
-  --sidebar-primary:            #6FA0C8;
+  --sidebar-primary:            #7AAE8A;
   --sidebar-primary-foreground: #0E0D0B;
   --sidebar-accent:             #2A2820;
   --sidebar-accent-foreground:  #EDE9E1;
   --sidebar-border:             #383428;
-  --sidebar-ring:               #6FA0C8;
+  --sidebar-ring:               #7AAE8A;
 }
 
 /* role body themes */
 body.role-admin {
   --sidebar:            #1E2A38;
   --sidebar-foreground: #E0DCF0;
-  --sidebar-primary:    #6FA0C8;
+  --sidebar-primary:    #7AAE8A;
   --sidebar-accent:     #263445;
   --sidebar-border:     #2E3E50;
   --role-accent:        #3A5F8A;
@@ -322,7 +322,7 @@ body.role-participant {
   color: #EDE9E1;
 }
 .sidebar-researcher-header {
-  background: var(--researcher-color, #4C7FA8);
+  background: var(--researcher-color, #5A8A6A);
   color: #FFFFFF;
 }
 .sidebar-supervisor-header {
@@ -413,7 +413,7 @@ body.role-participant {
 /* ═══════════════════════════════════════════════════════════════
    INSTRUMENT COLOURS
    ═══════════════════════════════════════════════════════════════ */
-.instr-questionnaire { --instr-color: #4C7FA8; }
+.instr-questionnaire { --instr-color: #5A8A6A; }
 .instr-iat           { --instr-color: #C9663F; }
 .instr-sociogram     { --instr-color: #4A8C5C; }
 
