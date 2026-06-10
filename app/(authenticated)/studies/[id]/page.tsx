@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Network, Download, Plus, X, ChevronDown,
   ClipboardList, Users, Timer, ExternalLink, Trash2, Link2, FileText, AlertTriangle,
-  UserPlus, QrCode,
+  UserPlus, QrCode, BarChart3,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AddQuestionnaireDialog } from '@/components/add-questionnaire-dialog'
@@ -344,6 +344,12 @@ export default function StudyPage() {
 
       {/* Action bar */}
       <div className="flex flex-wrap gap-3 mb-8">
+        <Button asChild variant="outline">
+          <Link href={`/studies/${studyId}/analytics`}>
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Analytics
+          </Link>
+        </Button>
         {hasSociogram && (
           <Button asChild>
             <Link href={`/studies/${studyId}/sociogram`}>
