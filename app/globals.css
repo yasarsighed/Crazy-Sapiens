@@ -4,198 +4,181 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════════════
-   CRAZY SAPIENS — DESIGN SYSTEM v3
-   "Vintage Postal · Extremely Minimalist"
-   ─────────────────────────────────────────────────────────────
-   Palette drawn from aged parchment, postal ink, sealing wax,
-   envelope folds, and the muted greens of old PTT services.
+   CRAZY SAPIENS — DESIGN SYSTEM v4
+   Clean · Bright · Simple · Slightly Rounded
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Core palette ── */
-  --background:         #F2E9D8;   /* aged parchment          */
-  --foreground:         #1C1410;   /* dense ink               */
-  --card:               #FAF5EC;   /* clean laid paper        */
-  --card-foreground:    #1C1410;
-  --popover:            #FAF5EC;
-  --popover-foreground: #1C1410;
+  --background:         #FDFAF5;
+  --foreground:         #1E1B18;
+  --card:               #FFFFFF;
+  --card-foreground:    #1E1B18;
+  --popover:            #FFFFFF;
+  --popover-foreground: #1E1B18;
 
-  /* Primary: postal green — old PTT / Royal Mail field offices */
-  --primary:            #2D4A3E;
-  --primary-foreground: #F2E9D8;
+  --primary:            #4C7FA8;   /* clear sky blue     */
+  --primary-foreground: #FFFFFF;
 
-  /* Secondary: faded envelope linen */
-  --secondary:          #E0D4BC;
-  --secondary-foreground: #1C1410;
+  --secondary:          #F3EFE7;
+  --secondary-foreground: #1E1B18;
 
-  /* Muted: worn canvas */
-  --muted:              #D8CEBC;
-  --muted-foreground:   #6B5F52;
+  --muted:              #EDE9E1;
+  --muted-foreground:   #7A7469;
 
-  /* Accent: sealing wax / stamp red */
-  --accent:             #8B3530;
-  --accent-foreground:  #FAF5EC;
+  --accent:             #C9663F;   /* warm terracotta    */
+  --accent-foreground:  #FFFFFF;
 
-  --destructive:        #A03020;
-  --destructive-foreground: #FAF5EC;
+  --destructive:        #C04040;
+  --destructive-foreground: #FFFFFF;
 
-  --border:             #B8A98C;   /* envelope fold crease    */
-  --input:              #C8BAA0;
-  --ring:               #2D4A3E;
+  --border:             #DDD8CE;
+  --input:              #DDD8CE;
+  --ring:               #4C7FA8;
 
-  /* ── Extended palette ── */
-  --accent-slate:       #3A5068;   /* postal blue-grey        */
-  --accent-ochre:       #A0722A;   /* postmark ochre          */
-  --accent-sienna:      #8B3530;   /* sealing wax             */
-  --accent-sage:        #4A6741;   /* field sage              */
-  --success:            #3A5C3A;   /* dark botanical green    */
-  --alert-red:          #A03020;
-  --text-primary:       #1C1410;
-  --text-secondary:     #6B5F52;
+  --success:            #4A8C5C;
+  --alert-red:          #C04040;
+  --text-primary:       #1E1B18;
+  --text-secondary:     #7A7469;
 
-  /* ── No gradients — flat postal colour only ── */
-  --gradient-brand:    #2D4A3E;   /* fallback flat            */
-  --gradient-purple:   #2D4A3E;
-  --gradient-warm:     #A0722A;
-  --gradient-cool:     #3A5068;
-  --gradient-success:  #3A5C3A;
+  /* kept for compat — single flat colour */
+  --gradient-brand:    #4C7FA8;
+  --gradient-purple:   #4C7FA8;
+  --gradient-warm:     #C9663F;
+  --gradient-cool:     #4C7FA8;
+  --gradient-success:  #4A8C5C;
 
-  /* ── Role colours — postal dispatch palette ── */
-  --role-admin:       #1C3040;   /* prussian despatch blue   */
-  --role-researcher:  var(--researcher-color, #2D4A3E);
-  --role-participant: #3B4A2E;   /* field notebook green     */
-  --role-supervisor:  #3A5068;   /* postal slate             */
+  /* role colours — distinct but soft */
+  --role-admin:       #3A5F8A;
+  --role-researcher:  var(--researcher-color, #4C7FA8);
+  --role-participant: #4A7A5C;
+  --role-supervisor:  #6A5A8A;
+  --researcher-color: #4C7FA8;
 
-  /* ── Researcher personalization ── */
-  --researcher-color: #2D4A3E;
+  /* accent aliases the old code still references */
+  --accent-orange:  #C9663F;
+  --accent-blue:    #4C7FA8;
+  --accent-yellow:  #C8963A;
+  --accent-pink:    #C06070;
 
-  /* ── Charts — muted postal tones ── */
-  --chart-1: #2D4A3E;   /* postal green  */
-  --chart-2: #3A5068;   /* slate blue    */
-  --chart-3: #8B3530;   /* sealing wax   */
-  --chart-4: #A0722A;   /* ochre         */
-  --chart-5: #4A6741;   /* field sage    */
+  --chart-1: #4C7FA8;
+  --chart-2: #C9663F;
+  --chart-3: #4A8C5C;
+  --chart-4: #C8963A;
+  --chart-5: #6A5A8A;
 
-  /* ── Shape — near-square, like old paper forms ── */
-  --radius: 0.125rem;   /* 2px           */
+  --radius: 0.5rem;   /* 8px — friendly, not boxy, not bubbly */
 
-  /* ── Sidebar ── */
-  --sidebar:                    #E8DFC8;
-  --sidebar-foreground:         #1C1410;
-  --sidebar-primary:            #2D4A3E;
-  --sidebar-primary-foreground: #F2E9D8;
-  --sidebar-accent:             #D8CEBC;
-  --sidebar-accent-foreground:  #1C1410;
-  --sidebar-border:             #B8A98C;
-  --sidebar-ring:               #2D4A3E;
+  --sidebar:                    #F5F1E8;
+  --sidebar-foreground:         #1E1B18;
+  --sidebar-primary:            #4C7FA8;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent:             #EDE9E1;
+  --sidebar-accent-foreground:  #1E1B18;
+  --sidebar-border:             #DDD8CE;
+  --sidebar-ring:               #4C7FA8;
   --sidebar-width:              240px;
 }
 
-/* ── Dark mode — night postal desk, typewriter under lamplight ── */
 .dark {
-  --background:         #1A1610;   /* oak desk surface        */
-  --foreground:         #E8DFC8;   /* lamplight parchment     */
-  --card:               #221E18;   /* dark envelope           */
-  --card-foreground:    #E8DFC8;
-  --popover:            #221E18;
-  --popover-foreground: #E8DFC8;
-  --primary:            #6B9E8A;   /* faded postal green      */
-  --primary-foreground: #1A1610;
-  --secondary:          #2C2820;
-  --secondary-foreground: #E8DFC8;
-  --muted:              #2C2820;
-  --muted-foreground:   #9A8E80;
-  --accent:             #C05548;   /* brighter sealing wax    */
-  --accent-foreground:  #1A1610;
-  --destructive:        #B84030;
-  --destructive-foreground: #E8DFC8;
-  --border:             #3A3228;
-  --input:              #3A3228;
-  --ring:               #6B9E8A;
-  --chart-1: #6B9E8A;
-  --chart-2: #7A9BB8;
-  --chart-3: #C05548;
-  --chart-4: #C09048;
-  --chart-5: #7A9E6A;
-  --sidebar:                    #221E18;
-  --sidebar-foreground:         #E8DFC8;
-  --sidebar-primary:            #6B9E8A;
-  --sidebar-primary-foreground: #1A1610;
-  --sidebar-accent:             #2C2820;
-  --sidebar-accent-foreground:  #E8DFC8;
-  --sidebar-border:             #3A3228;
-  --sidebar-ring:               #6B9E8A;
+  --background:         #1A1815;
+  --foreground:         #EDE9E1;
+  --card:               #222018;
+  --card-foreground:    #EDE9E1;
+  --popover:            #222018;
+  --popover-foreground: #EDE9E1;
+  --primary:            #6FA0C8;
+  --primary-foreground: #0E0D0B;
+  --secondary:          #2A2820;
+  --secondary-foreground: #EDE9E1;
+  --muted:              #2A2820;
+  --muted-foreground:   #9A9088;
+  --accent:             #D4784F;
+  --accent-foreground:  #0E0D0B;
+  --destructive:        #B84040;
+  --destructive-foreground: #EDE9E1;
+  --border:             #383428;
+  --input:              #383428;
+  --ring:               #6FA0C8;
+  --chart-1: #6FA0C8;
+  --chart-2: #D4784F;
+  --chart-3: #5EAA74;
+  --chart-4: #D4A84F;
+  --chart-5: #8A7AAA;
+  --sidebar:                    #222018;
+  --sidebar-foreground:         #EDE9E1;
+  --sidebar-primary:            #6FA0C8;
+  --sidebar-primary-foreground: #0E0D0B;
+  --sidebar-accent:             #2A2820;
+  --sidebar-accent-foreground:  #EDE9E1;
+  --sidebar-border:             #383428;
+  --sidebar-ring:               #6FA0C8;
 }
 
-/* ── Role body themes ── */
+/* role body themes */
 body.role-admin {
-  --sidebar:            #1C2830;
-  --sidebar-foreground: #E0D8C8;
-  --sidebar-primary:    #7A9EB8;
-  --sidebar-accent:     #242E38;
-  --sidebar-border:     #2C3840;
-  --role-accent:        #1C3040;
+  --sidebar:            #1E2A38;
+  --sidebar-foreground: #E0DCF0;
+  --sidebar-primary:    #6FA0C8;
+  --sidebar-accent:     #263445;
+  --sidebar-border:     #2E3E50;
+  --role-accent:        #3A5F8A;
 }
-
-body.role-supervisor {
-  --role-accent: #3A5068;
-}
-
+body.role-supervisor { --role-accent: #6A5A8A; }
 body.role-participant {
-  --primary:     #3B4A2E;
-  --ring:        #3B4A2E;
-  --role-accent: #3B4A2E;
+  --primary:    #4A7A5C;
+  --ring:       #4A7A5C;
+  --role-accent: #4A7A5C;
 }
 
-/* ── Tailwind theme bridge ── */
+/* ── Tailwind bridge ── */
 @theme inline {
   --font-sans:         var(--font-libre-baskerville), 'Libre Baskerville', Georgia, serif;
-  --font-serif:        var(--font-cormorant), 'Cormorant', 'Cormorant Garamond', Georgia, serif;
-  --font-mono:         'Courier New', 'Courier', monospace;
+  --font-serif:        var(--font-cormorant), 'Cormorant', Georgia, serif;
+  --font-mono:         'Courier New', monospace;
   --font-logo-crazy:   var(--font-cormorant), 'Cormorant', serif;
   --font-logo-sapiens: var(--font-caveat), 'Caveat', cursive;
 
-  --color-background:   var(--background);
-  --color-foreground:   var(--foreground);
-  --color-card:         var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover:      var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary:      var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary:    var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted:        var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent:       var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive:  var(--destructive);
+  --color-background:            var(--background);
+  --color-foreground:            var(--foreground);
+  --color-card:                  var(--card);
+  --color-card-foreground:       var(--card-foreground);
+  --color-popover:               var(--popover);
+  --color-popover-foreground:    var(--popover-foreground);
+  --color-primary:               var(--primary);
+  --color-primary-foreground:    var(--primary-foreground);
+  --color-secondary:             var(--secondary);
+  --color-secondary-foreground:  var(--secondary-foreground);
+  --color-muted:                 var(--muted);
+  --color-muted-foreground:      var(--muted-foreground);
+  --color-accent:                var(--accent);
+  --color-accent-foreground:     var(--accent-foreground);
+  --color-destructive:           var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-border:       var(--border);
-  --color-input:        var(--input);
-  --color-ring:         var(--ring);
-  --color-chart-1:      var(--chart-1);
-  --color-chart-2:      var(--chart-2);
-  --color-chart-3:      var(--chart-3);
-  --color-chart-4:      var(--chart-4);
-  --color-chart-5:      var(--chart-5);
+  --color-border:                var(--border);
+  --color-input:                 var(--input);
+  --color-ring:                  var(--ring);
+  --color-chart-1:               var(--chart-1);
+  --color-chart-2:               var(--chart-2);
+  --color-chart-3:               var(--chart-3);
+  --color-chart-4:               var(--chart-4);
+  --color-chart-5:               var(--chart-5);
 
   --color-researcher:       var(--researcher-color);
-  --color-accent-orange:    var(--accent-ochre);
-  --color-accent-blue:      var(--accent-slate);
-  --color-accent-yellow:    var(--accent-ochre);
-  --color-accent-pink:      var(--accent-sienna);
+  --color-accent-orange:    var(--accent-orange);
+  --color-accent-blue:      var(--accent-blue);
+  --color-accent-yellow:    var(--accent-yellow);
+  --color-accent-pink:      var(--accent-pink);
   --color-success:          var(--success);
   --color-alert-red:        var(--alert-red);
   --color-role-admin:       var(--role-admin);
   --color-role-participant: var(--role-participant);
   --color-role-supervisor:  var(--role-supervisor);
 
-  --radius-sm:  calc(var(--radius));
-  --radius-md:  calc(var(--radius));
+  --radius-sm:  calc(var(--radius) - 2px);
+  --radius-md:  var(--radius);
   --radius-lg:  calc(var(--radius) + 2px);
-  --radius-xl:  calc(var(--radius) + 2px);
-  --radius-2xl: calc(var(--radius) + 4px);
+  --radius-xl:  calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 10px);
 
   --color-sidebar:                    var(--sidebar);
   --color-sidebar-foreground:         var(--sidebar-foreground);
@@ -208,331 +191,201 @@ body.role-participant {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   BASE STYLES
+   BASE
    ═══════════════════════════════════════════════════════════════ */
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+  * { @apply border-border outline-ring/50; }
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: 'kern', 'liga', 'onum';
+    font-feature-settings: 'kern', 'liga';
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
   }
 
-  /* Minimal scrollbar — like a ruler edge */
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 0;
-  }
-  ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
-
-  /* Focus ring — clean single line */
-  :focus-visible {
-    outline: 1px solid var(--ring);
-    outline-offset: 2px;
-    border-radius: 0;
-  }
-
-  /* Selection — ink wash */
-  ::selection {
-    background: color-mix(in srgb, var(--primary) 18%, transparent);
-    color: var(--foreground);
-  }
-
-  /* Headings inherit serif by default */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-serif);
     font-weight: 400;
     letter-spacing: -0.01em;
   }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 20%, transparent);
+    color: var(--foreground);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   TYPOGRAPHY
+   TYPOGRAPHY HELPERS
    ═══════════════════════════════════════════════════════════════ */
-
-/* Display — for large titles, hero headings */
 .display-heading {
   font-family: var(--font-serif);
   font-weight: 300;
   letter-spacing: -0.02em;
-  line-height: 1.05;
+  line-height: 1.1;
 }
 
-/* Section label — spaced caps, like old form field labels */
 .section-label {
   font-size: 0.625rem;
-  font-weight: 400;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  font-family: var(--font-sans);
-}
-
-/* Postmark text — tracking, all caps, for stamps / badges */
-.postmark {
-  font-family: var(--font-sans);
-  font-size: 0.6rem;
-  letter-spacing: 0.22em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted-foreground);
 }
 
-/* Telegram — monospaced, like old typewriter copy */
-.telegram {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  letter-spacing: 0.04em;
-}
-
 /* ═══════════════════════════════════════════════════════════════
-   SURFACE UTILITIES
+   COLOUR / SURFACE HELPERS
    ═══════════════════════════════════════════════════════════════ */
-
-/* Paper — base surface, slight texture suggestion via shadow */
-.paper {
-  background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: 1px 1px 0 rgba(0,0,0,0.04), 2px 2px 0 rgba(0,0,0,0.02);
-}
-
-/* Parchment — the aged background surface */
-.parchment {
-  background: var(--background);
-  border: 1px solid var(--border);
-}
-
-/* Envelope — folded edge effect via double border */
-.envelope {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-bottom: 2px solid var(--border);
-  box-shadow: 0 1px 0 rgba(0,0,0,0.06);
-}
-
-/* Stamp border — dashed, like a perforated stamp */
-.stamp-border {
-  border: 1px dashed var(--border);
-  padding: 0.75rem;
-}
-
-/* Ruled line — like lined paper */
-.ruled {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent,
-    transparent calc(1.75rem - 1px),
-    var(--border) calc(1.75rem - 1px),
-    var(--border) 1.75rem
-  );
-}
-
-/* Ledger grid — for data tables and forms */
-.ledger-grid {
-  background-image:
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
-  background-size: 1rem 1rem;
-  opacity: 0.3;
-}
-
-/* Inset — sunken form field look */
-.inset-field {
-  background: color-mix(in srgb, var(--background) 80%, var(--muted));
-  border: 1px solid var(--border);
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   PREVIOUSLY GRADIENT-BASED — NOW FLAT POSTAL
-   ═══════════════════════════════════════════════════════════════ */
-
-/* Was gradient text — now just primary colour */
-.gradient-text {
-  color: var(--primary);
-}
-
-.gradient-text-purple {
-  color: var(--primary);
-}
-
-/* Was glass — now clean paper */
-.glass {
-  background: color-mix(in srgb, var(--card) 95%, transparent);
-  border: 1px solid var(--border);
-}
-
-.glass-dark {
-  background: color-mix(in srgb, var(--background) 90%, black);
-  border: 1px solid var(--border);
-}
-
-/* Was dot-grid — now fine dot ledger */
+.gradient-text        { color: var(--primary); }
+.gradient-text-purple { color: var(--primary); }
+.glass      { background: color-mix(in srgb, var(--card) 92%, transparent); border: 1px solid var(--border); }
+.glass-dark { background: color-mix(in srgb, var(--background) 88%, black); border: 1px solid var(--border); }
 .dot-grid {
   background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
-  background-size: 20px 20px;
-  opacity: 0.5;
+  background-size: 22px 22px;
 }
-
-/* Was stripe pattern — now hairline rule */
 .stripe-pattern {
   background-image: repeating-linear-gradient(
-    -45deg,
-    transparent,
-    transparent 6px,
-    color-mix(in srgb, var(--border) 40%, transparent) 6px,
-    color-mix(in srgb, var(--border) 40%, transparent) 7px
+    -45deg, transparent, transparent 5px,
+    color-mix(in srgb, var(--border) 35%, transparent) 5px,
+    color-mix(in srgb, var(--border) 35%, transparent) 6px
   );
 }
-
-/* Was gradient border — now plain 1px rule */
-.gradient-border {
-  border: 1px solid var(--border);
-}
+.gradient-border { border: 1px solid var(--border); }
 .gradient-border::before { display: none; }
-
-/* Was glows — removed entirely */
 .glow-purple { box-shadow: none; }
 .glow-orange  { box-shadow: none; }
 
 /* ═══════════════════════════════════════════════════════════════
-   ANIMATIONS — Slower, considered, analogue feel
+   ANIMATIONS
    ═══════════════════════════════════════════════════════════════ */
-
-@keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-2deg); }
+  50%       { transform: rotate(2deg); }
 }
-
-@keyframes slide-up {
-  from { transform: translateY(6px); opacity: 0; }
-  to   { transform: translateY(0);   opacity: 1; }
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
 }
-
-@keyframes stamp-in {
-  0%   { transform: scale(1.08) rotate(-1deg); opacity: 0; }
-  60%  { transform: scale(0.98) rotate(0.3deg); opacity: 1; }
-  100% { transform: scale(1) rotate(0deg); opacity: 1; }
-}
-
 @keyframes shimmer {
   0%   { background-position: -200% center; }
   100% { background-position:  200% center; }
 }
-
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@keyframes slide-up {
+  from { transform: translateY(6px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
 @keyframes count-up {
   from { transform: translateY(4px); opacity: 0; }
   to   { transform: translateY(0);   opacity: 1; }
 }
 
-@keyframes pulse-ring {
-  0%   { transform: scale(1);    opacity: 1; }
-  100% { transform: scale(1.4);  opacity: 0; }
-}
+.animate-wiggle   { animation: wiggle   0.4s ease-in-out infinite; }
+.animate-float    { animation: float    3s   ease-in-out infinite; }
+.animate-shimmer  { animation: shimmer  2s   linear      infinite; }
+.animate-slide-up { animation: slide-up 0.25s ease-out   both; }
+.animate-count-up { animation: count-up 0.3s  ease-out   both; }
 
-/* Remove wiggle & float — not vintage */
-.animate-wiggle   { animation: fade-in    0.3s ease-out both; }
-.animate-float    { animation: fade-in    0.4s ease-out both; }
-.animate-shimmer  { animation: shimmer   2.5s linear   infinite; }
-.animate-slide-up { animation: slide-up  0.25s ease-out both; }
-.animate-count-up { animation: count-up  0.35s ease-out both; }
-.animate-stamp-in { animation: stamp-in  0.35s ease-out both; }
-
-/* Shimmer skeleton — muted */
 .shimmer-bg {
   background: linear-gradient(
     90deg,
     var(--muted) 25%,
-    color-mix(in srgb, var(--muted) 50%, var(--card)) 50%,
+    color-mix(in srgb, var(--muted) 50%, white) 50%,
     var(--muted) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 2s infinite;
+  animation: shimmer 1.5s infinite;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SIDEBAR — ROLE THEMES  (flat, no gradients)
+   ROLE SIDEBAR HEADERS
    ═══════════════════════════════════════════════════════════════ */
 .sidebar-admin-header {
-  background: var(--role-admin, #1C3040);
-  color: #E0D8C8;
+  background: var(--role-admin, #3A5F8A);
+  color: #EDE9E1;
 }
 .sidebar-researcher-header {
-  background: var(--researcher-color, #2D4A3E);
-  color: var(--primary-foreground);
+  background: var(--researcher-color, #4C7FA8);
+  color: #FFFFFF;
 }
 .sidebar-supervisor-header {
-  background: var(--role-supervisor, #3A5068);
-  color: #E0D8C8;
+  background: var(--role-supervisor, #6A5A8A);
+  color: #EDE9E1;
 }
 
 /* ═══════════════════════════════════════════════════════════════
    PARTICIPANT PORTAL
    ═══════════════════════════════════════════════════════════════ */
 .participant-hero {
-  background: color-mix(in srgb, var(--role-participant, #3B4A2E) 8%, var(--background));
-  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--role-participant, #4A7A5C) 10%, var(--background));
 }
 
-/* Progress ring */
 .progress-ring-track { stroke: var(--muted); }
-.progress-ring-fill  {
+.progress-ring-fill {
   stroke: var(--success);
-  stroke-linecap: square;
-  transition: stroke-dashoffset 0.5s ease-out;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Task card */
-.task-card {
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
-}
+.task-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
 .task-card:hover {
-  box-shadow: 1px 2px 6px rgba(0,0,0,0.07);
-  border-color: var(--muted-foreground);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.07);
 }
 
 /* ═══════════════════════════════════════════════════════════════
    STAT CARDS
    ═══════════════════════════════════════════════════════════════ */
 .stat-card-researcher {
-  background: color-mix(in srgb, var(--researcher-color) 6%, var(--card));
-  border-color: color-mix(in srgb, var(--researcher-color) 18%, var(--border));
+  background: color-mix(in srgb, var(--researcher-color) 8%, white);
+  border-color: color-mix(in srgb, var(--researcher-color) 20%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════════
    ADMIN HEADER
    ═══════════════════════════════════════════════════════════════ */
 .admin-header {
-  background: var(--role-admin, #1C3040);
-  color: #E0D8C8;
+  background: var(--role-admin, #3A5F8A);
+  color: #EDE9E1;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   CARD HOVER — no lift, just border emphasis
+   CARD HOVER
    ═══════════════════════════════════════════════════════════════ */
-.card-hover {
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
+.card-hover { transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
 .card-hover:hover {
-  border-color: var(--muted-foreground);
-  box-shadow: 1px 1px 0 rgba(0,0,0,0.05), 2px 2px 0 rgba(0,0,0,0.03);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ONBOARDING CHECKLIST
+   ONBOARDING
    ═══════════════════════════════════════════════════════════════ */
 .onboarding-step-done {
-  background: color-mix(in srgb, var(--success) 8%, var(--card));
-  border-color: color-mix(in srgb, var(--success) 25%, var(--border));
+  background: color-mix(in srgb, var(--success) 10%, white);
+  border-color: color-mix(in srgb, var(--success) 28%, transparent);
 }
 .onboarding-step-active {
-  background: color-mix(in srgb, var(--primary) 6%, var(--card));
-  border-color: color-mix(in srgb, var(--primary) 25%, var(--border));
+  background: color-mix(in srgb, var(--primary) 8%, white);
+  border-color: color-mix(in srgb, var(--primary) 28%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -542,64 +395,31 @@ body.role-participant {
   position: absolute;
   top: -4px;
   right: -4px;
-  min-width: 15px;
-  height: 15px;
+  min-width: 16px;
+  height: 16px;
   background: var(--alert-red);
-  color: #FAF5EC;
-  border-radius: 0;
-  font-size: 8px;
+  color: white;
+  border-radius: 99px;
+  font-size: 9px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 3px;
-  border: 1px solid var(--sidebar);
-  letter-spacing: 0.04em;
+  border: 2px solid var(--sidebar);
+  animation: pulse-ring 2s ease infinite;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INSTRUMENT TYPE COLOURS — postal dispatch categories
+   INSTRUMENT COLOURS
    ═══════════════════════════════════════════════════════════════ */
-.instr-questionnaire { --instr-color: #3A5068; }   /* postal blue  */
-.instr-iat           { --instr-color: #8B3530; }   /* sealing wax  */
-.instr-sociogram     { --instr-color: #4A6741; }   /* field sage   */
+.instr-questionnaire { --instr-color: #4C7FA8; }
+.instr-iat           { --instr-color: #C9663F; }
+.instr-sociogram     { --instr-color: #4A8C5C; }
 
 /* ═══════════════════════════════════════════════════════════════
-   MISC UTILITIES
+   MISC
    ═══════════════════════════════════════════════════════════════ */
-.no-select { user-select: none; }
-
-.truncate-hover {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+.no-select    { user-select: none; }
+.truncate-hover { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabular-nums { font-variant-numeric: tabular-nums; }
-
-/* Hairline rule — like a typed form underline */
-.hairline {
-  border-bottom: 1px solid var(--border);
-}
-
-/* Redaction bar — for sensitive data UI */
-.redacted {
-  background: var(--foreground);
-  color: transparent;
-  user-select: none;
-  border-radius: 0;
-}
-
-/* Wax seal circle utility */
-.wax-seal {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  background: var(--accent);
-  color: var(--accent-foreground);
-  border-radius: 50%;
-  font-family: var(--font-serif);
-  font-size: 0.9rem;
-}
