@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { FlaskConical, CheckCircle, AlertCircle } from 'lucide-react'
+import { FlaskConical, CheckCircle, AlertCircle, Clock, ListChecks, ShieldCheck, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default async function JoinStudyPage({
@@ -106,56 +106,128 @@ export default async function JoinStudyPage({
     )
   }
 
-  // Auto-enrol the participant
-  const { error: enrollError } = await supabase
-    .from('study_enrollments')
-    .insert({
-      study_id: studyId,
-      participant_id: user.id,
-      status: 'active',
-      enrolled_at: new Date().toISOString(),
-    })
+  // ── "What to expect" — count the study's instruments and estimate time ──────
+  const [{ data: qs }, { count: socCount }, { count: iatCount }] = await Promise.all([
+    supabase.from('questionnaire_instruments')
+      .select('estimated_duration_minutes')
+      .eq('study_id', studyId).eq('status', 'active'),
+    supabase.from('sociogram_instruments')
+      .select('*', { count: 'exact', head: true })
+      .eq('study_id', studyId).eq('status', 'active'),
+    supabase.from('iat_instruments')
+      .select('*', { count: 'exact', head: true })
+      .eq('study_id', studyId),
+  ])
 
-  if (enrollError) {
-    return (
-      <div className="max-w-md mx-auto px-6 py-20 text-center">
-        <AlertCircle className="w-10 h-10 mx-auto mb-4 text-destructive" />
-        <h1 className="font-serif text-xl mb-2">Enrolment failed</h1>
-        <p className="text-sm text-muted-foreground mb-2">
-          {enrollError.message}
-        </p>
-        <p className="text-sm text-muted-foreground mb-6">
-          Please contact your researcher.
-        </p>
-        <Button asChild variant="outline">
-          <Link href="/participant/dashboard">Go to dashboard</Link>
-        </Button>
-      </div>
-    )
+  const qCount = qs?.length ?? 0
+  const socN = socCount ?? 0
+  const iatN = iatCount ?? 0
+  const totalTasks = qCount + socN + iatN
+
+  // Estimate total minutes: questionnaire durations (default 5 each) + soc (~3) + iat (~5)
+  const qMinutes = (qs ?? []).reduce((sum, q: any) => sum + (q.estimated_duration_minutes ?? 5), 0)
+  const estMinutes = qMinutes + socN * 3 + iatN * 5
+
+  // Server action: enrol only when the participant explicitly confirms.
+  async function joinStudy() {
+    'use server'
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) redirect(`/login?redirect=/participant/join/${studyId}`)
+    await supabase
+      .from('study_enrollments')
+      .insert({
+        study_id: studyId,
+        participant_id: user.id,
+        status: 'active',
+        enrolled_at: new Date().toISOString(),
+      })
+    redirect('/participant/dashboard')
   }
 
   return (
-    <div className="max-w-md mx-auto px-6 py-20 text-center">
-      <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-        <CheckCircle className="w-7 h-7 text-primary" />
+    <div className="max-w-md mx-auto px-6 py-12">
+      {/* Study header */}
+      <div className="text-center mb-8">
+        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+          <FlaskConical className="w-7 h-7 text-primary" />
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">You&rsquo;re invited to join</p>
+        <h1 className="font-serif text-2xl text-foreground mb-3">{study.title}</h1>
+        {study.description && (
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {study.description}
+          </p>
+        )}
       </div>
-      <h1 className="font-serif text-2xl mb-2">You&rsquo;re enrolled</h1>
-      <div className="flex items-center justify-center gap-2 mb-4">
-        <FlaskConical className="w-4 h-4 text-muted-foreground" />
-        <p className="text-base font-medium text-foreground">{study.title}</p>
+
+      {/* What to expect */}
+      <div className="rounded-2xl border border-border bg-card p-5 mb-5">
+        <h2 className="font-serif text-base font-semibold text-foreground mb-4">What to expect</h2>
+        <ul className="space-y-4">
+          <li className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <ListChecks className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {totalTasks > 0 ? `${totalTasks} task${totalTasks > 1 ? 's' : ''} to complete` : 'Tasks added by your researcher'}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {totalTasks > 0
+                  ? [qCount && `${qCount} questionnaire${qCount > 1 ? 's' : ''}`, socN && `${socN} peer nomination${socN > 1 ? 's' : ''}`, iatN && `${iatN} reaction task${iatN > 1 ? 's' : ''}`].filter(Boolean).join(' · ')
+                  : 'Your researcher may add tasks over time.'}
+              </p>
+            </div>
+          </li>
+          {estMinutes > 0 && (
+            <li className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #D06828 12%, var(--card))' }}>
+                <Clock className="w-4 h-4" style={{ color: '#D06828' }} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">About {estMinutes} minute{estMinutes > 1 ? 's' : ''} in total</p>
+                <p className="text-sm text-muted-foreground">You can pause and finish later — your progress is saved.</p>
+              </div>
+            </li>
+          )}
+          <li className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #6845A5 12%, var(--card))' }}>
+              <ShieldCheck className="w-4 h-4" style={{ color: '#6845A5' }} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Your data is kept secure</p>
+              <p className="text-sm text-muted-foreground">Responses are stored securely and used only for research.</p>
+            </div>
+          </li>
+          <li className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #4A7A40 12%, var(--card))' }}>
+              <LogOut className="w-4 h-4" style={{ color: '#4A7A40' }} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">You can withdraw anytime</p>
+              <p className="text-sm text-muted-foreground">Leave from your dashboard whenever you like — your data is deleted on request.</p>
+            </div>
+          </li>
+        </ul>
       </div>
-      {study.description && (
-        <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-          {study.description}
-        </p>
-      )}
-      <p className="text-sm text-muted-foreground mb-8">
-        Your researcher has added you to this study. Head to your dashboard to see
-        your instruments and get started.
+
+      <p className="text-xs text-muted-foreground text-center mb-5 leading-relaxed">
+        Before your first task you&rsquo;ll be asked to review and give informed consent.
       </p>
-      <Button asChild size="lg" className="w-full">
-        <Link href="/participant/dashboard">Go to my dashboard</Link>
-      </Button>
+
+      {/* Join action */}
+      <form action={joinStudy}>
+        <Button type="submit" size="lg" className="w-full gap-2">
+          <CheckCircle className="w-4 h-4" />
+          Join this study
+        </Button>
+      </form>
+      <div className="text-center mt-3">
+        <Link href="/participant/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          Not now
+        </Link>
+      </div>
     </div>
   )
 }

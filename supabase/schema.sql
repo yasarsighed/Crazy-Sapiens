@@ -186,6 +186,8 @@ CREATE TABLE IF NOT EXISTS public.questionnaire_instruments (
   clinical_alert_threshold  INTEGER,
   estimated_duration_minutes INTEGER,
   auto_score                BOOLEAN NOT NULL DEFAULT FALSE,
+  show_score_to_participant    BOOLEAN NOT NULL DEFAULT FALSE,
+  show_feedback_to_participant BOOLEAN NOT NULL DEFAULT FALSE,
   status                    TEXT NOT NULL DEFAULT 'active',
   created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at                TIMESTAMPTZ

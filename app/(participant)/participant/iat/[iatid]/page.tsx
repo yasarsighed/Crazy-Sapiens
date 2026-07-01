@@ -263,6 +263,7 @@ export default function IATPage() {
   const [blockDefs,     setBlockDefs]     = useState<BlockDef[]>([])
   const [saveError,     setSaveError]     = useState<string | null>(null)
   const [retrying,      setRetrying]      = useState(false)
+  const [isTouchDevice, setIsTouchDevice] = useState(false)
   const orderBRef   = useRef(false)
   const iatCfgRef   = useRef<IATTypeConfig | null>(null)
 
@@ -318,7 +319,7 @@ export default function IATPage() {
       }
 
       const isTouchOnly = window.matchMedia('(hover: none) and (pointer: coarse)').matches
-      if (isTouchOnly) { setPhase('mobile_warning'); return }
+      setIsTouchDevice(isTouchOnly)
 
       // Completion check: iat_session_results is the canonical completion marker
       const { data: existing } = await supabase
@@ -337,7 +338,8 @@ export default function IATPage() {
       const generated = generateTrials(defs)
       setTrials(generated)
       trialsRef.current = generated
-      setPhase('intro')
+      // Touch devices see a recommendation first, but can continue with tap controls.
+      setPhase(isTouchOnly ? 'mobile_warning' : 'intro')
     }
     load()
   }, [iatid])
@@ -422,31 +424,39 @@ export default function IATPage() {
     }, 400)
   }
 
+  // ─ Shared response handler (keyboard OR touch) ────────────────────────────
+  // Records the trial's reaction time and correctness, then advances. Reaction
+  // time is measured identically for key presses and taps; touch RT is slightly
+  // noisier but the 300 ms fast-response exclusion and D2 scoring still apply.
+  function submitResponse(responseKey: ResponseKey) {
+    if (phaseRef.current !== 'stimulus') return
+    if (respondedRef.current) return
+    respondedRef.current = true
+
+    const rt        = Math.round(performance.now() - trialStartRef.current)
+    const trial     = trialsRef.current[trialIndexRef.current]
+    const isCorrect = responseKey === trial.correctKey
+
+    responsesRef.current.push({ ...trial, responseKey, rt, isCorrect })
+    setBlockTotal(t => t + 1)
+    if (!isCorrect) setBlockErrors(c => c + 1)
+
+    if (isCorrect) {
+      setTimeout(() => goToTrial(trialIndexRef.current + 1), 150)
+    } else {
+      setShowError(true); setPhase('error_feedback'); phaseRef.current = 'error_feedback'
+      setTimeout(() => { setShowError(false); goToTrial(trialIndexRef.current + 1) }, 800)
+    }
+  }
+
   // ─ Keyboard handler ───────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (phaseRef.current !== 'stimulus') return
       const k = e.key.toLowerCase()
       if (k !== 'e' && k !== 'i') return
-      if (respondedRef.current) return
       e.preventDefault()
-      respondedRef.current = true
-
-      const rt          = Math.round(performance.now() - trialStartRef.current)
-      const responseKey = k as ResponseKey
-      const trial       = trialsRef.current[trialIndexRef.current]
-      const isCorrect   = responseKey === trial.correctKey
-
-      responsesRef.current.push({ ...trial, responseKey, rt, isCorrect })
-      setBlockTotal(t => t + 1)
-      if (!isCorrect) setBlockErrors(c => c + 1)
-
-      if (isCorrect) {
-        setTimeout(() => goToTrial(trialIndexRef.current + 1), 150)
-      } else {
-        setShowError(true); setPhase('error_feedback'); phaseRef.current = 'error_feedback'
-        setTimeout(() => { setShowError(false); goToTrial(trialIndexRef.current + 1) }, 800)
-      }
+      submitResponse(k as ResponseKey)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -477,12 +487,15 @@ export default function IATPage() {
         studyId={studyId}
         consentText={consentText}
         onConsent={() => {
-          if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) { setPhase('mobile_warning'); return }
-          const defs = buildBlockDefs(cfg, orderB)
+          const isTouchOnly = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+          setIsTouchDevice(isTouchOnly)
+          const assignedOrderB = Math.random() < 0.5
+          setOrderB(assignedOrderB); orderBRef.current = assignedOrderB
+          const defs = buildBlockDefs(cfg, assignedOrderB)
           setBlockDefs(defs)
           const generated = generateTrials(defs)
           setTrials(generated); trialsRef.current = generated
-          setPhase('intro')
+          setPhase(isTouchOnly ? 'mobile_warning' : 'intro')
         }}
       />
     )
@@ -492,15 +505,25 @@ export default function IATPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-6">
         <div className="max-w-md w-full text-center">
-          <p className="text-4xl mb-4">📱</p>
-          <h1 className="font-serif text-2xl text-foreground mb-3">Physical keyboard required</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-            The IAT requires fast, accurate key presses using{' '}
+          <p className="text-4xl mb-4">💻</p>
+          <h1 className="font-serif text-2xl text-foreground mb-3">A computer is recommended</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+            This task measures reaction times. On a laptop or desktop you respond with the{' '}
             <kbd className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">E</kbd> and{' '}
-            <kbd className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">I</kbd> keys.
-            Touch-screen input cannot capture precise reaction times. Please return on a laptop or desktop.
+            <kbd className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">I</kbd> keys, which
+            capture timing most accurately.
           </p>
-          <Button variant="outline" onClick={() => router.push('/participant/dashboard')}>Back to dashboard</Button>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+            You can also continue here on your phone using large <strong>Left</strong> and{' '}
+            <strong>Right</strong> tap buttons. Just keep your device steady and respond as quickly
+            and accurately as you can.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => setPhase('intro')}>Continue on this device</Button>
+            <Button variant="outline" onClick={() => router.push('/participant/dashboard')}>
+              I&apos;ll come back on a computer
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -549,21 +572,25 @@ export default function IATPage() {
 
               <div className="grid grid-cols-2 gap-3 my-6">
                 <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
-                  <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-2">E key (left)</p>
+                  <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-2">{isTouchDevice ? 'Tap left' : 'E key (left)'}</p>
                   <p className="text-white font-bold text-sm leading-snug">{introBlockDef.leftLabel}</p>
                 </div>
                 <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
-                  <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-2">I key (right)</p>
+                  <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-2">{isTouchDevice ? 'Tap right' : 'I key (right)'}</p>
                   <p className="text-white font-bold text-sm leading-snug">{introBlockDef.rightLabel}</p>
                 </div>
               </div>
 
               <p className="text-gray-400 text-sm mb-6">
-                Press{' '}
-                <kbd className="bg-gray-700 px-2 py-0.5 rounded text-white text-xs font-mono">E</kbd>
-                {' '}or{' '}
-                <kbd className="bg-gray-700 px-2 py-0.5 rounded text-white text-xs font-mono">I</kbd>
-                {' '}as quickly and accurately as possible. A red ✕ means wrong key — correct it and keep going.
+                {isTouchDevice ? (
+                  <>Tap the <strong className="text-white">Left</strong> or <strong className="text-white">Right</strong> button as quickly and accurately as possible. A red ✕ means wrong side — correct it and keep going.</>
+                ) : (
+                  <>Press{' '}
+                  <kbd className="bg-gray-700 px-2 py-0.5 rounded text-white text-xs font-mono">E</kbd>
+                  {' '}or{' '}
+                  <kbd className="bg-gray-700 px-2 py-0.5 rounded text-white text-xs font-mono">I</kbd>
+                  {' '}as quickly and accurately as possible. A red ✕ means wrong key — correct it and keep going.</>
+                )}
               </p>
 
               <button
@@ -580,11 +607,11 @@ export default function IATPage() {
           <>
             <div className="flex justify-between px-8 pt-6 pb-3 shrink-0">
               <div>
-                <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-1">E key</p>
+                <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-1">{isTouchDevice ? 'Left' : 'E key'}</p>
                 <p className="text-white font-bold text-base leading-snug max-w-[200px]">{currentBlock.leftLabel}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-1">I key</p>
+                <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-1">{isTouchDevice ? 'Right' : 'I key'}</p>
                 <p className="text-white font-bold text-base leading-snug max-w-[200px]">{currentBlock.rightLabel}</p>
               </div>
             </div>
@@ -602,6 +629,29 @@ export default function IATPage() {
                 </div>
               )}
             </div>
+
+            {/* Touch response controls — shown on touch devices so phone/tablet
+                participants can respond without a physical keyboard. */}
+            {isTouchDevice && (
+              <div className="flex gap-3 px-5 pb-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => submitResponse('e')}
+                  className="flex-1 py-6 rounded-2xl bg-gray-800 border border-gray-700 text-white font-bold text-sm leading-tight active:bg-gray-600 transition-colors"
+                >
+                  <span className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Tap Left</span>
+                  {currentBlock.leftLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => submitResponse('i')}
+                  className="flex-1 py-6 rounded-2xl bg-gray-800 border border-gray-700 text-white font-bold text-sm leading-tight active:bg-gray-600 transition-colors"
+                >
+                  <span className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Tap Right</span>
+                  {currentBlock.rightLabel}
+                </button>
+              </div>
+            )}
 
             <div className="flex justify-between items-center px-8 pb-4 shrink-0">
               <p className="text-gray-700 text-xs">Block {currentTrial?.blockNum} / {blockDefs.length}{currentBlock.isScored ? ' ★' : ''}</p>
@@ -632,9 +682,11 @@ export default function IATPage() {
             <ol className="space-y-2.5 text-sm text-muted-foreground">
               {[
                 'Words appear one at a time on a dark screen.',
-                <>Press <kbd className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">E</kbd> for categories on the <strong>left</strong>, <kbd className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono ml-1">I</kbd> for the <strong>right</strong>.</>,
+                isTouchDevice
+                  ? <>Tap the <strong>Left</strong> button for categories on the left, and the <strong>Right</strong> button for the right.</>
+                  : <>Press <kbd className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">E</kbd> for categories on the <strong>left</strong>, <kbd className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono ml-1">I</kbd> for the <strong>right</strong>.</>,
                 'Go as fast as you can while still being accurate.',
-                'A red ✕ means wrong key — correct it and keep going straight away.',
+                isTouchDevice ? 'A red ✕ means wrong side — correct it and keep going straight away.' : 'A red ✕ means wrong key — correct it and keep going straight away.',
                 <>There are <strong>7 blocks</strong> total (~{cfg.estimatedMinutes} minutes). Blocks 1 and 2 are practice — no results collected.</>,
                 'Complete in one sitting without interruption for valid results.',
               ].map((step, i) => (
