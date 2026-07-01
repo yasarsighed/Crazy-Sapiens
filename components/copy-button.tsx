@@ -42,7 +42,7 @@ export function CopyButton({ text, label, className, size = 'sm', tooltip = 'Cop
       onClick={handleCopy}
       className={cn(
         'gap-1.5 transition-all duration-150',
-        copied && 'border-emerald-300 bg-emerald-50 text-emerald-700',
+        copied && 'border-[#4A7A40]/40 bg-[#4A7A40]/10 text-[#4A7A40]',
         className
       )}
     >

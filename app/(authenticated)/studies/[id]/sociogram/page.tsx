@@ -669,7 +669,7 @@ export default function SociogramResultsPage() {
         {/* Status */}
         <div className="absolute top-3 left-3 flex items-center gap-2 pointer-events-none">
           <div className="flex items-center gap-1.5 bg-card/90 backdrop-blur-md border border-border rounded-xl px-3 py-1.5 shadow-sm">
-            <span className={`w-1.5 h-1.5 rounded-full ${settled?'bg-emerald-500':'bg-amber-400 animate-pulse'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${settled?'':'animate-pulse'}`} style={{ background: settled ? '#4A7A40' : '#D06828' }} />
             <span className="text-[11px] font-medium text-muted-foreground">{settled?'Layout ready':'Computing…'}</span>
           </div>
           {focusNode !== null && vizData && (

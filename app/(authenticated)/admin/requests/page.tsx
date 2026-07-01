@@ -145,7 +145,7 @@ function RequestCard({
                 size="sm"
                 onClick={() => review('approve')}
                 disabled={submitting !== null}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="text-white hover:opacity-90 bg-[#4A7A40]"
               >
                 <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
                 {submitting === 'approve' ? 'Approving…' : 'Approve'}

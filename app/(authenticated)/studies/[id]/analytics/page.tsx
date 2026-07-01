@@ -218,13 +218,13 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
             <TabsTrigger value="questionnaires" className="gap-1.5 text-xs">
               <ClipboardList className="w-3.5 h-3.5" /> Questionnaires
               {qStats.length > 0 && (
-                <span className="ml-1 text-[10px] bg-sky-100 text-sky-700 rounded-full px-1.5 py-px font-bold">{qStats.length}</span>
+                <span className="ml-1 text-[10px] rounded-full px-1.5 py-px font-bold" style={{ color: '#6845A5', background: 'color-mix(in srgb, #6845A5 15%, var(--card))' }}>{qStats.length}</span>
               )}
             </TabsTrigger>
             <TabsTrigger value="iat" className="gap-1.5 text-xs">
               <Timer className="w-3.5 h-3.5" /> IAT
               {iatStats.length > 0 && (
-                <span className="ml-1 text-[10px] bg-amber-100 text-amber-700 rounded-full px-1.5 py-px font-bold">{iatStats.length}</span>
+                <span className="ml-1 text-[10px] rounded-full px-1.5 py-px font-bold" style={{ color: '#A81010', background: 'color-mix(in srgb, #A81010 15%, var(--card))' }}>{iatStats.length}</span>
               )}
             </TabsTrigger>
           </TabsList>

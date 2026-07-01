@@ -110,7 +110,7 @@ export function OnboardingChecklist() {
                   aria-label={done ? 'Mark incomplete' : 'Mark complete'}
                 >
                   {done
-                    ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    ? <CheckCircle2 className="w-4 h-4" style={{ color: '#4A7A40' }} />
                     : <Circle className="w-4 h-4 text-muted-foreground/50 hover:text-primary transition-colors" />
                   }
                 </button>

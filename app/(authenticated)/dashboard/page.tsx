@@ -27,8 +27,11 @@ const GREETINGS = [
 ]
 
 function getGreeting(name: string): string {
-  const hour = new Date().getHours()
-  const greetIdx = Math.floor(Math.random() * GREETINGS.length)
+  const now = new Date()
+  const hour = now.getHours()
+  // Stable per-day pick so the greeting doesn't reshuffle on every navigation.
+  const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000)
+  const greetIdx = dayOfYear % GREETINGS.length
   const base = GREETINGS[greetIdx](name)
   if (hour < 5  || hour >= 17) return base.replace("Science o'clock", "Evening science")
   if (hour >= 12) return base.replace("Science o'clock", "Afternoon science")
@@ -70,17 +73,48 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
   const isAdmin = profile?.role === 'admin'
 
-  // Studies
-  let studiesQ = supabase.from('studies').select('*').order('created_at', { ascending: false }).limit(6)
-  if (!isAdmin) studiesQ = studiesQ.eq('created_by', user.id)
-  const { data: studies } = await studiesQ
+  // ── Phase 1: everything scoped by role/user (independent of study ids) ──
+  // Build role-conditional query filters up front, then fire them all together.
+  const studiesQ = isAdmin
+    ? supabase.from('studies').select('*').order('created_at', { ascending: false }).limit(6)
+    : supabase.from('studies').select('*').eq('created_by', user.id).order('created_at', { ascending: false }).limit(6)
+  const activeStudiesQ = isAdmin
+    ? supabase.from('studies').select('*', { count: 'exact', head: true }).eq('status', 'active')
+    : supabase.from('studies').select('*', { count: 'exact', head: true }).eq('status', 'active').eq('created_by', user.id)
+  const recentActivityQ = isAdmin
+    ? supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(10)
+    : supabase.from('activity_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10)
+
+  const [
+    { data: studies },
+    { count: activeStudiesCount },
+    { data: clinicalAlerts },
+    { count: alertsCount },
+    { data: recentActivity },
+    { data: peers },
+  ] = await Promise.all([
+    studiesQ,
+    activeStudiesQ,
+    supabase.from('clinical_alerts_log').select('*').eq('acknowledged', false).order('created_at', { ascending: false }).limit(5),
+    supabase.from('clinical_alerts_log').select('*', { count: 'exact', head: true }).eq('acknowledged', false),
+    recentActivityQ,
+    supabase.from('profiles').select('id,full_name,researcher_color,role').in('role', ['researcher','supervisor']).neq('id', user.id).limit(6),
+  ])
+
   const studyIds = studies?.map(s => s.id) || []
 
-  // Instruments
-  const [{ data: qInstrs }, { data: socInstrs }, { data: iatInstrs }] = await Promise.all([
-    studyIds.length ? supabase.from('questionnaire_instruments').select('id,study_id').in('study_id', studyIds) : { data: [] as { id:string;study_id:string }[] },
-    studyIds.length ? supabase.from('sociogram_instruments').select('id,study_id').in('study_id', studyIds)     : { data: [] as { id:string;study_id:string }[] },
-    studyIds.length ? supabase.from('iat_instruments').select('id,study_id').in('study_id', studyIds)           : { data: [] as { id:string;study_id:string }[] },
+  // ── Phase 2: study-scoped instruments + participant count (need studyIds) ──
+  const empty = Promise.resolve({ data: [] as { id: string; study_id: string }[] })
+  const [
+    { data: qInstrs },
+    { data: socInstrs },
+    { data: iatInstrs },
+    { count: totalParticipants },
+  ] = await Promise.all([
+    studyIds.length ? supabase.from('questionnaire_instruments').select('id,study_id').in('study_id', studyIds) : empty,
+    studyIds.length ? supabase.from('sociogram_instruments').select('id,study_id').in('study_id', studyIds)     : empty,
+    studyIds.length ? supabase.from('iat_instruments').select('id,study_id').in('study_id', studyIds)           : empty,
+    studyIds.length ? supabase.from('study_enrollments').select('*', { count: 'exact', head: true }).in('study_id', studyIds) : Promise.resolve({ count: 0 }),
   ])
 
   const instrumentsByStudy: Record<string, Array<{ type: 'questionnaire'|'iat'|'sociogram' }>> = {}
@@ -88,35 +122,11 @@ export default async function DashboardPage() {
   for (const i of (socInstrs || [])) { (instrumentsByStudy[i.study_id] ??= []).push({ type: 'sociogram'     }) }
   for (const i of (iatInstrs || [])) { (instrumentsByStudy[i.study_id] ??= []).push({ type: 'iat'           }) }
 
-  // Alerts
-  const { data: clinicalAlerts } = await supabase
-    .from('clinical_alerts_log').select('*').eq('acknowledged', false)
-    .order('created_at', { ascending: false }).limit(5)
-
-  // Stats
-  let activeQ = supabase.from('studies').select('*', { count: 'exact', head: true }).eq('status', 'active')
-  if (!isAdmin) activeQ = activeQ.eq('created_by', user.id)
-  const { count: activeStudiesCount } = await activeQ
-
-  const { count: totalParticipants } = studyIds.length
-    ? await supabase.from('study_enrollments').select('*', { count: 'exact', head: true }).in('study_id', studyIds)
-    : { count: 0 }
-
+  // ── Phase 3: completed responses (needs questionnaire ids from phase 2) ──
   const qIds = (qInstrs || []).map(q => q.id)
   const { count: responsesCount } = qIds.length
     ? await supabase.from('questionnaire_scored_results').select('*', { count: 'exact', head: true }).in('questionnaire_id', qIds).eq('is_complete', true)
     : { count: 0 }
-
-  const { count: alertsCount } = await supabase.from('clinical_alerts_log')
-    .select('*', { count: 'exact', head: true }).eq('acknowledged', false)
-
-  // Activity
-  const activityQ = supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(10)
-  const { data: recentActivity } = isAdmin ? await activityQ : await activityQ.eq('user_id', user.id)
-
-  // Other researchers
-  const { data: peers } = await supabase
-    .from('profiles').select('id,full_name,researcher_color,role').in('role', ['researcher','supervisor']).neq('id', user.id).limit(6)
 
   // Admin breakdown
   let researcherBreakdown: Array<{ profile: Profile; studyCount: number; latestStudy: string|null }> = []
@@ -160,7 +170,7 @@ export default async function DashboardPage() {
         <div className="relative flex items-start justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="hidden sm:block">
-              <Mascot size="md" bounce />
+              <Mascot size="md" animate />
             </div>
             <div>
               <h1
@@ -209,14 +219,14 @@ export default async function DashboardPage() {
             { label: isAdmin ? 'Platform Studies' : 'Active Studies', value: activeStudiesCount ?? 0, icon: FlaskConical, color: researcherColor, sub: 'running now' },
             { label: 'Participants',    value: totalParticipants  ?? 0, icon: Users,         color: '#4A7A40', sub: 'enrolled'     },
             { label: 'Responses',       value: responsesCount     ?? 0, icon: CheckCircle2,  color: '#6845A5', sub: 'completed'    },
-            { label: 'Clinical Alerts', value: alertsCount        ?? 0, icon: AlertTriangle, color: alertsCount ? '#DC2626' : '#6B6B80', sub: alertsCount ? '⚠️ needs attention' : 'all clear 🎉' },
+            { label: 'Clinical Alerts', value: alertsCount        ?? 0, icon: AlertTriangle, color: alertsCount ? '#A81010' : '#7A5040', sub: alertsCount ? '⚠️ needs attention' : 'all clear 🎉' },
           ].map(stat => (
             <div
               key={stat.label}
               className="rounded-xl border border-border p-4 bg-card"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-semibold tracking-wide text-muted-foreground">
+                <span className="text-xs font-semibold tracking-wide text-muted-foreground">
                   {stat.label.toUpperCase()}
                 </span>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${stat.color}20` }}>
@@ -226,7 +236,7 @@ export default async function DashboardPage() {
               <p className="font-serif text-3xl font-bold tabular-nums animate-count-up" style={{ color: stat.color }}>
                 {stat.value.toLocaleString()}
               </p>
-              <p className="text-[11px] mt-0.5 text-muted-foreground">{stat.sub}</p>
+              <p className="text-xs mt-0.5 text-muted-foreground">{stat.sub}</p>
             </div>
           ))}
         </div>
@@ -305,7 +315,7 @@ export default async function DashboardPage() {
                   <CardTitle className="font-serif text-base flex items-center gap-2">
                     <Brain className="w-4 h-4 text-primary" /> Researcher Activity
                   </CardTitle>
-                  <p className="text-[11px] text-muted-foreground mt-1">Who&apos;s doing what</p>
+                  <p className="text-xs text-muted-foreground mt-1">Who&apos;s doing what</p>
                 </CardHeader>
                 <CardContent className="p-3 space-y-1">
                   {researcherBreakdown.map(({ profile: r, studyCount, latestStudy }) => (
@@ -318,9 +328,9 @@ export default async function DashboardPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-semibold truncate">{r.full_name || r.email}</p>
-                        {latestStudy && <p className="text-[10px] text-muted-foreground truncate">Latest: {latestStudy}</p>}
+                        {latestStudy && <p className="text-[11px] text-muted-foreground truncate">Latest: {latestStudy}</p>}
                       </div>
-                      <Badge variant="secondary" className="shrink-0 tabular-nums text-[10px]">
+                      <Badge variant="secondary" className="shrink-0 tabular-nums text-[11px]">
                         {studyCount} {studyCount === 1 ? 'study' : 'studies'}
                       </Badge>
                     </div>
@@ -333,7 +343,7 @@ export default async function DashboardPage() {
             <Card className="border-border overflow-hidden">
               <CardHeader className="pb-3 border-b border-border bg-muted/30">
                 <CardTitle className="font-serif text-base flex items-center gap-2">
-                  <Users className="w-4 h-4 text-sky-500" /> Platform Researchers
+                  <Users className="w-4 h-4" style={{ color: '#6845A5' }} /> Platform Researchers
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3">
@@ -342,13 +352,13 @@ export default async function DashboardPage() {
                     {peers.map((r: any) => (
                       <div key={r.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors">
                         <div
-                          className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                          className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[11px] font-bold shrink-0"
                           style={{ backgroundColor: r.researcher_color || '#A81010' }}
                         >
                           {r.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
                         </div>
                         <span className="text-[13px] font-medium">{r.full_name?.split(' ')[0] || 'Researcher'}</span>
-                        <span className="text-[10px] text-muted-foreground capitalize opacity-70">{r.role}</span>
+                        <span className="text-[11px] text-muted-foreground capitalize opacity-70">{r.role}</span>
                       </div>
                     ))}
                   </div>
@@ -369,7 +379,7 @@ export default async function DashboardPage() {
                   <CardTitle className="font-serif text-base text-destructive flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4" /> Clinical Alerts
                   </CardTitle>
-                  <p className="text-[10px] text-destructive/70 mt-1">
+                  <p className="text-[11px] text-destructive/70 mt-1">
                     Do not ignore these. Please. 🙏
                   </p>
                 </CardHeader>
@@ -402,8 +412,8 @@ export default async function DashboardPage() {
                       <div key={a.id} className="flex items-start gap-2.5 py-1.5">
                         <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${activityDot(a.action_type)}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-[12px] text-foreground truncate capitalize">{activityLabel(a)}</p>
-                          <p className="text-[10px] text-muted-foreground">
+                          <p className="text-[13px] text-foreground truncate capitalize">{activityLabel(a)}</p>
+                          <p className="text-[11px] text-muted-foreground">
                             {new Date(a.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
@@ -420,20 +430,20 @@ export default async function DashboardPage() {
             <Card className="border-border overflow-hidden">
               <CardHeader className="pb-3 border-b border-border bg-muted/30">
                 <CardTitle className="font-serif text-base flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-amber-500" /> Resources
+                  <Zap className="w-4 h-4" style={{ color: '#D06828' }} /> Resources
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 space-y-1">
                 {[
-                  { href: '/scale-library', icon: Library,     label: 'Browse Scale Library',    color: 'text-sky-500'     },
-                  { href: '/audit-log',     icon: ClipboardList,label: 'View Audit Log',          color: 'text-amber-500'   },
-                  { href: '/participants',  icon: Mail,          label: 'Manage Participants',     color: 'text-emerald-500' },
+                  { href: '/scale-library', icon: Library,     label: 'Browse Scale Library',    color: '#6845A5' },
+                  { href: '/audit-log',     icon: ClipboardList,label: 'View Audit Log',          color: '#D06828' },
+                  { href: '/participants',  icon: Mail,          label: 'Manage Participants',     color: '#4A7A40' },
                 ].map(link => (
                   <Link key={link.href} href={link.href}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/70 transition-colors group"
                   >
-                    <link.icon className={`w-4 h-4 shrink-0 ${link.color} group-hover:scale-110 transition-transform`} />
-                    <span className="text-[13px] font-medium text-foreground">{link.label}</span>
+                    <link.icon className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" style={{ color: link.color }} />
+                    <span className="text-sm font-medium text-foreground">{link.label}</span>
                     <ArrowRight className="w-3 h-3 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                   </Link>
                 ))}

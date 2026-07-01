@@ -24,10 +24,10 @@ interface Notification {
 }
 
 function NotifIcon({ type }: { type: Notification['type'] }) {
-  if (type === 'alert')      return <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
-  if (type === 'enrollment') return <UserPlus className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-  if (type === 'completion') return <CheckCircle2 className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
-  return <Activity className="w-3.5 h-3.5 text-sky-500 shrink-0 mt-0.5" />
+  if (type === 'alert')      return <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#A81010' }} />
+  if (type === 'enrollment') return <UserPlus className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#4A7A40' }} />
+  if (type === 'completion') return <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#6845A5' }} />
+  return <Activity className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#D06828' }} />
 }
 
 export function NotificationBell() {
