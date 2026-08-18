@@ -120,12 +120,12 @@ export interface RecentActivity {
 
 // Researcher color options
 export const RESEARCHER_COLORS = [
-  { value: '#2D6A4F', label: 'Forest Green' },
-  { value: '#1C4A8F', label: 'Navy' },
-  { value: '#9A3D1A', label: 'Terracotta' },
-  { value: '#9A6B00', label: 'Amber' },
-  { value: '#7C3AAF', label: 'Purple' },
-  { value: '#C04070', label: 'Rose' },
+  { value: '#A81010', label: 'Crimson' },
+  { value: '#6845A5', label: 'Purple' },
+  { value: '#C41890', label: 'Magenta' },
+  { value: '#D06828', label: 'Burnt Orange' },
+  { value: '#B8860B', label: 'Ochre' },
+  { value: '#4A7A40', label: 'Forest Green' },
   { value: '#2A7A8A', label: 'Teal' },
   { value: '#444444', label: 'Charcoal' },
 ] as const

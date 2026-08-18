@@ -77,7 +77,7 @@ const navGroups: NavGroup[] = [
     title: 'Run',
     emoji: '🚀',
     items: [
-      { href: '/participants',   label: 'Participants',  icon: Users,         tooltip: 'The brave ones 🦸' },
+      { href: '/participants',   label: 'Participants',  icon: Users,         tooltip: 'Everyone enrolled in your studies' },
       { href: '/supervisors',    label: 'Supervisors',   icon: Shield,        tooltip: 'Your oversight team' },
       { href: '/admin/requests', label: 'Requests',      icon: ClipboardCheck,tooltip: 'Cohort & study approval queue' },
     ],
@@ -104,13 +104,13 @@ const ROLE_META: Record<string, { label: string; emoji: string; color: string }>
   researcher: { label: 'Researcher', emoji: '🧪', color: 'var(--researcher-color)' },
 }
 
-// Fun quips for the footer
+// Footer notes — warm, but professional
 const QUIPS = [
-  'making research slightly less boring since 2026 🎉',
-  'where science meets chaos (professionally) 🌪️',
-  'your data is safe with us. probably. 🤞',
-  'powered by caffeine & existential curiosity ☕',
-  'p < 0.05 or it didn\'t happen 📊',
+  'built for rigorous, humane research',
+  'your data, handled with care',
+  'made with and for researchers',
+  'clarity in, insight out',
+  'good science, made a little easier',
 ]
 
 function getInitials(name: string | null): string {

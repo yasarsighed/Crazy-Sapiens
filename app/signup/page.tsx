@@ -21,7 +21,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<UserRole>('researcher')
-  const [researcherColor, setResearcherColor] = useState<ResearcherColor>('#2D6A4F')
+  const [researcherColor, setResearcherColor] = useState<ResearcherColor>('#A81010')
 
   // Socio-demographic (participants only)
   const [dateOfBirth, setDateOfBirth] = useState('')

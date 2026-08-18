@@ -79,7 +79,7 @@ export default function NewStudyPage() {
         </div>
         <div>
           <h1 className="font-serif text-2xl">New study</h1>
-          <p className="text-xs text-muted-foreground">Science does not do itself.</p>
+          <p className="text-xs text-muted-foreground">Give your study a name to begin.</p>
         </div>
       </div>
 

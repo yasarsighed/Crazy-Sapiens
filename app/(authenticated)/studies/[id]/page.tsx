@@ -49,6 +49,7 @@ export default function StudyPage() {
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [instrumentToDelete, setInstrumentToDelete] = useState<{ id: string; type: 'questionnaire' | 'sociogram' | 'iat'; title: string } | null>(null)
   const [deletingStudy, setDeletingStudy] = useState(false)
   const [showDeleteStudyConfirm, setShowDeleteStudyConfirm] = useState(false)
   const [showConsentEditor, setShowConsentEditor] = useState(false)
@@ -169,29 +170,20 @@ export default function StudyPage() {
     setAdding(false)
   }
 
-  const deleteInstrument = async (id: string, type: 'questionnaire' | 'sociogram' | 'iat', title: string) => {
-    if (!window.confirm(`Remove "${title}"?\n\nAll responses, scores, and alerts for this instrument will be permanently deleted. This cannot be undone.`)) return
+  const deleteInstrument = async () => {
+    if (!instrumentToDelete) return
+    const { id, type, title } = instrumentToDelete
     setDeleting(id)
     const supabase = createClient()
-
-    // Cascade: delete all dependent data before the instrument row
-    if (type === 'questionnaire') {
-      await supabase.from('clinical_alerts_log').delete().eq('questionnaire_id', id)
-      await supabase.from('questionnaire_scored_results').delete().eq('questionnaire_id', id)
-      await supabase.from('questionnaire_item_responses').delete().eq('questionnaire_id', id)
-    } else if (type === 'iat') {
-      await supabase.from('iat_session_results').delete().eq('iat_id', id)
-      await supabase.from('iat_trial_log').delete().eq('iat_id', id)
-    } else if (type === 'sociogram') {
-      await supabase.from('sociogram_nominations').delete().eq('sociogram_id', id)
-      await supabase.from('sociogram_participants').delete().eq('sociogram_id', id)
-    }
 
     const table =
       type === 'questionnaire' ? 'questionnaire_instruments'
       : type === 'sociogram'   ? 'sociogram_instruments'
       : 'iat_instruments'
 
+    // Single atomic delete — the instrument's responses, scores, and alerts
+    // cascade via ON DELETE CASCADE. Then best-effort cleanup of the (FK-less)
+    // study_instruments link row.
     const { error } = await supabase.from(table).delete().eq('id', id)
     if (error) {
       toast.error('Failed to remove instrument', { description: error.message })
@@ -211,35 +203,17 @@ export default function StudyPage() {
       await loadData()
     }
     setDeleting(null)
+    setInstrumentToDelete(null)
   }
 
   const deleteStudy = async () => {
     setDeletingStudy(true)
     const supabase = createClient()
 
-    // Delete all questionnaire data
-    for (const inst of instruments.filter(i => i.type === 'questionnaire')) {
-      await supabase.from('clinical_alerts_log').delete().eq('questionnaire_id', inst.id)
-      await supabase.from('questionnaire_scored_results').delete().eq('questionnaire_id', inst.id)
-      await supabase.from('questionnaire_item_responses').delete().eq('questionnaire_id', inst.id)
-      await supabase.from('questionnaire_instruments').delete().eq('id', inst.id)
-    }
-    // Delete all IAT data
-    for (const inst of instruments.filter(i => i.type === 'iat')) {
-      await supabase.from('iat_session_results').delete().eq('iat_id', inst.id)
-      await supabase.from('iat_trial_log').delete().eq('iat_id', inst.id)
-      await supabase.from('iat_instruments').delete().eq('id', inst.id)
-    }
-    // Delete all sociogram data
-    for (const inst of instruments.filter(i => i.type === 'sociogram')) {
-      await supabase.from('sociogram_nominations').delete().eq('sociogram_id', inst.id)
-      await supabase.from('sociogram_participants').delete().eq('sociogram_id', inst.id)
-      await supabase.from('sociogram_instruments').delete().eq('id', inst.id)
-    }
-
-    await supabase.from('study_instruments').delete().eq('study_id', studyId)
-    await supabase.from('study_enrollments').delete().eq('study_id', studyId)
-
+    // Single atomic delete. Every dependent table (instruments, their responses,
+    // scores, alerts, enrollments, links) cascades via ON DELETE CASCADE in one
+    // transaction — no partial-failure / orphaned-data risk. RLS restricts this
+    // to the study owner or an admin.
     const { error } = await supabase.from('studies').delete().eq('id', studyId)
     if (error) {
       toast.error('Failed to delete study', { description: error.message })
@@ -323,7 +297,7 @@ export default function StudyPage() {
               }}
               className={`text-xs rounded-md px-2.5 py-1 font-medium border ${
                 study.status === 'active' ? 'bg-primary/10 text-primary border-primary/30'
-                : study.status === 'draft' ? 'bg-amber-50 text-amber-900 border-amber-300'
+                : study.status === 'draft' ? 'bg-[#D06828]/10 text-[#D06828] border-[#D06828]/30'
                 : 'bg-muted text-muted-foreground border-border'
               }`}
             >
@@ -429,14 +403,14 @@ export default function StudyPage() {
             </Button>
           </div>
           {participants.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No participants yet. They will come.</p>
+            <p className="text-sm text-muted-foreground italic">No participants yet. Add or invite participants to begin.</p>
           ) : (
             <div className="space-y-1">
               {participants.map((enrollment: any) => (
                 <div key={enrollment.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-                    style={{ backgroundColor: '#2D6A4F' }}
+                    style={{ backgroundColor: '#6845A5' }}
                   >
                     {enrollment.profiles?.full_name?.charAt(0) || '?'}
                   </div>
@@ -465,15 +439,15 @@ export default function StudyPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setShowAddQuestionnaire(true)}>
-                  <ClipboardList className="w-4 h-4 mr-2 text-[#457B9D]" />
+                  <ClipboardList className="w-4 h-4 mr-2" style={{ color: '#6845A5' }} />
                   Questionnaire
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowAddSociogram(true)}>
-                  <Users className="w-4 h-4 mr-2 text-[#2D6A4F]" />
+                  <Users className="w-4 h-4 mr-2" style={{ color: '#4A7A40' }} />
                   Sociogram
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowAddIat(true)}>
-                  <Timer className="w-4 h-4 mr-2 text-[#F4A261]" />
+                  <Timer className="w-4 h-4 mr-2" style={{ color: '#D06828' }} />
                   IAT
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -485,9 +459,9 @@ export default function StudyPage() {
             <div className="space-y-1">
               {instruments.map((instrument) => {
                 const typeAccent =
-                  instrument.type === 'questionnaire' ? '#457B9D'
-                  : instrument.type === 'iat'          ? '#F4A261'
-                  : '#2D6A4F'
+                  instrument.type === 'questionnaire' ? '#6845A5'
+                  : instrument.type === 'iat'          ? '#D06828'
+                  : '#4A7A40'
 
                 const typeIcon =
                   instrument.type === 'questionnaire' ? <ClipboardList className="w-3.5 h-3.5 shrink-0" style={{ color: typeAccent }} />
@@ -520,7 +494,7 @@ export default function StudyPage() {
                         Results <ExternalLink className="w-3 h-3" />
                       </Link>
                       <button
-                        onClick={() => deleteInstrument(instrument.id, instrument.type, instrument.title)}
+                        onClick={() => setInstrumentToDelete({ id: instrument.id, type: instrument.type, title: instrument.title })}
                         disabled={deleting === instrument.id}
                         className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors disabled:opacity-40"
                         title="Remove instrument"
@@ -566,6 +540,32 @@ export default function StudyPage() {
               </Button>
               <Button variant="destructive" size="sm" onClick={deleteStudy} disabled={deletingStudy}>
                 {deletingStudy ? 'Deleting…' : 'Delete study'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete instrument confirmation */}
+      {instrumentToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-start gap-3 mb-4">
+              <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <div>
+                <h2 className="font-serif text-lg text-foreground">Remove instrument?</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This will permanently delete <strong>{instrumentToDelete.title}</strong> and all of its
+                  responses, scores, and clinical alerts. This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setInstrumentToDelete(null)} disabled={deleting !== null}>
+                Cancel
+              </Button>
+              <Button variant="destructive" size="sm" onClick={deleteInstrument} disabled={deleting !== null}>
+                {deleting ? 'Removing…' : 'Remove instrument'}
               </Button>
             </div>
           </div>

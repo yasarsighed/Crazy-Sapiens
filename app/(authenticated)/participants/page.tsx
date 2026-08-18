@@ -28,7 +28,7 @@ export default async function ParticipantsPage() {
     return (
       <div className="p-6 lg:p-8">
         <h1 className="font-serif text-2xl mb-1">Participants</h1>
-        <p className="text-sm text-muted-foreground mb-12">The brave ones.</p>
+        <p className="text-sm text-muted-foreground mb-12">Everyone enrolled across your studies.</p>
         <div className="text-center py-24">
           <p className="font-serif text-xl mb-2">No studies yet.</p>
           <p className="text-sm italic text-muted-foreground">Create a study first, then add participants.</p>

@@ -133,10 +133,6 @@ export default function LoginPage() {
               Sign up
             </Link>
           </p>
-          
-          <p className="text-[11px] text-muted-foreground/70 text-center">
-            This platform is invite-only. Contact your research supervisor for access.
-          </p>
         </CardFooter>
       </Card>
     </main>

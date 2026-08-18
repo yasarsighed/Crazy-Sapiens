@@ -135,7 +135,7 @@ export default function StudiesPage() {
             loading ? 'Loading…' :
             studies.length
               ? `${filtered.length} of ${studies.length} ${isAdmin ? 'studies' : 'experiments'}`
-              : 'Science does not do itself.'
+              : 'Create your first study to get started.'
           }
           crumbs={[{ label: isAdmin ? 'All Studies' : 'Your Studies' }]}
           badge={isAdmin ? (
@@ -237,7 +237,7 @@ export default function StudiesPage() {
                 {query || status !== 'all' ? 'No studies match your filters' : 'No studies yet'}
               </p>
               <p className="text-sm italic text-muted-foreground mb-6">
-                {query || status !== 'all' ? 'Try clearing your search or filter.' : 'Science does not do itself.'}
+                {query || status !== 'all' ? 'Try clearing your search or filter.' : 'Create your first study to get started.'}
               </p>
               {!isAdmin && !query && status === 'all' && (
                 <Button asChild><Link href="/studies/new">Create your first study</Link></Button>

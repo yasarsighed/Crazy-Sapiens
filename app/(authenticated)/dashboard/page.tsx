@@ -16,26 +16,21 @@ import {
 } from 'lucide-react'
 import type { Profile, Study, ClinicalAlert as ClinicalAlertType } from '@/types/database'
 
-// ── Greetings with personality ──
+// ── Greetings — warm, but professional ──
 const GREETINGS = [
-  (n: string) => `The data won't collect itself, ${n}. 🔬`,
-  (n: string) => `Your participants are waiting, ${n}. Probably. 👀`,
-  (n: string) => `Science o'clock, ${n}. Let's go. ⚡`,
-  (n: string) => `Good to see you, ${n}. Your studies missed you. 🧪`,
-  (n: string) => `Ready to make history, ${n}? Or at least data. 📊`,
-  (n: string) => `${n}, your hypotheses aren't going to test themselves. 🤓`,
+  (n: string) => `Welcome back, ${n}.`,
+  (n: string) => `Good to see you, ${n}.`,
+  (n: string) => `Ready when you are, ${n}.`,
+  (n: string) => `Your studies are waiting, ${n}.`,
+  (n: string) => `Let's get to work, ${n}.`,
+  (n: string) => `Hope the research is going well, ${n}.`,
 ]
 
 function getGreeting(name: string): string {
   const now = new Date()
-  const hour = now.getHours()
   // Stable per-day pick so the greeting doesn't reshuffle on every navigation.
   const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000)
-  const greetIdx = dayOfYear % GREETINGS.length
-  const base = GREETINGS[greetIdx](name)
-  if (hour < 5  || hour >= 17) return base.replace("Science o'clock", "Evening science")
-  if (hour >= 12) return base.replace("Science o'clock", "Afternoon science")
-  return base
+  return GREETINGS[dayOfYear % GREETINGS.length](name)
 }
 
 function firstName(full: string | null) {
@@ -299,7 +294,7 @@ export default async function DashboardPage() {
                       <FlaskConical className="w-6 h-6 text-muted-foreground/40" />
                     </div>
                     <p className="font-serif text-base text-foreground mb-1">No studies yet</p>
-                    <p className="text-sm text-muted-foreground mb-4">Science does not do itself.</p>
+                    <p className="text-sm text-muted-foreground mb-4">Create your first study to get started.</p>
                     <Button asChild size="sm">
                       <Link href="/studies/new"><Plus className="w-3.5 h-3.5 mr-1.5" />Create your first study</Link>
                     </Button>
@@ -363,7 +358,7 @@ export default async function DashboardPage() {
                     ))}
                   </div>
                 ) : (
-                  <EmptyState title="You are the pioneer." subtitle="No other researchers yet. Lonely but legendary." />
+                  <EmptyState title="No other researchers yet." subtitle="Invite colleagues to collaborate on studies." />
                 )}
               </CardContent>
             </Card>
@@ -421,7 +416,7 @@ export default async function DashboardPage() {
                     ))}
                   </div>
                 ) : (
-                  <EmptyState title="No activity yet." subtitle="The calm before the data storm. 🌊" />
+                  <EmptyState title="No activity yet." subtitle="Activity from your studies will appear here." />
                 )}
               </CardContent>
             </Card>
