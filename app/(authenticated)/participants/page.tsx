@@ -122,7 +122,7 @@ export default async function ParticipantsPage() {
   for (const e of enrollments ?? []) enrollmentsByStudy[e.study_id]?.push(e)
 
   const typeIcon  = { questionnaire: ClipboardList, sociogram: Users, iat: Timer }
-  const typeColor = { questionnaire: '#6845A5', sociogram: '#4A7A40', iat: '#D06828' }
+  const typeColor = { questionnaire: '#C6A8F0', sociogram: '#86C99A', iat: '#F0A65C' }
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl">
@@ -204,7 +204,7 @@ export default async function ParticipantsPage() {
                       <Link href={`/participants/${pid}`} className="w-52 shrink-0 flex items-center gap-3 min-w-0 hover:opacity-90">
                         <div
                           className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-                          style={{ backgroundColor: '#4A7A40' }}
+                          style={{ backgroundColor: '#86C99A' }}
                         >
                           {p?.full_name?.charAt(0) ?? '?'}
                         </div>

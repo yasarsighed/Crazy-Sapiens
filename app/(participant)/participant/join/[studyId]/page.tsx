@@ -182,8 +182,8 @@ export default async function JoinStudyPage({
           </li>
           {estMinutes > 0 && (
             <li className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #D06828 12%, var(--card))' }}>
-                <Clock className="w-4 h-4" style={{ color: '#D06828' }} />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #F0A65C 12%, var(--card))' }}>
+                <Clock className="w-4 h-4" style={{ color: '#F0A65C' }} />
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">About {estMinutes} minute{estMinutes > 1 ? 's' : ''} in total</p>
@@ -192,8 +192,8 @@ export default async function JoinStudyPage({
             </li>
           )}
           <li className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #6845A5 12%, var(--card))' }}>
-              <ShieldCheck className="w-4 h-4" style={{ color: '#6845A5' }} />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #C6A8F0 12%, var(--card))' }}>
+              <ShieldCheck className="w-4 h-4" style={{ color: '#C6A8F0' }} />
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">Your data is kept secure</p>
@@ -201,8 +201,8 @@ export default async function JoinStudyPage({
             </div>
           </li>
           <li className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #4A7A40 12%, var(--card))' }}>
-              <LogOut className="w-4 h-4" style={{ color: '#4A7A40' }} />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, #86C99A 12%, var(--card))' }}>
+              <LogOut className="w-4 h-4" style={{ color: '#86C99A' }} />
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">You can withdraw anytime</p>

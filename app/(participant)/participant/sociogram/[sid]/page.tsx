@@ -397,7 +397,7 @@ export default function SociogramNominationPage() {
   if (submitted) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-16 text-center">
-        <CheckCircle className="w-12 h-12 mx-auto mb-4" style={{ color: '#4A7A40' }} />
+        <CheckCircle className="w-12 h-12 mx-auto mb-4" style={{ color: '#86C99A' }} />
         <h1 className="font-serif text-2xl mb-2">All done. Thank you.</h1>
         <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
           Your nominations have been recorded. Your researcher will use these to map the
@@ -446,7 +446,7 @@ export default function SociogramNominationPage() {
                     style={{ backgroundColor: type.color_hex }}
                   />
                   {type.label}
-                  {done && <CheckCircle className="w-3 h-3" style={{ color: '#4A7A40' }} />}
+                  {done && <CheckCircle className="w-3 h-3" style={{ color: '#86C99A' }} />}
                   {count > 0 && !done && (
                     <span className="text-[10px] text-muted-foreground">({count})</span>
                   )}

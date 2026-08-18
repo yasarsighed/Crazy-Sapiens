@@ -62,6 +62,6 @@ export function assessParticipantQuality(rows: ResponseRow[]): QualityFlags {
 export function qualityLabel(q: QualityFlags): { label: string; color: string; severity: 'ok' | 'caution' | 'exclude' } {
   if (q.invariant)      return { label: 'Invariant (all same)', color: '#E63946', severity: 'exclude' }
   if (q.straightLining) return { label: 'Straight-lining',      color: '#E76F51', severity: 'exclude' }
-  if (q.tooFast)        return { label: 'Too fast',             color: '#D06828', severity: 'caution' }
+  if (q.tooFast)        return { label: 'Too fast',             color: '#F0A65C', severity: 'caution' }
   return                       { label: 'OK',                   color: '#52B788', severity: 'ok' }
 }

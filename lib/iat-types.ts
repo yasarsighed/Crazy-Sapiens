@@ -152,14 +152,14 @@ const DEATH_SUICIDE: IATTypeConfig = {
     if (d < 0)    return { label: 'Life association',          detail: 'Implicit associations lean toward life concepts when paired with self.',                color: '#52B788', clinical: false }
     if (d < 0.15) return { label: 'No clear preference',       detail: 'No reliable implicit preference between Self–Death and Self–Life pairings.',           color: '#888888', clinical: false }
     if (d < 0.35) return { label: 'Slight Self–Death',         detail: 'Slight implicit tendency to associate self-concepts with death/suicide words.',         color: '#E9C46A', clinical: false }
-    if (d < 0.65) return { label: 'Moderate Self–Death',       detail: 'Moderately faster responses when self is paired with death/suicide concepts.',         color: '#D06828', clinical: false }
+    if (d < 0.65) return { label: 'Moderate Self–Death',       detail: 'Moderately faster responses when self is paired with death/suicide concepts.',         color: '#F0A65C', clinical: false }
     return               { label: 'Strong Self–Death ⚑',       detail: 'Strong implicit association between self and death/suicide. Clinical follow-up advised.', color: '#E63946', clinical: true  }
   },
   dscore_bands: [
     { label: 'Life association (D < 0)',           short: 'Life assoc.',    min: null, max: 0,    color: '#52B788', clinical: false },
     { label: 'No clear preference (0 – 0.15)',     short: 'No preference', min: 0,    max: 0.15, color: '#888888', clinical: false },
     { label: 'Slight Self–Death (0.15 – 0.35)',    short: 'Slight',        min: 0.15, max: 0.35, color: '#E9C46A', clinical: false },
-    { label: 'Moderate Self–Death (0.35 – 0.65)',  short: 'Moderate',      min: 0.35, max: 0.65, color: '#D06828', clinical: false },
+    { label: 'Moderate Self–Death (0.35 – 0.65)',  short: 'Moderate',      min: 0.35, max: 0.65, color: '#F0A65C', clinical: false },
     { label: 'Strong Self–Death (≥ 0.65) ⚑',      short: 'Strong ⚑',      min: 0.65, max: null, color: '#E63946', clinical: true  },
   ],
 }
@@ -193,7 +193,7 @@ const GENDER_CAREER: IATTypeConfig = {
   key:  'gender_career',
   name: 'Gender–Career IAT',
   badge: 'Stereotype',
-  badgeColor: '#6845A5',
+  badgeColor: '#C6A8F0',
   description:
     'Measures implicit associations between gender and career or family roles. '
     + 'Uses Indian names as concept stimuli. Positive D = stronger implicit '
@@ -238,14 +238,14 @@ const GENDER_CAREER: IATTypeConfig = {
     if (d < 0)    return { label: 'Female–Career lean',       detail: 'Implicit associations lean toward Female+Career pairing.',                            color: '#52B788', clinical: false }
     if (d < 0.15) return { label: 'No clear preference',      detail: 'No reliable implicit gender–career stereotype detected.',                              color: '#888888', clinical: false }
     if (d < 0.35) return { label: 'Slight Male–Career',       detail: 'Slight implicit tendency to associate Male with Career / Female with Family.',         color: '#E9C46A', clinical: false }
-    if (d < 0.65) return { label: 'Moderate Male–Career',     detail: 'Moderately faster responses when Male is paired with Career words.',                  color: '#D06828', clinical: false }
+    if (d < 0.65) return { label: 'Moderate Male–Career',     detail: 'Moderately faster responses when Male is paired with Career words.',                  color: '#F0A65C', clinical: false }
     return               { label: 'Strong Male–Career',       detail: 'Strong implicit association of Male with Career and Female with Family roles.',        color: '#E63946', clinical: false }
   },
   dscore_bands: [
     { label: 'Female–Career lean (D < 0)',           short: 'Female–Career', min: null, max: 0,    color: '#52B788', clinical: false },
     { label: 'No clear preference (0 – 0.15)',       short: 'No preference', min: 0,    max: 0.15, color: '#888888', clinical: false },
     { label: 'Slight Male–Career (0.15 – 0.35)',     short: 'Slight',        min: 0.15, max: 0.35, color: '#E9C46A', clinical: false },
-    { label: 'Moderate Male–Career (0.35 – 0.65)',   short: 'Moderate',      min: 0.35, max: 0.65, color: '#D06828', clinical: false },
+    { label: 'Moderate Male–Career (0.35 – 0.65)',   short: 'Moderate',      min: 0.35, max: 0.65, color: '#F0A65C', clinical: false },
     { label: 'Strong Male–Career (≥ 0.65)',          short: 'Strong',        min: 0.65, max: null, color: '#E63946', clinical: false },
   ],
 }
@@ -272,7 +272,7 @@ const GENDER_SCIENCE: IATTypeConfig = {
   key:  'gender_science',
   name: 'Gender–Science IAT',
   badge: 'Stereotype',
-  badgeColor: '#6845A5',
+  badgeColor: '#C6A8F0',
   description:
     'Measures implicit associations between gender and science vs. arts/humanities. '
     + 'Uses pronouns rather than names — valid cross-culturally without adaptation. '
@@ -313,14 +313,14 @@ const GENDER_SCIENCE: IATTypeConfig = {
     if (d < 0)    return { label: 'Female–Science lean',      detail: 'Implicit associations lean toward Female+Science pairing.',                            color: '#52B788', clinical: false }
     if (d < 0.15) return { label: 'No clear preference',      detail: 'No reliable implicit gender–science stereotype detected.',                             color: '#888888', clinical: false }
     if (d < 0.35) return { label: 'Slight Male–Science',      detail: 'Slight implicit tendency to associate Male with Science disciplines.',                 color: '#E9C46A', clinical: false }
-    if (d < 0.65) return { label: 'Moderate Male–Science',    detail: 'Moderately faster responses when Male is paired with Science words.',                 color: '#D06828', clinical: false }
+    if (d < 0.65) return { label: 'Moderate Male–Science',    detail: 'Moderately faster responses when Male is paired with Science words.',                 color: '#F0A65C', clinical: false }
     return               { label: 'Strong Male–Science',      detail: 'Strong implicit association of Male with Science / Female with Arts.',                 color: '#E63946', clinical: false }
   },
   dscore_bands: [
     { label: 'Female–Science lean (D < 0)',          short: 'Female–Science', min: null, max: 0,    color: '#52B788', clinical: false },
     { label: 'No clear preference (0 – 0.15)',       short: 'No preference',  min: 0,    max: 0.15, color: '#888888', clinical: false },
     { label: 'Slight Male–Science (0.15 – 0.35)',    short: 'Slight',         min: 0.15, max: 0.35, color: '#E9C46A', clinical: false },
-    { label: 'Moderate Male–Science (0.35 – 0.65)',  short: 'Moderate',       min: 0.35, max: 0.65, color: '#D06828', clinical: false },
+    { label: 'Moderate Male–Science (0.35 – 0.65)',  short: 'Moderate',       min: 0.35, max: 0.65, color: '#F0A65C', clinical: false },
     { label: 'Strong Male–Science (≥ 0.65)',         short: 'Strong',         min: 0.65, max: null, color: '#E63946', clinical: false },
   ],
 }
@@ -362,7 +362,7 @@ const HINDU_MUSLIM: IATTypeConfig = {
   key:  'hindu_muslim',
   name: 'Hindu–Muslim IAT',
   badge: 'India',
-  badgeColor: '#D06828',
+  badgeColor: '#F0A65C',
   description:
     'Measures implicit evaluative attitudes toward Hindu vs Muslim group '
     + 'identities using Indian names as target stimuli. Positive D = stronger '
@@ -407,14 +407,14 @@ const HINDU_MUSLIM: IATTypeConfig = {
     if (d < 0)    return { label: 'Muslim–Good lean',         detail: 'Implicit associations lean toward Muslim names paired with pleasant words.',           color: '#52B788', clinical: false }
     if (d < 0.15) return { label: 'No clear preference',      detail: 'No reliable implicit preference between Hindu and Muslim names detected.',             color: '#888888', clinical: false }
     if (d < 0.35) return { label: 'Slight Hindu–Good',        detail: 'Slight implicit positive association with Hindu names relative to Muslim names.',      color: '#E9C46A', clinical: false }
-    if (d < 0.65) return { label: 'Moderate Hindu–Good',      detail: 'Moderate implicit positive associations with Hindu names over Muslim names.',          color: '#D06828', clinical: false }
+    if (d < 0.65) return { label: 'Moderate Hindu–Good',      detail: 'Moderate implicit positive associations with Hindu names over Muslim names.',          color: '#F0A65C', clinical: false }
     return               { label: 'Strong Hindu–Good',        detail: 'Strong implicit positive associations with Hindu names; consider research context.',   color: '#E63946', clinical: false }
   },
   dscore_bands: [
     { label: 'Muslim–Good lean (D < 0)',             short: 'Muslim–Good',   min: null, max: 0,    color: '#52B788', clinical: false },
     { label: 'No clear preference (0 – 0.15)',       short: 'No preference', min: 0,    max: 0.15, color: '#888888', clinical: false },
     { label: 'Slight Hindu–Good (0.15 – 0.35)',      short: 'Slight',        min: 0.15, max: 0.35, color: '#E9C46A', clinical: false },
-    { label: 'Moderate Hindu–Good (0.35 – 0.65)',    short: 'Moderate',      min: 0.35, max: 0.65, color: '#D06828', clinical: false },
+    { label: 'Moderate Hindu–Good (0.35 – 0.65)',    short: 'Moderate',      min: 0.35, max: 0.65, color: '#F0A65C', clinical: false },
     { label: 'Strong Hindu–Good (≥ 0.65)',           short: 'Strong',        min: 0.65, max: null, color: '#E63946', clinical: false },
   ],
 }
@@ -458,7 +458,7 @@ const MODI_PM: IATTypeConfig = {
   key:  'modi_pm',
   name: 'Modi vs Other PMs IAT',
   badge: 'India · Politics',
-  badgeColor: '#4A7A40',
+  badgeColor: '#86C99A',
   description:
     'Measures implicit evaluative attitudes toward Narendra Modi relative to '
     + 'other Indian Prime Ministers. Positive D = stronger implicit positive '
@@ -506,14 +506,14 @@ const MODI_PM: IATTypeConfig = {
     if (d < 0)    return { label: 'Other PMs–Good lean',      detail: 'Implicit associations lean toward other PMs paired with pleasant words.',              color: '#52B788', clinical: false }
     if (d < 0.15) return { label: 'No clear preference',      detail: 'No reliable implicit preference between Modi and other PMs detected.',                 color: '#888888', clinical: false }
     if (d < 0.35) return { label: 'Slight Modi–Good',         detail: 'Slight implicit positive associations with Modi-related words.',                       color: '#E9C46A', clinical: false }
-    if (d < 0.65) return { label: 'Moderate Modi–Good',       detail: 'Moderate implicit positive associations with Modi over other PMs.',                    color: '#D06828', clinical: false }
+    if (d < 0.65) return { label: 'Moderate Modi–Good',       detail: 'Moderate implicit positive associations with Modi over other PMs.',                    color: '#F0A65C', clinical: false }
     return               { label: 'Strong Modi–Good',         detail: 'Strong implicit positive association with Modi-related words.',                        color: '#E63946', clinical: false }
   },
   dscore_bands: [
     { label: 'Other PMs–Good lean (D < 0)',          short: 'Others–Good',   min: null, max: 0,    color: '#52B788', clinical: false },
     { label: 'No clear preference (0 – 0.15)',       short: 'No preference', min: 0,    max: 0.15, color: '#888888', clinical: false },
     { label: 'Slight Modi–Good (0.15 – 0.35)',       short: 'Slight',        min: 0.15, max: 0.35, color: '#E9C46A', clinical: false },
-    { label: 'Moderate Modi–Good (0.35 – 0.65)',     short: 'Moderate',      min: 0.35, max: 0.65, color: '#D06828', clinical: false },
+    { label: 'Moderate Modi–Good (0.35 – 0.65)',     short: 'Moderate',      min: 0.35, max: 0.65, color: '#F0A65C', clinical: false },
     { label: 'Strong Modi–Good (≥ 0.65)',            short: 'Strong',        min: 0.65, max: null, color: '#E63946', clinical: false },
   ],
 }

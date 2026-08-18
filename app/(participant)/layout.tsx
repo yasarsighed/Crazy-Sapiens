@@ -26,9 +26,9 @@ export default async function ParticipantLayout({
     <div
       className="min-h-screen bg-background text-foreground"
       style={{
-        // Warm, brand-tinted paper surface — adapts to dark mode via tokens.
+        // The red room — a subtle darker vignette toward the edges.
         background:
-          'radial-gradient(1200px 600px at 50% -10%, color-mix(in srgb, var(--brand-orange) 8%, var(--background)) 0%, var(--background) 60%)',
+          'radial-gradient(1200px 700px at 50% -10%, color-mix(in srgb, #FFFFFF 5%, var(--background)) 0%, var(--background) 55%)',
       }}
     >
 

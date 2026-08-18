@@ -33,9 +33,9 @@ interface VizData {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const COMMUNITY_PALETTE = [
-  '#CE2029','#4A7A40','#D06828','#6845A5',
-  '#D06828','#6845A5','#7A1010','#4A7A40',
-  '#CE2029','#4A7A40',
+  '#CE2029','#86C99A','#F0A65C','#C6A8F0',
+  '#F0A65C','#C6A8F0','#7A1010','#86C99A',
+  '#CE2029','#86C99A',
 ]
 const communityColor = (c: number) => COMMUNITY_PALETTE[c % COMMUNITY_PALETTE.length]
 
@@ -566,16 +566,16 @@ export default function SociogramResultsPage() {
                 <div className="grid grid-cols-2 gap-1.5">
                   {[
                     { l:'Nodes',      v:analytics.n,           c:'#CE2029' },
-                    { l:'Edges',       v:analytics.e,           c:'#6845A5' },
-                    { l:'Density',     v:`${analytics.density}%`, c:'#D06828' },
-                    { l:'Reciprocity', v:`${analytics.reciprocity}%`, c:'#4A7A40' },
-                    { l:'Clustering',  v:analytics.clustering,  c:'#D06828' },
-                    { l:'Modularity',  v:analytics.modularity,  c:'#6845A5' },
+                    { l:'Edges',       v:analytics.e,           c:'#C6A8F0' },
+                    { l:'Density',     v:`${analytics.density}%`, c:'#F0A65C' },
+                    { l:'Reciprocity', v:`${analytics.reciprocity}%`, c:'#86C99A' },
+                    { l:'Clustering',  v:analytics.clustering,  c:'#F0A65C' },
+                    { l:'Modularity',  v:analytics.modularity,  c:'#C6A8F0' },
                     { l:'Communities', v:analytics.communities, c:'#7A1010' },
-                    { l:'Components',  v:analytics.components,  c:'#4A7A40' },
+                    { l:'Components',  v:analytics.components,  c:'#86C99A' },
                     { l:'Isolates',    v:analytics.isolates,    c:analytics.isolates>0?'#CE2029':'#7A7268' },
-                    { l:'Avg in',      v:analytics.avgIn,       c:'#6845A5' },
-                    { l:'Avg out',     v:analytics.avgOut,      c:'#D06828' },
+                    { l:'Avg in',      v:analytics.avgIn,       c:'#C6A8F0' },
+                    { l:'Avg out',     v:analytics.avgOut,      c:'#F0A65C' },
                   ].map(s => (
                     <div key={s.l} className="bg-muted/50 rounded-xl p-2 text-center">
                       <p className="text-[13px] font-bold tabular-nums" style={{ color: s.c }}>{s.v}</p>
@@ -669,7 +669,7 @@ export default function SociogramResultsPage() {
         {/* Status */}
         <div className="absolute top-3 left-3 flex items-center gap-2 pointer-events-none">
           <div className="flex items-center gap-1.5 bg-card/90 backdrop-blur-md border border-border rounded-xl px-3 py-1.5 shadow-sm">
-            <span className={`w-1.5 h-1.5 rounded-full ${settled?'':'animate-pulse'}`} style={{ background: settled ? '#4A7A40' : '#D06828' }} />
+            <span className={`w-1.5 h-1.5 rounded-full ${settled?'':'animate-pulse'}`} style={{ background: settled ? '#86C99A' : '#F0A65C' }} />
             <span className="text-[11px] font-medium text-muted-foreground">{settled?'Layout ready':'Computing…'}</span>
           </div>
           {focusNode !== null && vizData && (
@@ -749,8 +749,8 @@ export default function SociogramResultsPage() {
               </div>
               <div className="grid grid-cols-2 gap-1.5 mb-3">
                 {[
-                  { l:'Received', v:vizData.indegree[tipNode.id], c:'#4A7A40' },
-                  { l:'Sent', v:vizData.edges.filter(e=>e[0]===tipNode.id).length, c:'#6845A5' },
+                  { l:'Received', v:vizData.indegree[tipNode.id], c:'#86C99A' },
+                  { l:'Sent', v:vizData.edges.filter(e=>e[0]===tipNode.id).length, c:'#C6A8F0' },
                 ].map(s => (
                   <div key={s.l} className="bg-muted/60 rounded-xl p-2 text-center">
                     <p className="text-lg font-serif font-bold" style={{color:s.c}}>{s.v}</p>
@@ -762,8 +762,8 @@ export default function SociogramResultsPage() {
                 <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Centrality</p>
                 {[
                   { l:'Betweenness', v:vizData.metrics.betweenness[tipNode.id]?.toFixed(3)??"—", c:'#CE2029' },
-                  { l:'Closeness',   v:vizData.metrics.closeness[tipNode.id]?.toFixed(3)??"—",   c:'#D06828' },
-                  { l:'Eigenvector', v:vizData.metrics.eigenvector[tipNode.id]?.toFixed(3)??"—", c:'#6845A5' },
+                  { l:'Closeness',   v:vizData.metrics.closeness[tipNode.id]?.toFixed(3)??"—",   c:'#F0A65C' },
+                  { l:'Eigenvector', v:vizData.metrics.eigenvector[tipNode.id]?.toFixed(3)??"—", c:'#C6A8F0' },
                 ].map(s => (
                   <div key={s.l} className="flex items-center justify-between">
                     <span className="text-[10px] text-muted-foreground">{s.l}</span>

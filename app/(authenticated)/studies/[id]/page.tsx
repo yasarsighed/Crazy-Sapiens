@@ -297,7 +297,7 @@ export default function StudyPage() {
               }}
               className={`text-xs rounded-md px-2.5 py-1 font-medium border ${
                 study.status === 'active' ? 'bg-primary/10 text-primary border-primary/30'
-                : study.status === 'draft' ? 'bg-[#D06828]/10 text-[#D06828] border-[#D06828]/30'
+                : study.status === 'draft' ? 'bg-[#F0A65C]/10 text-[#F0A65C] border-[#F0A65C]/30'
                 : 'bg-muted text-muted-foreground border-border'
               }`}
             >
@@ -410,7 +410,7 @@ export default function StudyPage() {
                 <div key={enrollment.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-                    style={{ backgroundColor: '#6845A5' }}
+                    style={{ backgroundColor: '#C6A8F0' }}
                   >
                     {enrollment.profiles?.full_name?.charAt(0) || '?'}
                   </div>
@@ -439,15 +439,15 @@ export default function StudyPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setShowAddQuestionnaire(true)}>
-                  <ClipboardList className="w-4 h-4 mr-2" style={{ color: '#6845A5' }} />
+                  <ClipboardList className="w-4 h-4 mr-2" style={{ color: '#C6A8F0' }} />
                   Questionnaire
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowAddSociogram(true)}>
-                  <Users className="w-4 h-4 mr-2" style={{ color: '#4A7A40' }} />
+                  <Users className="w-4 h-4 mr-2" style={{ color: '#86C99A' }} />
                   Sociogram
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowAddIat(true)}>
-                  <Timer className="w-4 h-4 mr-2" style={{ color: '#D06828' }} />
+                  <Timer className="w-4 h-4 mr-2" style={{ color: '#F0A65C' }} />
                   IAT
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -459,9 +459,9 @@ export default function StudyPage() {
             <div className="space-y-1">
               {instruments.map((instrument) => {
                 const typeAccent =
-                  instrument.type === 'questionnaire' ? '#6845A5'
-                  : instrument.type === 'iat'          ? '#D06828'
-                  : '#4A7A40'
+                  instrument.type === 'questionnaire' ? '#C6A8F0'
+                  : instrument.type === 'iat'          ? '#F0A65C'
+                  : '#86C99A'
 
                 const typeIcon =
                   instrument.type === 'questionnaire' ? <ClipboardList className="w-3.5 h-3.5 shrink-0" style={{ color: typeAccent }} />

@@ -138,7 +138,7 @@ export const PHQ9: BuiltInScale = {
     { label: 'Minimal', category: 'minimal', min: 0, max: 4, color: '#52B788' },
     { label: 'Mild', category: 'mild', min: 5, max: 9, color: '#90BE6D' },
     { label: 'Moderate', category: 'moderate', min: 10, max: 14, color: '#E9C46A' },
-    { label: 'Moderately Severe', category: 'moderately_severe', min: 15, max: 19, color: '#D06828' },
+    { label: 'Moderately Severe', category: 'moderately_severe', min: 15, max: 19, color: '#F0A65C' },
     { label: 'Severe', category: 'severe', min: 20, max: 27, color: '#E63946' },
   ],
 }

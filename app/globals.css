@@ -14,13 +14,14 @@
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── The Red Room. Red is the ground; cream is every word; ink is structure. ── */
-  --background:         #B71329;   /* the red room                            */
-  --foreground:         #FBF3E4;   /* bright cream — high contrast on red      */
-  --card:               #A70F22;   /* recessed red panel                       */
-  --card-foreground:    #FBF3E4;
-  --popover:            #180D0C;   /* ink — menus & dropdowns                   */
-  --popover-foreground: #FBF3E4;
+  /* ── The Red Room. Red is the ground; cream is every word; ink is structure.
+       Ground deepened + type brightened so every letter is high-contrast. ── */
+  --background:         #A50E22;   /* deep rich red — max contrast with cream  */
+  --foreground:         #FEF9EE;   /* near-white cream                         */
+  --card:               #97091C;   /* recessed red panel                       */
+  --card-foreground:    #FEF9EE;
+  --popover:            #14090A;   /* ink — menus & dropdowns                   */
+  --popover-foreground: #FEF9EE;
 
   /* ── Primary: inverted. Cream block, red text. ── */
   --primary:            #FBF3E4;
@@ -31,19 +32,19 @@
   --secondary-foreground: #FBF3E4;
 
   /* ── Muted ── */
-  --muted:              #9E0E1E;
-  --muted-foreground:   #E7D9C0;   /* kept bright for legibility               */
+  --muted:              #8E0A1B;
+  --muted-foreground:   #F2E7CF;   /* bright — secondary text stays legible    */
 
   /* ── Accent: brighter red for hovers ── */
-  --accent:             #C8182F;
-  --accent-foreground:  #FBF3E4;
+  --accent:             #BE1329;
+  --accent-foreground:  #FEF9EE;
 
-  --destructive:        #7B0C18;   /* deep blood red — danger                  */
-  --destructive-foreground: #FBF3E4;
+  --destructive:        #6E0913;   /* deep blood red — danger                  */
+  --destructive-foreground: #FEF9EE;
 
-  --border:             rgba(251,243,228,0.24);   /* cream hairline           */
-  --input:              rgba(251,243,228,0.30);
-  --ring:               #FBF3E4;
+  --border:             rgba(254,249,238,0.32);   /* visible cream hairline   */
+  --input:              rgba(254,249,238,0.36);
+  --ring:               #FEF9EE;
 
   /* ── Extended brand palette ── */
   --brand-red:      #C1122A;
@@ -318,9 +319,9 @@ body.role-participant { --role-accent: #86C99A; }
 }
 
 .section-label {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--muted-foreground);
 }

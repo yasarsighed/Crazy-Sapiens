@@ -222,7 +222,7 @@ export default function SupervisorsPage() {
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <div
                         className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-                        style={{ backgroundColor: sup?.researcher_color ?? '#4A7A40' }}
+                        style={{ backgroundColor: sup?.researcher_color ?? '#86C99A' }}
                       >
                         {getInitials(sup?.full_name)}
                       </div>
@@ -238,7 +238,7 @@ export default function SupervisorsPage() {
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <div
                         className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-                        style={{ backgroundColor: res?.researcher_color ?? '#6845A5' }}
+                        style={{ backgroundColor: res?.researcher_color ?? '#C6A8F0' }}
                       >
                         {getInitials(res?.full_name)}
                       </div>

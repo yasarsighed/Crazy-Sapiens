@@ -33,7 +33,7 @@ export function StudyCard({
   instruments, 
   participantCount, 
   completionPercentage,
-  researcherColor = '#4A7A40',
+  researcherColor = '#86C99A',
   className 
 }: StudyCardProps) {
   return (

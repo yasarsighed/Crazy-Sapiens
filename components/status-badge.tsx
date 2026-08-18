@@ -3,20 +3,20 @@ import { cn } from '@/lib/utils'
 // One brand-palette hex per status. Rendered with color-mix so badges tint
 // correctly in both light and dark mode instead of hardcoded *-50/*-700 shades.
 const CONFIG: Record<string, string> = {
-  active:    '#4A7A40', // brand green — running
+  active:    '#86C99A', // brand green — running
   draft:     '#7A5040', // warm neutral
-  paused:    '#D06828', // burnt orange — on hold
-  completed: '#6845A5', // brand purple — done
+  paused:    '#F0A65C', // burnt orange — on hold
+  completed: '#C6A8F0', // brand purple — done
   archived:  '#8A7060', // muted brown — shelved
   pending:   '#D09028', // ochre — awaiting
-  approved:  '#4A7A40', // green
+  approved:  '#86C99A', // green
   rejected:  '#CE2029', // crimson
   withdrawn: '#9A6A5A', // muted — gone
-  enrolled:  '#6845A5', // purple
-  invited:   '#D06828', // orange
+  enrolled:  '#C6A8F0', // purple
+  invited:   '#F0A65C', // orange
   critical:  '#CE2029', // crimson — urgent
   moderate:  '#D09028', // ochre
-  low:       '#4A7A40', // green — mild
+  low:       '#86C99A', // green — mild
 }
 
 interface StatusBadgeProps {

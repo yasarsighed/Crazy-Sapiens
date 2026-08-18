@@ -73,7 +73,7 @@ export default async function InstrumentsPage() {
     })),
   ]
 
-  const typeAccent = { questionnaire: '#6845A5', sociogram: '#4A7A40', iat: '#D06828' }
+  const typeAccent = { questionnaire: '#C6A8F0', sociogram: '#86C99A', iat: '#F0A65C' }
   const typeIcon  = {
     questionnaire: ClipboardList,
     sociogram: Users,

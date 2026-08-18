@@ -563,8 +563,8 @@ export default function IATPage() {
                 </p>
               )}
               {isSwitched && (
-                <div className="bg-[#D06828]/10 border border-[#D06828]/30 rounded-xl p-3 mb-3">
-                  <p className="text-[#D06828] text-xs font-semibold">
+                <div className="bg-[#F0A65C]/10 border border-[#F0A65C]/30 rounded-xl p-3 mb-3">
+                  <p className="text-[#F0A65C] text-xs font-semibold">
                     ⚠ The category sides have switched. Read the labels carefully before starting.
                   </p>
                 </div>

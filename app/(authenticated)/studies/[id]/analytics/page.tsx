@@ -114,9 +114,9 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
   // ── Completion funnel ─────────────────────────────────────────────────────
   const enrolled = enrolledCount ?? 0
   const TYPE_COLORS: Record<string, string> = {
-    questionnaire: '#6845A5',
+    questionnaire: '#C6A8F0',
     iat: '#CE2029',
-    sociogram: '#4A7A40',
+    sociogram: '#86C99A',
   }
 
   const funnelRows: FunnelRow[] = [
@@ -195,8 +195,8 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
             { label: 'Enrolled',      value: enrolled,        icon: Users,         color: '#CE2029' },
-            { label: 'Instruments',   value: totalInstruments,icon: ClipboardList, color: '#6845A5' },
-            { label: 'Avg completion',value: `${avgCompletion}%`, icon: TrendingUp,color: '#4A7A40' },
+            { label: 'Instruments',   value: totalInstruments,icon: ClipboardList, color: '#C6A8F0' },
+            { label: 'Avg completion',value: `${avgCompletion}%`, icon: TrendingUp,color: '#86C99A' },
             { label: 'Open alerts',   value: alertsCount ?? 0,icon: Timer,         color: (alertsCount ?? 0) > 0 ? '#DC2626' : '#6B6B80' },
           ].map(stat => (
             <div key={stat.label} className="bg-card border border-border rounded-2xl p-4">
@@ -218,7 +218,7 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
             <TabsTrigger value="questionnaires" className="gap-1.5 text-xs">
               <ClipboardList className="w-3.5 h-3.5" /> Questionnaires
               {qStats.length > 0 && (
-                <span className="ml-1 text-[10px] rounded-full px-1.5 py-px font-bold" style={{ color: '#6845A5', background: 'color-mix(in srgb, #6845A5 15%, var(--card))' }}>{qStats.length}</span>
+                <span className="ml-1 text-[10px] rounded-full px-1.5 py-px font-bold" style={{ color: '#C6A8F0', background: 'color-mix(in srgb, #C6A8F0 15%, var(--card))' }}>{qStats.length}</span>
               )}
             </TabsTrigger>
             <TabsTrigger value="iat" className="gap-1.5 text-xs">

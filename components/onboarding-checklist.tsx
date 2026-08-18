@@ -61,7 +61,7 @@ export function OnboardingChecklist() {
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
-        style={{ background: 'linear-gradient(135deg, #6845A5, #8B5CF6)' }}
+        style={{ background: 'linear-gradient(135deg, #C6A8F0, #8B5CF6)' }}
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-2">
@@ -110,7 +110,7 @@ export function OnboardingChecklist() {
                   aria-label={done ? 'Mark incomplete' : 'Mark complete'}
                 >
                   {done
-                    ? <CheckCircle2 className="w-4 h-4" style={{ color: '#4A7A40' }} />
+                    ? <CheckCircle2 className="w-4 h-4" style={{ color: '#86C99A' }} />
                     : <Circle className="w-4 h-4 text-muted-foreground/50 hover:text-primary transition-colors" />
                   }
                 </button>

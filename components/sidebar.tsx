@@ -100,7 +100,7 @@ const adminItems: NavItem[] = [
 // Role meta
 const ROLE_META: Record<string, { label: string; emoji: string; color: string }> = {
   admin:      { label: 'Admin',      emoji: '⚡', color: '#7A1010' },
-  supervisor: { label: 'Supervisor', emoji: '🔭', color: '#6845A5' },
+  supervisor: { label: 'Supervisor', emoji: '🔭', color: '#C6A8F0' },
   researcher: { label: 'Researcher', emoji: '🧪', color: 'var(--researcher-color)' },
 }
 
@@ -134,10 +134,10 @@ function NavLink({
     <Link
       href={item.href}
       className={cn(
-        'group flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] transition-all duration-150 relative',
+        'group flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 relative',
         isActive
-          ? 'font-semibold text-white shadow-sm'
-          : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent',
+          ? 'font-bold text-white'
+          : 'text-sidebar-foreground/95 hover:text-sidebar-foreground hover:bg-sidebar-accent',
       )}
       style={isActive ? { backgroundColor: accentColor } : undefined}
     >
@@ -178,7 +178,7 @@ export function Sidebar({ profile }: SidebarProps) {
   const accentColor = role === 'admin'
     ? '#7A1010'
     : role === 'supervisor'
-      ? '#6845A5'
+      ? '#C6A8F0'
       : (profile?.researcher_color || '#CE2029')
 
   const roleMeta = ROLE_META[role] || ROLE_META.researcher
@@ -189,7 +189,7 @@ export function Sidebar({ profile }: SidebarProps) {
     role === 'admin'
       ? '#7A1010'
       : role === 'supervisor'
-        ? '#6845A5'
+        ? '#C6A8F0'
         : accentColor
 
   return (
@@ -241,11 +241,11 @@ export function Sidebar({ profile }: SidebarProps) {
             <p className="text-[13px] font-semibold text-sidebar-foreground truncate leading-tight">
               {profile?.full_name || 'Researcher'}
             </p>
-            <p className="text-[10px] text-sidebar-foreground/50 truncate">
+            <p className="text-[10px] text-sidebar-foreground/80 truncate">
               {profile?.email || 'No email'}
             </p>
           </div>
-          <Settings className="w-3.5 h-3.5 text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60 transition-colors shrink-0" />
+          <Settings className="w-3.5 h-3.5 text-sidebar-foreground/70 group-hover:text-sidebar-foreground transition-colors shrink-0" />
         </Link>
 
         {/* ── Navigation ── */}
@@ -272,7 +272,7 @@ export function Sidebar({ profile }: SidebarProps) {
           <div className="mt-4">
             <button
               onClick={() => setShowAdmin(!showAdmin)}
-              className="flex items-center gap-2 px-3 py-1.5 w-full text-[11px] text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors rounded-lg hover:bg-sidebar-accent"
+              className="flex items-center gap-2 px-3 py-1.5 w-full text-[11px] text-sidebar-foreground/80 hover:text-sidebar-foreground/80 transition-colors rounded-lg hover:bg-sidebar-accent"
             >
               <ChevronRight className={cn('w-3 h-3 transition-transform duration-200', showAdmin && 'rotate-90')} />
               <span className="font-semibold tracking-wider uppercase">Admin & Settings</span>
@@ -295,7 +295,7 @@ export function Sidebar({ profile }: SidebarProps) {
             <TooltipTrigger asChild>
               <button
                 onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
-                className="flex items-center gap-1.5 ml-auto px-2 py-1 rounded-lg text-[10px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors border border-sidebar-border/50"
+                className="flex items-center gap-1.5 ml-auto px-2 py-1 rounded-lg text-[10px] text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors border border-sidebar-border/50"
               >
                 <Search className="w-3 h-3" />
                 <span>⌘K</span>
@@ -309,7 +309,7 @@ export function Sidebar({ profile }: SidebarProps) {
         <div className="p-3 border-t border-sidebar-border shrink-0">
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-[13px] text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all duration-150 group"
+            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-sm text-sidebar-foreground/90 hover:bg-sidebar-accent transition-all duration-150 group"
           >
             <LogOut className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" />
             <span>Sign out</span>
@@ -318,7 +318,7 @@ export function Sidebar({ profile }: SidebarProps) {
 
         {/* ── Footer quip ── */}
         <div className="px-4 pb-4 shrink-0">
-          <p className="text-[9px] text-sidebar-foreground/30 leading-relaxed italic">
+          <p className="text-[10px] text-sidebar-foreground/70 leading-relaxed italic">
             &copy; 2026 Crazy Sapiens &mdash; {quip}
           </p>
         </div>

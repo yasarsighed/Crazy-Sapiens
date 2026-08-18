@@ -273,7 +273,7 @@ export default function CohortDetailPage() {
                       <div key={r.researcher_id} className="flex items-center gap-3 py-2.5 border-b border-border last:border-0">
                         <div
                           className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-                          style={{ backgroundColor: p?.researcher_color ?? '#4A7A40' }}
+                          style={{ backgroundColor: p?.researcher_color ?? '#86C99A' }}
                         >
                           {getInitials(p?.full_name)}
                         </div>

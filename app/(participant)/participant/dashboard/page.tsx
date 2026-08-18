@@ -11,9 +11,9 @@ import { PendingTasksReminder } from '@/components/pending-tasks-reminder'
 
 // ── Instrument-type theming (v6 brand palette) ──────────────────────────────
 const TYPE_META = {
-  questionnaire: { color: '#6845A5', Icon: ClipboardList, kind: 'Questionnaire',   est: null as string | null },
-  sociogram:     { color: '#4A7A40', Icon: Users,         kind: 'Peer nomination', est: '~3 min' },
-  iat:           { color: '#D06828', Icon: Timer,         kind: 'Reaction task',   est: '~5 min' },
+  questionnaire: { color: '#C6A8F0', Icon: ClipboardList, kind: 'Questionnaire',   est: null as string | null },
+  sociogram:     { color: '#86C99A', Icon: Users,         kind: 'Peer nomination', est: '~3 min' },
+  iat:           { color: '#F0A65C', Icon: Timer,         kind: 'Reaction task',   est: '~5 min' },
 } as const
 
 function getInitials(name: string | null) {
@@ -212,7 +212,7 @@ export default async function ParticipantDashboardPage() {
           ) : (
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #CE2029, #C41890)' }}
+              style={{ background: 'linear-gradient(135deg, #CE2029, #EC8FC8)' }}
             >
               {getInitials(profile?.full_name ?? null)}
             </div>
@@ -295,7 +295,7 @@ export default async function ParticipantDashboardPage() {
                 className="px-6 pt-5 pb-4"
                 style={{
                   background: isAllDone
-                    ? 'color-mix(in srgb, #4A7A40 14%, var(--card))'
+                    ? 'color-mix(in srgb, #86C99A 14%, var(--card))'
                     : `color-mix(in srgb, ${accent} 9%, var(--card))`,
                 }}
               >
@@ -304,7 +304,7 @@ export default async function ParticipantDashboardPage() {
                   <div className="relative shrink-0">
                     <ProgressRing
                       pct={pct}
-                      color={isAllDone ? '#4A7A40' : accent}
+                      color={isAllDone ? '#86C99A' : accent}
                       size={52}
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -336,11 +336,11 @@ export default async function ParticipantDashboardPage() {
                     )}
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <span className="text-xs font-semibold text-foreground bg-secondary px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" style={{ color: '#4A7A40' }} />
+                        <CheckCircle2 className="w-3 h-3" style={{ color: '#86C99A' }} />
                         {completedCount}/{totalCount} done
                       </span>
                       {pendingCount > 0 && (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ color: '#D06828', background: 'color-mix(in srgb, #D06828 12%, var(--card))' }}>
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ color: '#F0A65C', background: 'color-mix(in srgb, #F0A65C 12%, var(--card))' }}>
                           <Clock className="w-3 h-3" />
                           {pendingCount} pending
                         </span>
@@ -355,7 +355,7 @@ export default async function ParticipantDashboardPage() {
 
                 {/* All done celebration */}
                 {isAllDone && (
-                  <div className="flex items-center gap-3 p-4 rounded-2xl border" style={{ background: 'color-mix(in srgb, #4A7A40 10%, var(--card))', borderColor: 'color-mix(in srgb, #4A7A40 30%, transparent)' }}>
+                  <div className="flex items-center gap-3 p-4 rounded-2xl border" style={{ background: 'color-mix(in srgb, #86C99A 10%, var(--card))', borderColor: 'color-mix(in srgb, #86C99A 30%, transparent)' }}>
                     <span className="text-2xl">🏆</span>
                     <div>
                       <p className="text-sm font-bold text-foreground">All done — amazing!</p>
@@ -427,9 +427,9 @@ export default async function ParticipantDashboardPage() {
                   ...completedIat.map((i: any) => ({ ...i, _type: 'iat'           })),
                 ].filter(item => item.study_id === sid).map((item: any) => (
                   <div key={item.id} className="flex items-center gap-3 py-2 px-3 opacity-60">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: '#4A7A40' }} />
+                    <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: '#86C99A' }} />
                     <p className="text-sm text-muted-foreground flex-1 truncate line-through">{item.title}</p>
-                    <span className="text-xs font-semibold px-2 py-px rounded-full shrink-0" style={{ color: '#4A7A40', background: 'color-mix(in srgb, #4A7A40 12%, var(--card))' }}>Done</span>
+                    <span className="text-xs font-semibold px-2 py-px rounded-full shrink-0" style={{ color: '#86C99A', background: 'color-mix(in srgb, #86C99A 12%, var(--card))' }}>Done</span>
                   </div>
                 ))}
 

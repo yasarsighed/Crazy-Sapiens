@@ -9,7 +9,7 @@ import {
 // ── Colour helpers ────────────────────────────────────────────────────────────
 
 const SEVERITY_COLORS: Record<string, string> = {
-  minimal: '#4A7A40', none: '#4A7A40',
+  minimal: '#86C99A', none: '#86C99A',
   mild: '#EAB308',
   moderate: '#F97316',
   'moderately severe': '#DC2626',
@@ -20,7 +20,7 @@ function severityColor(label: string | null) {
   if (!label) return '#6B6B80'
   const l = label.toLowerCase()
   for (const [k, c] of Object.entries(SEVERITY_COLORS)) if (l.includes(k)) return c
-  return '#6845A5'
+  return '#C6A8F0'
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ function makeDScoreHistogram(dScores: number[]) {
     return {
       range: `${lo.toFixed(1)}`,
       count: dScores.filter(d => d >= lo && d < hi).length,
-      fill: lo < -0.35 ? '#2F6DB0' : lo > 0.35 ? '#F97316' : '#6845A5',
+      fill: lo < -0.35 ? '#86B7D6' : lo > 0.35 ? '#F97316' : '#C6A8F0',
     }
   })
 }
@@ -134,7 +134,7 @@ export function QuestionnaireSummary({ stats }: { stats: QInstrumentStats[] }) {
                 )}
               </div>
               <div className="text-right shrink-0">
-                <p className="text-2xl font-serif font-bold tabular-nums" style={{ color: '#6845A5' }}>
+                <p className="text-2xl font-serif font-bold tabular-nums" style={{ color: '#C6A8F0' }}>
                   {completionPct}%
                 </p>
                 <p className="text-[10px] text-muted-foreground">{q.completed}/{q.n} complete</p>
@@ -144,10 +144,10 @@ export function QuestionnaireSummary({ stats }: { stats: QInstrumentStats[] }) {
             {/* Stats strip */}
             <div className="grid grid-cols-4 gap-3 mb-5">
               {[
-                { label: 'n', value: q.completed, color: '#6845A5' },
-                { label: 'Mean', value: q.mean.toFixed(1), color: '#2F6DB0' },
+                { label: 'n', value: q.completed, color: '#C6A8F0' },
+                { label: 'Mean', value: q.mean.toFixed(1), color: '#86B7D6' },
                 { label: 'SD', value: q.sd.toFixed(1), color: '#F97316' },
-                { label: 'Range', value: `${q.min}–${q.max}`, color: '#4A7A40' },
+                { label: 'Range', value: `${q.min}–${q.max}`, color: '#86C99A' },
               ].map(s => (
                 <div key={s.label} className="bg-muted/50 rounded-xl p-3 text-center">
                   <p className="text-lg font-serif font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
@@ -172,12 +172,12 @@ export function QuestionnaireSummary({ stats }: { stats: QInstrumentStats[] }) {
                           const lo = parseFloat(b.range.split('–')[0])
                           return lo <= q.mean && lo + 1 > q.mean
                         })?.range ?? ''}
-                        stroke="#6845A5" strokeDasharray="4 2" strokeWidth={1.5}
-                        label={{ value: 'M', position: 'top', fontSize: 9, fill: '#6845A5' }}
+                        stroke="#C6A8F0" strokeDasharray="4 2" strokeWidth={1.5}
+                        label={{ value: 'M', position: 'top', fontSize: 9, fill: '#C6A8F0' }}
                       />
                       <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                         {hist.map((_, i) => (
-                          <Cell key={i} fill={i % 2 === 0 ? '#6845A5' : '#8B5CF6'} fillOpacity={0.7} />
+                          <Cell key={i} fill={i % 2 === 0 ? '#C6A8F0' : '#8B5CF6'} fillOpacity={0.7} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -261,8 +261,8 @@ export function IatSummary({ stats }: { stats: IatStats[] }) {
             <div className="grid grid-cols-4 gap-3 mb-5">
               {[
                 { label: 'n', value: iat.completed, color: '#F97316' },
-                { label: 'Mean D', value: iat.mean.toFixed(3), color: Math.abs(iat.mean) > 0.35 ? '#DC2626' : '#4A7A40' },
-                { label: 'SD', value: iat.sd.toFixed(3), color: '#2F6DB0' },
+                { label: 'Mean D', value: iat.mean.toFixed(3), color: Math.abs(iat.mean) > 0.35 ? '#DC2626' : '#86C99A' },
+                { label: 'SD', value: iat.sd.toFixed(3), color: '#86B7D6' },
                 { label: 'Strong pref', value: `${strongPref} (${iat.completed ? Math.round(strongPref / iat.completed * 100) : 0}%)`, color: '#DC2626' },
               ].map(s => (
                 <div key={s.label} className="bg-muted/50 rounded-xl p-3 text-center">
@@ -301,7 +301,7 @@ export function IatSummary({ stats }: { stats: IatStats[] }) {
                       { label: 'Strong preference (|D| ≥ 0.65)', count: strongPref, color: '#DC2626' },
                       { label: 'Moderate (0.35 ≤ |D| < 0.65)', count: modPref, color: '#F97316' },
                       { label: 'Slight (0 < |D| < 0.35)', count: slightPref, color: '#EAB308' },
-                      { label: 'No preference (D ≈ 0)', count: neutral, color: '#4A7A40' },
+                      { label: 'No preference (D ≈ 0)', count: neutral, color: '#86C99A' },
                     ].map(row => {
                       const pct = iat.completed > 0 ? Math.round((row.count / iat.completed) * 100) : 0
                       return (

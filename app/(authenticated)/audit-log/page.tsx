@@ -140,7 +140,7 @@ export default async function AuditLogPage() {
       label: `${q.title} submitted`,
       sub: `${profile?.full_name ?? 'Unknown'} · Score ${r.total_score}${r.severity_label ? ' · ' + r.severity_label : ''} · ${studyTitleMap[q.study_id] ?? ''}`,
       timestamp: r.submitted_at,
-      color: '#6845A5',
+      color: '#C6A8F0',
     })
   }
 
@@ -159,7 +159,7 @@ export default async function AuditLogPage() {
       label: `${iat.title} completed`,
       sub: `${profile?.full_name ?? 'Unknown'} · ${studyTitleMap[iat.study_id] ?? ''}`,
       timestamp: t.created_at,
-      color: '#D06828',
+      color: '#F0A65C',
     })
   }
 
@@ -174,7 +174,7 @@ export default async function AuditLogPage() {
       label: `${soc.title} — nominations submitted`,
       sub: `${profile?.full_name ?? 'Unknown'} · ${studyTitleMap[soc.study_id] ?? ''}`,
       timestamp: s.submitted_at,
-      color: '#4A7A40',
+      color: '#86C99A',
     })
   }
 

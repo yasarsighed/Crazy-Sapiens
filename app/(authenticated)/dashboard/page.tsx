@@ -39,21 +39,21 @@ function firstName(full: string | null) {
   return full?.split(' ')[0] || 'Researcher'
 }
 
-// ── Quick action items ──
+// ── Quick action items (icon colour; tile is ink) ──
 const QUICK_ACTIONS = [
-  { label: 'New Study',         href: '/studies/new',   icon: FlaskConical, color: 'bg-primary'       },
-  { label: 'Scale Library',    href: '/scale-library', icon: BookOpen,     color: 'bg-[#6845A5]'     },
-  { label: 'View Participants', href: '/participants',  icon: Users,        color: 'bg-[#4A7A40]'     },
-  { label: 'Audit Log',        href: '/audit-log',     icon: ClipboardList,color: 'bg-[#D06828]'     },
+  { label: 'New Study',         href: '/studies/new',   icon: FlaskConical, color: '#EBC15C' },
+  { label: 'Scale Library',    href: '/scale-library', icon: BookOpen,     color: '#C6A8F0' },
+  { label: 'View Participants', href: '/participants',  icon: Users,        color: '#86C99A' },
+  { label: 'Audit Log',        href: '/audit-log',     icon: ClipboardList,color: '#F0A65C' },
 ]
 
 // ── Activity icon / colour helpers ──
 function activityDot(type: string) {
-  if (type === 'enrollment' || type === 'enroll') return 'bg-[#4A7A40]'
-  if (type === 'alert')      return 'bg-[#CE2029]'
-  if (type === 'completion') return 'bg-[#D06828]'
-  if (type === 'submit')     return 'bg-[#6845A5]'
-  return 'bg-[#D06828]'
+  if (type === 'enrollment' || type === 'enroll') return 'bg-[#86C99A]'
+  if (type === 'alert')      return 'bg-[#EBC15C]'
+  if (type === 'completion') return 'bg-[#F0A65C]'
+  if (type === 'submit')     return 'bg-[#C6A8F0]'
+  return 'bg-[#F0A65C]'
 }
 
 function activityLabel(row: { action_type: string; entity_type: string }) {
@@ -227,26 +227,26 @@ export default async function DashboardPage() {
         {/* ── Stat strip — instrument panel ── */}
         <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
           {[
-            { label: isAdmin ? 'Platform Studies' : 'Active Studies', value: activeStudiesCount ?? 0, icon: FlaskConical, color: researcherColor, sub: 'running now', alert: false },
-            { label: 'Participants',    value: totalParticipants  ?? 0, icon: Users,         color: '#4A7A40', sub: 'enrolled',   alert: false },
-            { label: 'Responses',       value: responsesCount     ?? 0, icon: CheckCircle2,  color: '#6845A5', sub: 'completed',  alert: false },
-            { label: 'Clinical Alerts', value: alertsCount        ?? 0, icon: AlertTriangle, color: '#CE2029', sub: alertsCount ? 'needs review' : 'all clear', alert: !!alertsCount },
+            { label: isAdmin ? 'Platform Studies' : 'Active Studies', value: activeStudiesCount ?? 0, icon: FlaskConical, color: '#EBC15C', sub: 'running now', alert: false },
+            { label: 'Participants',    value: totalParticipants  ?? 0, icon: Users,         color: '#86C99A', sub: 'enrolled',   alert: false },
+            { label: 'Responses',       value: responsesCount     ?? 0, icon: CheckCircle2,  color: '#C6A8F0', sub: 'completed',  alert: false },
+            { label: 'Clinical Alerts', value: alertsCount        ?? 0, icon: AlertTriangle, color: '#EBC15C', sub: alertsCount ? 'needs review' : 'all clear', alert: !!alertsCount },
           ].map(stat => (
-            <div key={stat.label} className="rounded-xl border border-border bg-card px-4 py-3.5">
+            <div key={stat.label} className="rounded-md border border-border px-4 py-3.5" style={{ background: stat.alert ? '#EBC15C' : 'var(--card)' }}>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] tracking-[0.11em] uppercase text-muted-foreground">
+                <span className="font-mono text-[10px] tracking-[0.11em] uppercase" style={{ color: stat.alert ? '#5C0912' : 'var(--muted-foreground)' }}>
                   {stat.label}
                 </span>
-                <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
+                <stat.icon className="w-4 h-4" style={{ color: stat.alert ? '#8F0E1F' : stat.color }} />
               </div>
               <p
                 className="font-mono text-[30px] font-medium tabular-nums leading-none mt-3"
-                style={{ color: stat.alert ? '#CE2029' : 'var(--foreground)' }}
+                style={{ color: stat.alert ? '#8F0E1F' : 'var(--foreground)' }}
               >
                 {stat.value.toLocaleString()}
               </p>
-              <p className="text-[11px] mt-2 text-muted-foreground flex items-center gap-1">
-                {stat.alert && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#CE2029]" />}
+              <p className="text-[11px] mt-2 flex items-center gap-1" style={{ color: stat.alert ? '#5C0912' : 'var(--muted-foreground)' }}>
+                {stat.alert && <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: '#8F0E1F' }} />}
                 {stat.sub}
               </p>
             </div>
@@ -263,11 +263,11 @@ export default async function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {QUICK_ACTIONS.map(action => (
               <Link key={action.href} href={action.href}>
-                <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-border bg-card hover:border-primary/30 hover:shadow-md transition-all duration-150 group cursor-pointer card-hover">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0 ${action.color} shadow-sm group-hover:scale-110 transition-transform`}>
-                    <action.icon className="w-4 h-4" />
+                <div className="flex items-center gap-3 p-3.5 rounded-md border border-border bg-card hover:border-foreground/40 transition-all duration-150 group cursor-pointer">
+                  <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 bg-[#180D0C] group-hover:scale-105 transition-transform">
+                    <action.icon className="w-4 h-4" style={{ color: action.color }} />
                   </div>
-                  <span className="text-[13px] font-medium text-foreground leading-tight">{action.label}</span>
+                  <span className="text-[13px] font-semibold text-foreground leading-tight">{action.label}</span>
                 </div>
               </Link>
             ))}
@@ -308,9 +308,9 @@ export default async function DashboardPage() {
                         const counts: Record<'questionnaire'|'sociogram'|'iat', number> = { questionnaire: 0, sociogram: 0, iat: 0 }
                         for (const i of insts) counts[i.type]++
                         const typeMeta = [
-                          { k: 'questionnaire' as const, label: 'Quest', color: '#6845A5' },
-                          { k: 'sociogram'     as const, label: 'Socio', color: '#4A7A40' },
-                          { k: 'iat'           as const, label: 'IAT',   color: '#D06828' },
+                          { k: 'questionnaire' as const, label: 'Quest', color: '#C6A8F0' },
+                          { k: 'sociogram'     as const, label: 'Socio', color: '#86C99A' },
+                          { k: 'iat'           as const, label: 'IAT',   color: '#F0A65C' },
                         ]
                         const pct = Math.round((study as any).completion_percentage ?? 0)
                         return (
@@ -396,7 +396,7 @@ export default async function DashboardPage() {
             <Card className="border-border overflow-hidden">
               <CardHeader className="pb-3 border-b border-border bg-muted/30">
                 <CardTitle className="font-serif text-base flex items-center gap-2">
-                  <Users className="w-4 h-4" style={{ color: '#6845A5' }} /> Platform Researchers
+                  <Users className="w-4 h-4" style={{ color: '#C6A8F0' }} /> Platform Researchers
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3">
@@ -428,12 +428,12 @@ export default async function DashboardPage() {
 
             {/* Clinical alerts */}
             {(clinicalAlerts?.length ?? 0) > 0 && (
-              <Card className="border-destructive/30 bg-destructive/5 overflow-hidden">
-                <CardHeader className="pb-2 border-b border-destructive/20">
-                  <CardTitle className="font-serif text-base text-destructive flex items-center gap-2">
+              <Card className="overflow-hidden border-[color:var(--brand-gold)]/50" style={{ borderColor: 'color-mix(in srgb, #EBC15C 50%, transparent)' }}>
+                <CardHeader className="pb-2 border-b" style={{ background: '#180D0C', borderColor: 'color-mix(in srgb, #EBC15C 30%, transparent)' }}>
+                  <CardTitle className="font-serif text-base flex items-center gap-2" style={{ color: '#EBC15C' }}>
                     <AlertTriangle className="w-4 h-4" /> Clinical Alerts
                   </CardTitle>
-                  <p className="text-[11px] text-destructive/70 mt-1">
+                  <p className="text-[11px] mt-1" style={{ color: 'color-mix(in srgb, #EBC15C 80%, transparent)' }}>
                     Please review promptly.
                   </p>
                 </CardHeader>
@@ -487,14 +487,14 @@ export default async function DashboardPage() {
             <Card className="border-border overflow-hidden">
               <CardHeader className="pb-3 border-b border-border bg-muted/30">
                 <CardTitle className="font-serif text-base flex items-center gap-2">
-                  <Zap className="w-4 h-4" style={{ color: '#D06828' }} /> Resources
+                  <Zap className="w-4 h-4" style={{ color: '#EBC15C' }} /> Resources
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 space-y-1">
                 {[
-                  { href: '/scale-library', icon: Library,     label: 'Browse Scale Library',    color: '#6845A5' },
-                  { href: '/audit-log',     icon: ClipboardList,label: 'View Audit Log',          color: '#D06828' },
-                  { href: '/participants',  icon: Mail,          label: 'Manage Participants',     color: '#4A7A40' },
+                  { href: '/scale-library', icon: Library,     label: 'Browse Scale Library',    color: '#C6A8F0' },
+                  { href: '/audit-log',     icon: ClipboardList,label: 'View Audit Log',          color: '#F0A65C' },
+                  { href: '/participants',  icon: Mail,          label: 'Manage Participants',     color: '#86C99A' },
                 ].map(link => (
                   <Link key={link.href} href={link.href}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/70 transition-colors group"

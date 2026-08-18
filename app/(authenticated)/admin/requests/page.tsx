@@ -91,7 +91,7 @@ function RequestCard({
           <div className="flex items-center gap-2.5 min-w-0">
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-              style={{ backgroundColor: requester?.researcher_color ?? '#4A7A40' }}
+              style={{ backgroundColor: requester?.researcher_color ?? '#86C99A' }}
             >
               {getInitials(requester?.full_name)}
             </div>
@@ -145,7 +145,7 @@ function RequestCard({
                 size="sm"
                 onClick={() => review('approve')}
                 disabled={submitting !== null}
-                className="text-white hover:opacity-90 bg-[#4A7A40]"
+                className="text-white hover:opacity-90 bg-[#86C99A]"
               >
                 <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
                 {submitting === 'approve' ? 'Approving…' : 'Approve'}

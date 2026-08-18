@@ -15,14 +15,14 @@ const DEFAULT_RELATIONSHIP_TYPES = [
   {
     label: 'Communication',
     description: 'Who do you communicate with regularly?',
-    color_hex: '#6845A5',
+    color_hex: '#C6A8F0',
     is_negative_dimension: false,
     display_order: 1,
   },
   {
     label: 'Advice',
     description: 'Who do you go to for professional advice?',
-    color_hex: '#4A7A40',
+    color_hex: '#86C99A',
     is_negative_dimension: false,
     display_order: 2,
   },

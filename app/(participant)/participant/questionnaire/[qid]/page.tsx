@@ -554,7 +554,7 @@ export default function QuestionnairePage() {
       <div className="max-w-2xl mx-auto px-6 py-16 text-center">
         <CheckCircle
           className="w-12 h-12 mx-auto mb-4"
-          style={{ color: showScoreToParticipant && severity?.color ? severity.color : '#4A7A40' }}
+          style={{ color: showScoreToParticipant && severity?.color ? severity.color : '#86C99A' }}
         />
         <h1 className="font-serif text-2xl mb-2">All done. Thank you.</h1>
         <p className="text-sm text-muted-foreground mb-8">
@@ -672,7 +672,7 @@ export default function QuestionnairePage() {
             <span className="flex items-center gap-2">
               {saveStatus === 'saving' && <span className="text-xs opacity-70">Saving…</span>}
               {saveStatus === 'saved' && (
-                <span className="text-xs inline-flex items-center gap-0.5" style={{ color: '#4A7A40' }}>
+                <span className="text-xs inline-flex items-center gap-0.5" style={{ color: '#86C99A' }}>
                   <Check className="w-3 h-3" /> Saved
                 </span>
               )}
@@ -747,7 +747,7 @@ export default function QuestionnairePage() {
                     'w-2 h-2 rounded-full transition-all',
                     i === stepIndex ? 'ring-2 ring-offset-1 ring-primary' : '',
                   )}
-                  style={{ background: answered ? '#4A7A40' : 'var(--muted)' }}
+                  style={{ background: answered ? '#86C99A' : 'var(--muted)' }}
                 />
               )
             })}
@@ -814,7 +814,7 @@ export default function QuestionnairePage() {
             onClick={() => router.push('/participant/dashboard')}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
           >
-            <Check className="w-3.5 h-3.5" style={{ color: '#4A7A40' }} />
+            <Check className="w-3.5 h-3.5" style={{ color: '#86C99A' }} />
             Save &amp; finish later
           </button>
         </div>

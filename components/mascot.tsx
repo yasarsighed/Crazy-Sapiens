@@ -78,8 +78,8 @@ export function Mascot({ size = 'md', className, animate = false }: MascotProps)
       <path d="M85 65 L78 64" stroke="#D4A855" strokeWidth="1.5" strokeLinecap="round" />
       
       {/* Slight blush on cheeks */}
-      <circle cx="22" cy="58" r="6" fill="#D06828" opacity="0.3" />
-      <circle cx="78" cy="58" r="6" fill="#D06828" opacity="0.3" />
+      <circle cx="22" cy="58" r="6" fill="#F0A65C" opacity="0.3" />
+      <circle cx="78" cy="58" r="6" fill="#F0A65C" opacity="0.3" />
     </svg>
   )
 }

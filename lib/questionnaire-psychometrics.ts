@@ -173,10 +173,10 @@ export function cohensD(
 
 export function alphaInterpretation(alpha: number): { label: string; color: string } {
   if (isNaN(alpha))     return { label: 'N/A (not enough data)', color: '#8B7355' }
-  if (alpha >= 0.9)     return { label: 'Excellent',             color: '#4A7A40' }
+  if (alpha >= 0.9)     return { label: 'Excellent',             color: '#86C99A' }
   if (alpha >= 0.8)     return { label: 'Good',                  color: '#52B788' }
   if (alpha >= 0.7)     return { label: 'Acceptable',            color: '#E9C46A' }
-  if (alpha >= 0.6)     return { label: 'Questionable',          color: '#D06828' }
+  if (alpha >= 0.6)     return { label: 'Questionable',          color: '#F0A65C' }
   if (alpha >= 0.5)     return { label: 'Poor',                  color: '#E76F51' }
   return                       { label: 'Unacceptable',          color: '#E63946' }
 }

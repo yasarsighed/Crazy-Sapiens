@@ -22,7 +22,7 @@ function severityColor(label: string | null): string {
   if (b.includes('minimal') || b.includes('none')) return '#52B788'
   if (b.includes('mild')) return '#E9C46A'
   if (b.includes('moderately severe')) return '#E63946'
-  if (b.includes('moderate')) return '#D06828'
+  if (b.includes('moderate')) return '#F0A65C'
   if (b.includes('severe')) return '#E63946'
   return '#888888'
 }
@@ -133,7 +133,7 @@ export default async function AnalysisPage() {
     { label: 'Leans toward Life',     range: '< 0',       color: '#52B788', test: (d: number) => d < 0 },
     { label: 'Little association',    range: '0 – 0.15',  color: '#888888', test: (d: number) => d >= 0 && d < 0.15 },
     { label: 'Slight Self–Death',     range: '0.15 – 0.35', color: '#E9C46A', test: (d: number) => d >= 0.15 && d < 0.35 },
-    { label: 'Moderate Self–Death',   range: '0.35 – 0.65', color: '#D06828', test: (d: number) => d >= 0.35 && d < 0.65 },
+    { label: 'Moderate Self–Death',   range: '0.35 – 0.65', color: '#F0A65C', test: (d: number) => d >= 0.35 && d < 0.65 },
     { label: 'Strong Self–Death',     range: '≥ 0.65',    color: '#E63946', test: (d: number) => d >= 0.65 },
   ]
 
