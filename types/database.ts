@@ -7,6 +7,7 @@ export interface Profile {
   role: UserRole
   researcher_color: string | null
   avatar_url: string | null
+  dashboard_prefs: { hidden?: string[]; greeting?: string | null } | null
   created_at: string
   updated_at: string | null
 }

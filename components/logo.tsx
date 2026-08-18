@@ -36,17 +36,17 @@ export function Logo({ size = 'md', showWordmark = true, className }: LogoProps)
       <Mascot size={config.mascot} />
       {showWordmark && (
         <div className="flex flex-col leading-none">
-          <span 
+          <span
             className={cn(
-              'font-[family-name:var(--font-permanent-marker)] text-[#1A2E1A] -rotate-2',
+              'font-serif font-semibold tracking-tight text-foreground',
               config.crazy
             )}
           >
-            CRAZY
+            Crazy
           </span>
-          <span 
+          <span
             className={cn(
-              'font-[family-name:var(--font-caveat)] font-bold text-primary -mt-1',
+              'font-serif italic font-semibold text-primary -mt-1',
               config.sapiens
             )}
           >
@@ -63,17 +63,17 @@ export function Wordmark({ size = 'md', className }: { size?: 'sm' | 'md' | 'lg'
   
   return (
     <div className={cn('flex flex-col leading-none', className)}>
-      <span 
+      <span
         className={cn(
-          'font-[family-name:var(--font-permanent-marker)] text-[#1A2E1A] -rotate-2',
+          'font-serif font-semibold tracking-tight text-foreground',
           config.crazy
         )}
       >
-        CRAZY
+        Crazy
       </span>
-      <span 
+      <span
         className={cn(
-          'font-[family-name:var(--font-caveat)] font-bold text-primary -mt-1',
+          'font-serif italic font-semibold text-primary -mt-1',
           config.sapiens
         )}
       >

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
                    CHECK (role IN ('participant', 'researcher', 'supervisor', 'admin')),
   researcher_color TEXT,
   avatar_url       TEXT,
+  dashboard_prefs  JSONB,
   date_of_birth    DATE,
   gender           TEXT,
   education_level  TEXT,

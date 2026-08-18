@@ -1,145 +1,146 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-/* v6.1 */
+/* v7 */
 
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════════════
-   CRAZY SAPIENS — DESIGN SYSTEM v6
-   Brand Identity: pulled directly from the Crazy Sapiens artwork
+   CRAZY SAPIENS — DESIGN SYSTEM v7
+   "Rigorous underneath, friendly on top."
    ─────────────────────────────────────────────────────────────
-   Deep crimson red · Warm purple · Hot magenta · Burnt orange
-   Dark chocolate · Warm ivory
+   One confident signal red on warm paper. Warm neutrals, not
+   clinical grey. Fraunces (display) · Hanken Grotesk (UI) ·
+   JetBrains Mono (data). Instrument-type hues kept as categorical.
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Surfaces ── */
-  --background:         #FBF6EF;   /* warm ivory — like the mascot's skin     */
-  --foreground:         #1C0808;   /* dark chocolate — from the afro           */
+  /* ── Surfaces — warm paper, not clinical grey ── */
+  --background:         #F6F3EF;   /* warm paper                              */
+  --foreground:         #241F1C;   /* warm ink                                */
   --card:               #FFFFFF;
-  --card-foreground:    #1C0808;
+  --card-foreground:    #241F1C;
   --popover:            #FFFFFF;
-  --popover-foreground: #1C0808;
+  --popover-foreground: #241F1C;
 
-  /* ── Primary: the painting's crimson red ── */
-  --primary:            #A81010;
-  --primary-foreground: #FBF6EF;
+  /* ── Primary: one confident signal red ── */
+  --primary:            #CE2029;
+  --primary-foreground: #FFFFFF;
 
-  /* ── Secondary: warm cream ── */
-  --secondary:          #F2E8DA;
-  --secondary-foreground: #1C0808;
+  /* ── Secondary: warm tint ── */
+  --secondary:          #F1ECE6;
+  --secondary-foreground: #241F1C;
 
   /* ── Muted ── */
-  --muted:              #EDE0CE;
-  --muted-foreground:   #7A5040;
+  --muted:              #EFEAE3;
+  --muted-foreground:   #6A625B;
 
-  /* ── Accent: burnt orange from the spiral eye ── */
-  --accent:             #D06828;
-  --accent-foreground:  #FBF6EF;
+  /* ── Accent: subtle warm surface (hover states) ── */
+  --accent:             #EFE6DA;
+  --accent-foreground:  #241F1C;
 
-  --destructive:        #A81010;
-  --destructive-foreground: #FBF6EF;
+  --destructive:        #C42E1C;
+  --destructive-foreground: #FFFFFF;
 
-  --border:             #D8C8B0;
-  --input:              #D8C8B0;
-  --ring:               #A81010;
+  --border:             #EAE3DB;
+  --input:              #EAE3DB;
+  --ring:               #CE2029;
 
   /* ── Extended brand palette ── */
-  --brand-red:      #A81010;   /* painting background / primary       */
-  --brand-purple:   #6845A5;   /* face paint purple                   */
-  --brand-magenta:  #C41890;   /* the magenta belt                    */
-  --brand-orange:   #D06828;   /* spiral eye / hands                  */
-  --brand-dark:     #1C0808;   /* the deep afro brown-black           */
-  --brand-cream:    #EED8B8;   /* warm ivory skin tone                */
+  --brand-red:      #CE2029;   /* signal red / primary                */
+  --brand-purple:   #6845A5;   /* instrument categorical — questionnaire */
+  --brand-magenta:  #C41890;   /* instrument categorical              */
+  --brand-orange:   #D06828;   /* instrument categorical — IAT        */
+  --brand-dark:     #241F1C;   /* warm ink                            */
+  --brand-cream:    #EFE6DA;   /* warm paper tint                     */
 
   /* ── Keep old aliases working ── */
   --accent-orange:  #D06828;
-  --accent-blue:    #6845A5;   /* purple fills this slot now          */
-  --accent-yellow:  #D09028;
+  --accent-blue:    #2F6DB0;
+  --accent-yellow:  #BC7A00;
   --accent-pink:    #C41890;
   --success:        #4A7A40;
-  --alert-red:      #A81010;
-  --text-primary:   #1C0808;
-  --text-secondary: #7A5040;
+  --alert-red:      #C42E1C;
+  --text-primary:   #241F1C;
+  --text-secondary: #6A625B;
 
-  --gradient-brand:   #A81010;
+  --gradient-brand:   #CE2029;
   --gradient-purple:  #6845A5;
   --gradient-warm:    #D06828;
-  --gradient-cool:    #6845A5;
+  --gradient-cool:    #2F6DB0;
   --gradient-success: #4A7A40;
 
-  /* ── Role colours — from the painting's palette ── */
-  --role-admin:       #7A1010;   /* darker crimson — authority          */
-  --role-researcher:  var(--researcher-color, #A81010);
+  /* ── Role colours ── */
+  --role-admin:       #A5171F;   /* deep red — authority                */
+  --role-researcher:  var(--researcher-color, #CE2029);
   --role-participant: #4A7A40;   /* earthy green — growth               */
-  --role-supervisor:  #6845A5;   /* the painting's purple — oversight   */
-  --researcher-color: #A81010;
+  --role-supervisor:  #6845A5;   /* purple — oversight                  */
+  --researcher-color: #CE2029;
 
-  /* ── Charts — full brand palette ── */
-  --chart-1: #A81010;   /* crimson       */
+  /* ── Charts — categorical (matches instrument-type hues) ── */
+  --chart-1: #CE2029;   /* red           */
   --chart-2: #6845A5;   /* purple        */
-  --chart-3: #D06828;   /* orange        */
-  --chart-4: #C41890;   /* magenta       */
-  --chart-5: #4A7A40;   /* earthy green  */
+  --chart-3: #4A7A40;   /* green         */
+  --chart-4: #D06828;   /* orange        */
+  --chart-5: #C41890;   /* magenta       */
 
-  --radius: 0.75rem;    /* rounded but not a circle — brushstroke feel */
+  --radius: 0.7rem;     /* friendly, not a circle */
 
   /* ── Sidebar ── */
-  --sidebar:                    #F5EDE0;
-  --sidebar-foreground:         #1C0808;
-  --sidebar-primary:            #A81010;
-  --sidebar-primary-foreground: #FBF6EF;
-  --sidebar-accent:             #EDE0CE;
-  --sidebar-accent-foreground:  #1C0808;
-  --sidebar-border:             #D8C8B0;
-  --sidebar-ring:               #A81010;
+  --sidebar:                    #FBF8F5;
+  --sidebar-foreground:         #241F1C;
+  --sidebar-primary:            #CE2029;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent:             #EFE6DA;
+  --sidebar-accent-foreground:  #241F1C;
+  --sidebar-border:             #EAE3DB;
+  --sidebar-ring:               #CE2029;
   --sidebar-width:              240px;
 }
 
-/* ── Dark mode ── */
+/* ── Dark mode — warm charcoal, lifted red ── */
 .dark {
-  --background:         #140808;
-  --foreground:         #F5EDE0;
-  --card:               #1E0E0E;
-  --card-foreground:    #F5EDE0;
-  --popover:            #1E0E0E;
-  --popover-foreground: #F5EDE0;
-  --primary:            #D42020;
-  --primary-foreground: #140808;
-  --secondary:          #2A1818;
-  --secondary-foreground: #F5EDE0;
-  --muted:              #2A1818;
-  --muted-foreground:   #A08070;
-  --accent:             #E07830;
-  --accent-foreground:  #140808;
-  --destructive:        #C82020;
-  --destructive-foreground: #F5EDE0;
-  --border:             #3A2020;
-  --input:              #3A2020;
-  --ring:               #D42020;
-  --chart-1: #D42020;
-  --chart-2: #8858C8;
-  --chart-3: #E07830;
-  --chart-4: #D828A8;
-  --chart-5: #5A9050;
-  --sidebar:                    #1E0E0E;
-  --sidebar-foreground:         #F5EDE0;
-  --sidebar-primary:            #D42020;
-  --sidebar-primary-foreground: #140808;
-  --sidebar-accent:             #2A1818;
-  --sidebar-accent-foreground:  #F5EDE0;
-  --sidebar-border:             #3A2020;
-  --sidebar-ring:               #D42020;
+  --background:         #171310;
+  --foreground:         #F1EBE4;
+  --card:               #201A16;
+  --card-foreground:    #F1EBE4;
+  --popover:            #201A16;
+  --popover-foreground: #F1EBE4;
+  --primary:            #F1585F;
+  --primary-foreground: #171310;
+  --secondary:          #271F1A;
+  --secondary-foreground: #F1EBE4;
+  --muted:              #271F1A;
+  --muted-foreground:   #B3AAA1;
+  --accent:             #312822;
+  --accent-foreground:  #F1EBE4;
+  --destructive:        #EE6A55;
+  --destructive-foreground: #171310;
+  --border:             #2E2620;
+  --input:              #2E2620;
+  --ring:               #F1585F;
+  --chart-1: #F1585F;
+  --chart-2: #A98BD1;
+  --chart-3: #6FB07A;
+  --chart-4: #E0A93F;
+  --chart-5: #E05CAF;
+  --sidebar:                    #201A16;
+  --sidebar-foreground:         #F1EBE4;
+  --sidebar-primary:            #F1585F;
+  --sidebar-primary-foreground: #171310;
+  --sidebar-accent:             #312822;
+  --sidebar-accent-foreground:  #F1EBE4;
+  --sidebar-border:             #2E2620;
+  --sidebar-ring:               #F1585F;
 }
 
 /* ── Role body themes ── */
 body.role-admin {
-  --sidebar:            #200808;
-  --sidebar-foreground: #F5E8D8;
-  --sidebar-primary:    #E02020;
-  --sidebar-accent:     #2C1010;
-  --sidebar-border:     #3A1818;
-  --role-accent:        #7A1010;
+  --sidebar:            #241512;
+  --sidebar-foreground: #F3EAE2;
+  --sidebar-primary:    #E23A42;
+  --sidebar-accent:     #301C18;
+  --sidebar-border:     #3A211C;
+  --role-accent:        #A5171F;
 }
 body.role-supervisor {
   --role-accent: #6845A5;
@@ -152,11 +153,11 @@ body.role-participant {
 
 /* ── Tailwind bridge ── */
 @theme inline {
-  --font-sans:         var(--font-libre-baskerville), 'Libre Baskerville', Georgia, serif;
-  --font-serif:        var(--font-cormorant), 'Cormorant', Georgia, serif;
-  --font-mono:         'Courier New', monospace;
-  --font-logo-crazy:   var(--font-cormorant), 'Cormorant', serif;
-  --font-logo-sapiens: var(--font-caveat), 'Caveat', cursive;
+  --font-sans:         var(--font-hanken), ui-sans-serif, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-serif:        var(--font-fraunces), Georgia, 'Times New Roman', serif;
+  --font-mono:         var(--font-jetbrains-mono), ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  --font-logo-crazy:   var(--font-fraunces), Georgia, serif;
+  --font-logo-sapiens: var(--font-fraunces), Georgia, serif;
 
   --color-background:            var(--background);
   --color-foreground:            var(--foreground);
@@ -224,8 +225,8 @@ body.role-participant {
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-serif);
-    font-weight: 400;
-    letter-spacing: -0.01em;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 
   ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -323,8 +324,8 @@ body.role-participant {
    ═══════════════════════════════════════════════════════════════ */
 .display-heading {
   font-family: var(--font-serif);
-  font-weight: 300;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.025em;
   line-height: 1.1;
 }
 

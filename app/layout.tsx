@@ -1,32 +1,33 @@
 import type { Metadata, Viewport } from 'next'
-import { Libre_Baskerville, Cormorant, Caveat } from 'next/font/google'
+import { Fraunces, Hanken_Grotesk, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
-/* Body text — vintage editorial serif, excellent legibility */
-const libreBaskerville = Libre_Baskerville({
-  weight: ['400', '700'],
+/* Display — a "wonky", soft old-style serif. The warm, characterful voice:
+   wordmark, page titles, and the questions participants read. */
+const fraunces = Fraunces({
+  weight: ['400', '500', '600', '700'],
   style: ['normal', 'italic'],
   subsets: ['latin'],
-  variable: '--font-libre-baskerville',
+  variable: '--font-fraunces',
   display: 'swap',
 })
 
-/* Display / headings — refined old-style, evokes engraved letterhead */
-const cormorant = Cormorant({
-  weight: ['300', '400', '500', '600'],
-  style: ['normal', 'italic'],
+/* Body / UI — a calm, precise grotesque with a touch of warmth. The workhorse. */
+const hanken = Hanken_Grotesk({
+  weight: ['400', '500', '600', '700'],
   subsets: ['latin'],
-  variable: '--font-cormorant',
+  variable: '--font-hanken',
   display: 'swap',
 })
 
-/* Handwritten accent — field notes, margin annotations */
-const caveat = Caveat({
+/* Data — every score, D-value, reaction time and participant ID. Instrument output. */
+const jetbrainsMono = JetBrains_Mono({
+  weight: ['400', '500', '700'],
   subsets: ['latin'],
-  variable: '--font-caveat',
+  variable: '--font-jetbrains-mono',
   display: 'swap',
 })
 
@@ -54,7 +55,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#A81010',
+  themeColor: '#CE2029',
   width: 'device-width',
   initialScale: 1,
 }
@@ -67,7 +68,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${libreBaskerville.variable} ${cormorant.variable} ${caveat.variable} bg-background`}
+      className={`${fraunces.variable} ${hanken.variable} ${jetbrainsMono.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>

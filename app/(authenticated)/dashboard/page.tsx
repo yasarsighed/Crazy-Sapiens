@@ -8,6 +8,7 @@ import { StudyCard } from '@/components/study-card'
 import { ClinicalAlert } from '@/components/clinical-alert'
 import { EmptyState } from '@/components/empty-state'
 import { Mascot } from '@/components/mascot'
+import { DashboardCustomizer } from '@/components/dashboard-customizer'
 import {
   Plus, ExternalLink, Library, ClipboardList, ShieldAlert,
   Sparkles, TrendingUp, Users, FlaskConical, Bell,
@@ -144,7 +145,13 @@ export default async function DashboardPage() {
   }
 
   const name   = firstName(profile?.full_name)
-  const researcherColor = profile?.researcher_color || '#A81010'
+  const researcherColor = profile?.researcher_color || '#CE2029'
+
+  // ── Per-researcher personalization ──
+  const prefs = (profile?.dashboard_prefs as { hidden?: string[]; greeting?: string | null } | null) ?? {}
+  const hidden = new Set<string>(prefs.hidden ?? [])
+  const show = (key: string) => !hidden.has(key)
+  const greetingText = prefs.greeting?.trim() ? prefs.greeting.trim() : getGreeting(name)
 
   return (
     <div className="min-h-screen bg-background">
@@ -154,8 +161,8 @@ export default async function DashboardPage() {
         className="px-8 pt-8 pb-6 relative overflow-hidden"
         style={{
           background: isAdmin
-            ? 'color-mix(in srgb, #7A1010 14%, #EFEBE2)'
-            : `color-mix(in srgb, ${researcherColor} 10%, #EFEBE2)`,
+            ? 'color-mix(in srgb, #A5171F 12%, var(--background))'
+            : `color-mix(in srgb, ${researcherColor} 10%, var(--background))`,
           borderBottom: '1px solid var(--border)',
         }}
       >
@@ -171,7 +178,7 @@ export default async function DashboardPage() {
               <h1
                 className="font-serif text-2xl lg:text-3xl font-semibold leading-tight text-foreground"
               >
-                {getGreeting(name)}
+                {greetingText}
               </h1>
               {isAdmin && (
                 <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
@@ -189,6 +196,14 @@ export default async function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {profile && (
+              <DashboardCustomizer
+                userId={profile.id}
+                initialColor={researcherColor}
+                initialHidden={prefs.hidden ?? []}
+                initialGreeting={prefs.greeting ?? null}
+              />
+            )}
             {alertsCount ? (
               <Link href="/admin/requests">
                 <Button variant="destructive" size="sm" className="gap-1.5 animate-pulse">
@@ -240,6 +255,7 @@ export default async function DashboardPage() {
       <div className="px-6 lg:px-8 py-6">
 
         {/* ── Quick actions ── */}
+        {show('quickActions') && (
         <div className="mb-6">
           <p className="section-label mb-3">Quick Actions</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -255,6 +271,7 @@ export default async function DashboardPage() {
             ))}
           </div>
         </div>
+        )}
 
         {/* ── Two-column layout ── */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
@@ -335,6 +352,7 @@ export default async function DashboardPage() {
             )}
 
             {/* Platform researchers */}
+            {show('researchers') && (
             <Card className="border-border overflow-hidden">
               <CardHeader className="pb-3 border-b border-border bg-muted/30">
                 <CardTitle className="font-serif text-base flex items-center gap-2">
@@ -362,6 +380,7 @@ export default async function DashboardPage() {
                 )}
               </CardContent>
             </Card>
+            )}
           </div>
 
           {/* Right column */}
@@ -375,7 +394,7 @@ export default async function DashboardPage() {
                     <AlertTriangle className="w-4 h-4" /> Clinical Alerts
                   </CardTitle>
                   <p className="text-[11px] text-destructive/70 mt-1">
-                    Do not ignore these. Please. 🙏
+                    Please review promptly.
                   </p>
                 </CardHeader>
                 <CardContent className="p-3 space-y-2">
@@ -394,6 +413,7 @@ export default async function DashboardPage() {
             )}
 
             {/* Activity feed */}
+            {show('activity') && (
             <Card className="border-border overflow-hidden">
               <CardHeader className="pb-3 border-b border-border bg-muted/30">
                 <CardTitle className="font-serif text-base flex items-center gap-2">
@@ -420,8 +440,10 @@ export default async function DashboardPage() {
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* Resources */}
+            {show('resources') && (
             <Card className="border-border overflow-hidden">
               <CardHeader className="pb-3 border-b border-border bg-muted/30">
                 <CardTitle className="font-serif text-base flex items-center gap-2">
@@ -444,6 +466,7 @@ export default async function DashboardPage() {
                 ))}
               </CardContent>
             </Card>
+            )}
           </div>
         </div>
       </div>
