@@ -48,7 +48,7 @@ export default function UsersPage() {
                 <div className="flex items-center gap-3">
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium"
-                    style={{ backgroundColor: profile.researcher_color || '#2D6A4F' }}
+                    style={{ backgroundColor: profile.researcher_color || '#4A7A40' }}
                   >
                     {profile.full_name?.charAt(0) || '?'}
                   </div>

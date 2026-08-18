@@ -115,7 +115,7 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
   const enrolled = enrolledCount ?? 0
   const TYPE_COLORS: Record<string, string> = {
     questionnaire: '#6845A5',
-    iat: '#A81010',
+    iat: '#CE2029',
     sociogram: '#4A7A40',
   }
 
@@ -194,7 +194,7 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
         {/* ── KPI strip ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Enrolled',      value: enrolled,        icon: Users,         color: '#A81010' },
+            { label: 'Enrolled',      value: enrolled,        icon: Users,         color: '#CE2029' },
             { label: 'Instruments',   value: totalInstruments,icon: ClipboardList, color: '#6845A5' },
             { label: 'Avg completion',value: `${avgCompletion}%`, icon: TrendingUp,color: '#4A7A40' },
             { label: 'Open alerts',   value: alertsCount ?? 0,icon: Timer,         color: (alertsCount ?? 0) > 0 ? '#DC2626' : '#6B6B80' },
@@ -224,7 +224,7 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
             <TabsTrigger value="iat" className="gap-1.5 text-xs">
               <Timer className="w-3.5 h-3.5" /> IAT
               {iatStats.length > 0 && (
-                <span className="ml-1 text-[10px] rounded-full px-1.5 py-px font-bold" style={{ color: '#A81010', background: 'color-mix(in srgb, #A81010 15%, var(--card))' }}>{iatStats.length}</span>
+                <span className="ml-1 text-[10px] rounded-full px-1.5 py-px font-bold" style={{ color: '#CE2029', background: 'color-mix(in srgb, #CE2029 15%, var(--card))' }}>{iatStats.length}</span>
               )}
             </TabsTrigger>
           </TabsList>

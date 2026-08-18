@@ -91,7 +91,7 @@ function RequestCard({
           <div className="flex items-center gap-2.5 min-w-0">
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
-              style={{ backgroundColor: requester?.researcher_color ?? '#2D6A4F' }}
+              style={{ backgroundColor: requester?.researcher_color ?? '#4A7A40' }}
             >
               {getInitials(requester?.full_name)}
             </div>

@@ -386,7 +386,7 @@ body.role-participant {
    ROLE SIDEBAR HEADERS
    ═══════════════════════════════════════════════════════════════ */
 .sidebar-admin-header      { background: var(--role-admin,  #7A1010); color: #F5EDE0; }
-.sidebar-researcher-header { background: var(--researcher-color, #A81010); color: #FBF6EF; }
+.sidebar-researcher-header { background: var(--researcher-color, #CE2029); color: #FFFFFF; }
 .sidebar-supervisor-header { background: var(--role-supervisor, #6845A5); color: #F5EDE0; }
 
 /* ═══════════════════════════════════════════════════════════════

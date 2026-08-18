@@ -121,7 +121,7 @@ export interface RecentActivity {
 
 // Researcher color options
 export const RESEARCHER_COLORS = [
-  { value: '#A81010', label: 'Crimson' },
+  { value: '#CE2029', label: 'Crimson' },
   { value: '#6845A5', label: 'Purple' },
   { value: '#C41890', label: 'Magenta' },
   { value: '#D06828', label: 'Burnt Orange' },

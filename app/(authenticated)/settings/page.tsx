@@ -37,7 +37,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState('')
-  const [researcherColor, setResearcherColor] = useState<ResearcherColor>('#2D6A4F')
+  const [researcherColor, setResearcherColor] = useState<ResearcherColor>('#4A7A40')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [createdAt, setCreatedAt] = useState<string | null>(null)
 
@@ -61,7 +61,7 @@ export default function SettingsPage() {
       if (profile) {
         setFullName(profile.full_name ?? '')
         setRole(profile.role ?? '')
-        setResearcherColor((profile.researcher_color as ResearcherColor) ?? '#2D6A4F')
+        setResearcherColor((profile.researcher_color as ResearcherColor) ?? '#4A7A40')
         setAvatarUrl(profile.avatar_url ?? null)
       }
       setLoading(false)

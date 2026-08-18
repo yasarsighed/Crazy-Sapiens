@@ -179,7 +179,7 @@ export function Sidebar({ profile }: SidebarProps) {
     ? '#7A1010'
     : role === 'supervisor'
       ? '#6845A5'
-      : (profile?.researcher_color || '#A81010')
+      : (profile?.researcher_color || '#CE2029')
 
   const roleMeta = ROLE_META[role] || ROLE_META.researcher
   const quip = QUIPS[Math.floor(Date.now() / 86400000) % QUIPS.length] // changes daily

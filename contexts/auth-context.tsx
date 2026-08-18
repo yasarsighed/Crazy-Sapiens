@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setProfile(null)
-        setResearcherColor('#2D6A4F') // Reset to default
+        setResearcherColor('#4A7A40') // Reset to default
       }
     })
 
@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
     setUser(null)
     setProfile(null)
-    setResearcherColor('#2D6A4F')
+    setResearcherColor('#4A7A40')
   }
 
   return (

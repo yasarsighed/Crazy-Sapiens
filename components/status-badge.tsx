@@ -10,11 +10,11 @@ const CONFIG: Record<string, string> = {
   archived:  '#8A7060', // muted brown — shelved
   pending:   '#D09028', // ochre — awaiting
   approved:  '#4A7A40', // green
-  rejected:  '#A81010', // crimson
+  rejected:  '#CE2029', // crimson
   withdrawn: '#9A6A5A', // muted — gone
   enrolled:  '#6845A5', // purple
   invited:   '#D06828', // orange
-  critical:  '#A81010', // crimson — urgent
+  critical:  '#CE2029', // crimson — urgent
   moderate:  '#D09028', // ochre
   low:       '#4A7A40', // green — mild
 }

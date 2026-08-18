@@ -14,10 +14,10 @@ export default function SplashPage() {
         
         {/* Wordmark */}
         <div className="flex flex-col items-center leading-none mb-3">
-          <span className="font-[family-name:var(--font-permanent-marker)] text-4xl text-[#1A2E1A] -rotate-2">
-            CRAZY
+          <span className="font-serif font-semibold tracking-tight text-5xl text-foreground">
+            Crazy
           </span>
-          <span className="font-[family-name:var(--font-caveat)] font-bold text-5xl text-primary -mt-1">
+          <span className="font-serif italic font-semibold text-6xl text-primary -mt-1">
             Sapiens
           </span>
         </div>

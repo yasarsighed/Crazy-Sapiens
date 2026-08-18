@@ -11,7 +11,7 @@ function severityColor(band: string | null): string {
   if (b.includes('minimal') || b.includes('none')) return '#52B788'
   if (b.includes('mild')) return '#E9C46A'
   if (b.includes('moderately severe')) return '#E63946'
-  if (b.includes('moderate')) return '#F4A261'
+  if (b.includes('moderate')) return '#D06828'
   if (b.includes('severe')) return '#E63946'
   return '#888888'
 }

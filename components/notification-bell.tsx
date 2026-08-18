@@ -24,7 +24,7 @@ interface Notification {
 }
 
 function NotifIcon({ type }: { type: Notification['type'] }) {
-  if (type === 'alert')      return <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#A81010' }} />
+  if (type === 'alert')      return <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#CE2029' }} />
   if (type === 'enrollment') return <UserPlus className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#4A7A40' }} />
   if (type === 'completion') return <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#6845A5' }} />
   return <Activity className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#D06828' }} />

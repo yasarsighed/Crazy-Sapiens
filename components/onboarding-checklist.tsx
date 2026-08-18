@@ -61,7 +61,7 @@ export function OnboardingChecklist() {
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
-        style={{ background: 'linear-gradient(135deg, #6D28D9, #8B5CF6)' }}
+        style={{ background: 'linear-gradient(135deg, #6845A5, #8B5CF6)' }}
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-2">

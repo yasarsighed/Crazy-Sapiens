@@ -49,7 +49,7 @@ const QUICK_ACTIONS = [
 // ── Activity icon / colour helpers ──
 function activityDot(type: string) {
   if (type === 'enrollment' || type === 'enroll') return 'bg-[#4A7A40]'
-  if (type === 'alert')      return 'bg-[#A81010]'
+  if (type === 'alert')      return 'bg-[#CE2029]'
   if (type === 'completion') return 'bg-[#D06828]'
   if (type === 'submit')     return 'bg-[#6845A5]'
   return 'bg-[#D06828]'
@@ -229,7 +229,7 @@ export default async function DashboardPage() {
             { label: isAdmin ? 'Platform Studies' : 'Active Studies', value: activeStudiesCount ?? 0, icon: FlaskConical, color: researcherColor, sub: 'running now' },
             { label: 'Participants',    value: totalParticipants  ?? 0, icon: Users,         color: '#4A7A40', sub: 'enrolled'     },
             { label: 'Responses',       value: responsesCount     ?? 0, icon: CheckCircle2,  color: '#6845A5', sub: 'completed'    },
-            { label: 'Clinical Alerts', value: alertsCount        ?? 0, icon: AlertTriangle, color: alertsCount ? '#A81010' : '#7A5040', sub: alertsCount ? '⚠️ needs attention' : 'all clear 🎉' },
+            { label: 'Clinical Alerts', value: alertsCount        ?? 0, icon: AlertTriangle, color: alertsCount ? '#CE2029' : '#7A5040', sub: alertsCount ? '⚠️ needs attention' : 'all clear 🎉' },
           ].map(stat => (
             <div
               key={stat.label}
@@ -334,7 +334,7 @@ export default async function DashboardPage() {
                     <div key={r.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted/50 transition-colors">
                       <div
                         className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm"
-                        style={{ backgroundColor: r.researcher_color || '#A81010' }}
+                        style={{ backgroundColor: r.researcher_color || '#CE2029' }}
                       >
                         {r.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
                       </div>
@@ -366,7 +366,7 @@ export default async function DashboardPage() {
                       <div key={r.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors">
                         <div
                           className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[11px] font-bold shrink-0"
-                          style={{ backgroundColor: r.researcher_color || '#A81010' }}
+                          style={{ backgroundColor: r.researcher_color || '#CE2029' }}
                         >
                           {r.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
                         </div>

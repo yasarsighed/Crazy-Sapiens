@@ -29,7 +29,7 @@ function greeting() {
   return 'Good evening 🌙'
 }
 
-function ProgressRing({ pct, color = '#A81010', size = 56 }: { pct: number; color?: string; size?: number }) {
+function ProgressRing({ pct, color = '#CE2029', size = 56 }: { pct: number; color?: string; size?: number }) {
   const r = (size - 8) / 2
   const circ = 2 * Math.PI * r
   const dash = circ - (pct / 100) * circ
@@ -212,7 +212,7 @@ export default async function ParticipantDashboardPage() {
           ) : (
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #A81010, #C41890)' }}
+              style={{ background: 'linear-gradient(135deg, #CE2029, #C41890)' }}
             >
               {getInitials(profile?.full_name ?? null)}
             </div>
@@ -230,7 +230,7 @@ export default async function ParticipantDashboardPage() {
         {grandTotal > 0 ? (
           <div className="mt-4 flex items-center justify-center gap-6">
             <div className="relative">
-              <ProgressRing pct={overallPct} color="#A81010" size={64} />
+              <ProgressRing pct={overallPct} color="#CE2029" size={64} />
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-xs font-bold text-primary">{overallPct}%</span>
               </div>
@@ -283,7 +283,7 @@ export default async function ParticipantDashboardPage() {
           const isAllDone    = totalCount > 0 && completedCount === totalCount
           const pct          = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
           const researcher   = study?.profiles
-          const accent       = researcher?.researcher_color ?? '#A81010'
+          const accent       = researcher?.researcher_color ?? '#CE2029'
 
           return (
             <div

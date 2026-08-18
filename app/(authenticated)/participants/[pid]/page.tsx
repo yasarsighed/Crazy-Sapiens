@@ -143,7 +143,7 @@ export default async function ParticipantDetailPage({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="font-serif text-base flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-[#457B9D]" /> Questionnaire results
+            <ClipboardList className="w-4 h-4 text-[#6845A5]" /> Questionnaire results
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -176,7 +176,7 @@ export default async function ParticipantDetailPage({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="font-serif text-base flex items-center gap-2">
-            <Timer className="w-4 h-4 text-[#F4A261]" /> IAT sessions
+            <Timer className="w-4 h-4 text-[#D06828]" /> IAT sessions
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -203,7 +203,7 @@ export default async function ParticipantDetailPage({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="font-serif text-base flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#2D6A4F]" /> Sociogram participation
+            <Users className="w-4 h-4 text-[#4A7A40]" /> Sociogram participation
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">

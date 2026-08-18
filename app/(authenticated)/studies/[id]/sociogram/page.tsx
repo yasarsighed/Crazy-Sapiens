@@ -33,9 +33,9 @@ interface VizData {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const COMMUNITY_PALETTE = [
-  '#A81010','#4A7A40','#D06828','#6845A5',
+  '#CE2029','#4A7A40','#D06828','#6845A5',
   '#D06828','#6845A5','#7A1010','#4A7A40',
-  '#A81010','#4A7A40',
+  '#CE2029','#4A7A40',
 ]
 const communityColor = (c: number) => COMMUNITY_PALETTE[c % COMMUNITY_PALETTE.length]
 
@@ -325,7 +325,7 @@ export default function SociogramResultsPage() {
       })
       .attr('text-anchor', 'middle').attr('y', (d: any) => rScale(d.id, vd.indegree) + 14)
       .attr('font-size', '11px').attr('font-weight', '600').attr('font-family', 'Plus Jakarta Sans, sans-serif')
-      .attr('fill', 'var(--foreground, #0F0F1A)')
+      .attr('fill', 'var(--foreground, #241F1C)')
       .attr('stroke', 'var(--background, #FAFAF8)').attr('stroke-width', 3).attr('paint-order', 'stroke')
       .attr('pointer-events', 'none')
 
@@ -565,7 +565,7 @@ export default function SociogramResultsPage() {
                 </p>
                 <div className="grid grid-cols-2 gap-1.5">
                   {[
-                    { l:'Nodes',      v:analytics.n,           c:'#A81010' },
+                    { l:'Nodes',      v:analytics.n,           c:'#CE2029' },
                     { l:'Edges',       v:analytics.e,           c:'#6845A5' },
                     { l:'Density',     v:`${analytics.density}%`, c:'#D06828' },
                     { l:'Reciprocity', v:`${analytics.reciprocity}%`, c:'#4A7A40' },
@@ -573,7 +573,7 @@ export default function SociogramResultsPage() {
                     { l:'Modularity',  v:analytics.modularity,  c:'#6845A5' },
                     { l:'Communities', v:analytics.communities, c:'#7A1010' },
                     { l:'Components',  v:analytics.components,  c:'#4A7A40' },
-                    { l:'Isolates',    v:analytics.isolates,    c:analytics.isolates>0?'#A81010':'#7A7268' },
+                    { l:'Isolates',    v:analytics.isolates,    c:analytics.isolates>0?'#CE2029':'#7A7268' },
                     { l:'Avg in',      v:analytics.avgIn,       c:'#6845A5' },
                     { l:'Avg out',     v:analytics.avgOut,      c:'#D06828' },
                   ].map(s => (
@@ -761,7 +761,7 @@ export default function SociogramResultsPage() {
               <div className="space-y-1">
                 <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Centrality</p>
                 {[
-                  { l:'Betweenness', v:vizData.metrics.betweenness[tipNode.id]?.toFixed(3)??"—", c:'#A81010' },
+                  { l:'Betweenness', v:vizData.metrics.betweenness[tipNode.id]?.toFixed(3)??"—", c:'#CE2029' },
                   { l:'Closeness',   v:vizData.metrics.closeness[tipNode.id]?.toFixed(3)??"—",   c:'#D06828' },
                   { l:'Eigenvector', v:vizData.metrics.eigenvector[tipNode.id]?.toFixed(3)??"—", c:'#6845A5' },
                 ].map(s => (
