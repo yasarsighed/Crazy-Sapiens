@@ -9,6 +9,7 @@ import { ClinicalAlert } from '@/components/clinical-alert'
 import { EmptyState } from '@/components/empty-state'
 import { Mascot } from '@/components/mascot'
 import { DashboardCustomizer } from '@/components/dashboard-customizer'
+import { StatusBadge } from '@/components/status-badge'
 import {
   Plus, ExternalLink, Library, ClipboardList, ShieldAlert,
   Sparkles, TrendingUp, Users, FlaskConical, Bell,
@@ -223,30 +224,31 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Stat strip ── */}
+        {/* ── Stat strip — instrument panel ── */}
         <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
           {[
-            { label: isAdmin ? 'Platform Studies' : 'Active Studies', value: activeStudiesCount ?? 0, icon: FlaskConical, color: researcherColor, sub: 'running now' },
-            { label: 'Participants',    value: totalParticipants  ?? 0, icon: Users,         color: '#4A7A40', sub: 'enrolled'     },
-            { label: 'Responses',       value: responsesCount     ?? 0, icon: CheckCircle2,  color: '#6845A5', sub: 'completed'    },
-            { label: 'Clinical Alerts', value: alertsCount        ?? 0, icon: AlertTriangle, color: alertsCount ? '#CE2029' : '#7A5040', sub: alertsCount ? '⚠️ needs attention' : 'all clear 🎉' },
+            { label: isAdmin ? 'Platform Studies' : 'Active Studies', value: activeStudiesCount ?? 0, icon: FlaskConical, color: researcherColor, sub: 'running now', alert: false },
+            { label: 'Participants',    value: totalParticipants  ?? 0, icon: Users,         color: '#4A7A40', sub: 'enrolled',   alert: false },
+            { label: 'Responses',       value: responsesCount     ?? 0, icon: CheckCircle2,  color: '#6845A5', sub: 'completed',  alert: false },
+            { label: 'Clinical Alerts', value: alertsCount        ?? 0, icon: AlertTriangle, color: '#CE2029', sub: alertsCount ? 'needs review' : 'all clear', alert: !!alertsCount },
           ].map(stat => (
-            <div
-              key={stat.label}
-              className="rounded-xl border border-border p-4 bg-card"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold tracking-wide text-muted-foreground">
-                  {stat.label.toUpperCase()}
+            <div key={stat.label} className="rounded-xl border border-border bg-card px-4 py-3.5">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] tracking-[0.11em] uppercase text-muted-foreground">
+                  {stat.label}
                 </span>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${stat.color}20` }}>
-                  <stat.icon className="w-3.5 h-3.5" style={{ color: stat.color }} />
-                </div>
+                <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
               </div>
-              <p className="font-serif text-3xl font-bold tabular-nums animate-count-up" style={{ color: stat.color }}>
+              <p
+                className="font-mono text-[30px] font-medium tabular-nums leading-none mt-3"
+                style={{ color: stat.alert ? '#CE2029' : 'var(--foreground)' }}
+              >
                 {stat.value.toLocaleString()}
               </p>
-              <p className="text-xs mt-0.5 text-muted-foreground">{stat.sub}</p>
+              <p className="text-[11px] mt-2 text-muted-foreground flex items-center gap-1">
+                {stat.alert && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#CE2029]" />}
+                {stat.sub}
+              </p>
             </div>
           ))}
         </div>
@@ -279,46 +281,84 @@ export default async function DashboardPage() {
           {/* Left column */}
           <div className="space-y-6">
 
-            {/* Studies */}
-            <Card className="border-border overflow-hidden">
-              <CardHeader className="pb-3 border-b border-border bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="font-serif text-base flex items-center gap-2">
-                    <FlaskConical className="w-4 h-4" style={{ color: researcherColor }} />
-                    {isAdmin ? 'All Studies' : 'Your Studies'}
-                  </CardTitle>
-                  <Link href="/studies" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
-                    View all <ArrowRight className="w-3 h-3" />
-                  </Link>
+            {/* Studies — table */}
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <h3 className="font-serif text-base font-semibold flex items-center gap-2">
+                  <FlaskConical className="w-4 h-4" style={{ color: researcherColor }} />
+                  {isAdmin ? 'All Studies' : 'Your Studies'}
+                </h3>
+                <Link href="/studies" className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold">
+                  View all <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+              {studies?.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr>
+                        {['Study', 'Instruments', 'Status', 'Completion'].map(h => (
+                          <th key={h} className="text-left font-mono text-[9.5px] tracking-[0.08em] uppercase text-muted-foreground font-medium px-4 py-2.5 border-b border-border">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {studies.map((study: Study) => {
+                        const insts = instrumentsByStudy[study.id] || []
+                        const counts: Record<'questionnaire'|'sociogram'|'iat', number> = { questionnaire: 0, sociogram: 0, iat: 0 }
+                        for (const i of insts) counts[i.type]++
+                        const typeMeta = [
+                          { k: 'questionnaire' as const, label: 'Quest', color: '#6845A5' },
+                          { k: 'sociogram'     as const, label: 'Socio', color: '#4A7A40' },
+                          { k: 'iat'           as const, label: 'IAT',   color: '#D06828' },
+                        ]
+                        const pct = Math.round((study as any).completion_percentage ?? 0)
+                        return (
+                          <tr key={study.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-3 align-middle">
+                              <Link href={`/studies/${study.id}`} className="font-semibold text-foreground hover:text-primary">{study.title}</Link>
+                              <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
+                                {new Date(study.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </p>
+                            </td>
+                            <td className="px-4 py-3 align-middle">
+                              <div className="flex gap-1 flex-wrap">
+                                {typeMeta.filter(t => counts[t.k] > 0).map(t => (
+                                  <span key={t.k} className="font-mono text-[10px] px-1.5 py-0.5 rounded border tabular-nums" style={{ color: t.color, borderColor: `color-mix(in srgb, ${t.color} 30%, transparent)` }}>
+                                    {counts[t.k]}&nbsp;{t.label}
+                                  </span>
+                                ))}
+                                {insts.length === 0 && <span className="text-[11px] text-muted-foreground">—</span>}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 align-middle"><StatusBadge status={study.status} /></td>
+                            <td className="px-4 py-3 align-middle">
+                              <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+                                  <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--primary)' }} />
+                                </div>
+                                <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{pct}%</span>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              </CardHeader>
-              <CardContent className="p-3 space-y-2">
-                {studies?.length ? (
-                  studies.map((study: Study) => (
-                    <StudyCard
-                      key={study.id}
-                      id={study.id}
-                      title={study.title}
-                      instruments={instrumentsByStudy[study.id] || []}
-                      participantCount={study.participant_count || 0}
-                      completionPercentage={study.completion_percentage || 0}
-                      researcherColor={researcherColor}
-                    />
-                  ))
-                ) : (
-                  <div className="py-10 text-center">
-                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
-                      <FlaskConical className="w-6 h-6 text-muted-foreground/40" />
-                    </div>
-                    <p className="font-serif text-base text-foreground mb-1">No studies yet</p>
-                    <p className="text-sm text-muted-foreground mb-4">Create your first study to get started.</p>
-                    <Button asChild size="sm">
-                      <Link href="/studies/new"><Plus className="w-3.5 h-3.5 mr-1.5" />Create your first study</Link>
-                    </Button>
+              ) : (
+                <div className="py-10 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+                    <FlaskConical className="w-6 h-6 text-muted-foreground/40" />
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  <p className="font-serif text-base text-foreground mb-1">No studies yet</p>
+                  <p className="text-sm text-muted-foreground mb-4">Create your first study to get started.</p>
+                  <Button asChild size="sm">
+                    <Link href="/studies/new"><Plus className="w-3.5 h-3.5 mr-1.5" />Create your first study</Link>
+                  </Button>
+                </div>
+              )}
+            </div>
 
             {/* Admin: researcher breakdown */}
             {isAdmin && researcherBreakdown.length > 0 && (
