@@ -38,7 +38,7 @@ export function Logo({ size = 'md', showWordmark = true, className }: LogoProps)
         <div className="flex flex-col leading-none">
           <span
             className={cn(
-              'font-serif font-semibold tracking-tight text-foreground',
+              'font-serif font-bold tracking-tight text-foreground',
               config.crazy
             )}
           >
@@ -46,7 +46,7 @@ export function Logo({ size = 'md', showWordmark = true, className }: LogoProps)
           </span>
           <span
             className={cn(
-              'font-serif italic font-semibold text-primary -mt-1',
+              'font-serif font-bold tracking-tight -mt-1 text-[color:var(--brand-gold)]',
               config.sapiens
             )}
           >

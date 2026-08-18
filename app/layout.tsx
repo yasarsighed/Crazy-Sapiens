@@ -1,33 +1,32 @@
 import type { Metadata, Viewport } from 'next'
-import { Fraunces, Hanken_Grotesk, JetBrains_Mono } from 'next/font/google'
+import { Bricolage_Grotesque, Archivo, Space_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
-/* Display — a "wonky", soft old-style serif. The warm, characterful voice:
-   wordmark, page titles, and the questions participants read. */
-const fraunces = Fraunces({
-  weight: ['400', '500', '600', '700'],
-  style: ['normal', 'italic'],
+/* Display — a wonky, warm, slightly cocky grotesque. The voice: wordmark,
+   page titles, and the questions participants read. */
+const bricolage = Bricolage_Grotesque({
+  weight: ['600', '700', '800'],
   subsets: ['latin'],
-  variable: '--font-fraunces',
+  variable: '--font-bricolage',
   display: 'swap',
 })
 
-/* Body / UI — a calm, precise grotesque with a touch of warmth. The workhorse. */
-const hanken = Hanken_Grotesk({
+/* Body / UI — a precise grotesque doing the honest labour: labels, tables, buttons. */
+const archivo = Archivo({
   weight: ['400', '500', '600', '700'],
   subsets: ['latin'],
-  variable: '--font-hanken',
+  variable: '--font-archivo',
   display: 'swap',
 })
 
-/* Data — every score, D-value, reaction time and participant ID. Instrument output. */
-const jetbrainsMono = JetBrains_Mono({
-  weight: ['400', '500', '700'],
+/* Data — every score, D-value, reaction time and participant ID. The ledger. */
+const spaceMono = Space_Mono({
+  weight: ['400', '700'],
   subsets: ['latin'],
-  variable: '--font-jetbrains-mono',
+  variable: '--font-space-mono',
   display: 'swap',
 })
 
@@ -68,7 +67,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${hanken.variable} ${jetbrainsMono.variable} bg-background`}
+      className={`${bricolage.variable} ${archivo.variable} ${spaceMono.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>

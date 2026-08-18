@@ -14,150 +14,138 @@
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Surfaces — warm paper, not clinical grey ── */
-  --background:         #F6F3EF;   /* warm paper                              */
-  --foreground:         #241F1C;   /* warm ink                                */
-  --card:               #FFFFFF;
-  --card-foreground:    #241F1C;
-  --popover:            #FFFFFF;
-  --popover-foreground: #241F1C;
+  /* ── The Red Room. Red is the ground; cream is every word; ink is structure. ── */
+  --background:         #B71329;   /* the red room                            */
+  --foreground:         #FBF3E4;   /* bright cream — high contrast on red      */
+  --card:               #A70F22;   /* recessed red panel                       */
+  --card-foreground:    #FBF3E4;
+  --popover:            #180D0C;   /* ink — menus & dropdowns                   */
+  --popover-foreground: #FBF3E4;
 
-  /* ── Primary: one confident signal red ── */
-  --primary:            #CE2029;
-  --primary-foreground: #FFFFFF;
+  /* ── Primary: inverted. Cream block, red text. ── */
+  --primary:            #FBF3E4;
+  --primary-foreground: #B71329;
 
-  /* ── Secondary: warm tint ── */
-  --secondary:          #F1ECE6;
-  --secondary-foreground: #241F1C;
+  /* ── Secondary: ink steel ── */
+  --secondary:          #180D0C;
+  --secondary-foreground: #FBF3E4;
 
   /* ── Muted ── */
-  --muted:              #EFEAE3;
-  --muted-foreground:   #6A625B;
+  --muted:              #9E0E1E;
+  --muted-foreground:   #E7D9C0;   /* kept bright for legibility               */
 
-  /* ── Accent: subtle warm surface (hover states) ── */
-  --accent:             #EFE6DA;
-  --accent-foreground:  #241F1C;
+  /* ── Accent: brighter red for hovers ── */
+  --accent:             #C8182F;
+  --accent-foreground:  #FBF3E4;
 
-  --destructive:        #C42E1C;
-  --destructive-foreground: #FFFFFF;
+  --destructive:        #7B0C18;   /* deep blood red — danger                  */
+  --destructive-foreground: #FBF3E4;
 
-  --border:             #EAE3DB;
-  --input:              #EAE3DB;
-  --ring:               #CE2029;
+  --border:             rgba(251,243,228,0.24);   /* cream hairline           */
+  --input:              rgba(251,243,228,0.30);
+  --ring:               #FBF3E4;
 
   /* ── Extended brand palette ── */
-  --brand-red:      #CE2029;   /* signal red / primary                */
-  --brand-purple:   #6845A5;   /* instrument categorical — questionnaire */
-  --brand-magenta:  #C41890;   /* instrument categorical              */
-  --brand-orange:   #D06828;   /* instrument categorical — IAT        */
-  --brand-dark:     #241F1C;   /* warm ink                            */
-  --brand-cream:    #EFE6DA;   /* warm paper tint                     */
+  --brand-red:      #C1122A;
+  --brand-gold:     #EBC15C;   /* the single thread of gold                   */
+  --brand-purple:   #C6A8F0;   /* instrument categorical (lifted for red)     */
+  --brand-magenta:  #EC8FC8;
+  --brand-orange:   #F0A65C;
+  --brand-dark:     #180D0C;
+  --brand-cream:    #FBF3E4;
 
-  /* ── Keep old aliases working ── */
-  --accent-orange:  #D06828;
-  --accent-blue:    #2F6DB0;
-  --accent-yellow:  #BC7A00;
-  --accent-pink:    #C41890;
-  --success:        #4A7A40;
-  --alert-red:      #C42E1C;
-  --text-primary:   #241F1C;
-  --text-secondary: #6A625B;
+  /* ── Keep old aliases working (lifted to read on red) ── */
+  --accent-orange:  #F0A65C;
+  --accent-blue:    #86B7D6;
+  --accent-yellow:  #EBC15C;
+  --accent-pink:    #EC8FC8;
+  --success:        #86C99A;
+  --alert-red:      #FBF3E4;
+  --text-primary:   #FBF3E4;
+  --text-secondary: #E7D9C0;
 
-  --gradient-brand:   #CE2029;
-  --gradient-purple:  #6845A5;
-  --gradient-warm:    #D06828;
-  --gradient-cool:    #2F6DB0;
-  --gradient-success: #4A7A40;
+  --gradient-brand:   #FBF3E4;
+  --gradient-purple:  #C6A8F0;
+  --gradient-warm:    #EBC15C;
+  --gradient-cool:    #86B7D6;
+  --gradient-success: #86C99A;
 
   /* ── Role colours ── */
-  --role-admin:       #A5171F;   /* deep red — authority                */
-  --role-researcher:  var(--researcher-color, #CE2029);
-  --role-participant: #4A7A40;   /* earthy green — growth               */
-  --role-supervisor:  #6845A5;   /* purple — oversight                  */
-  --researcher-color: #CE2029;
+  --role-admin:       #FBF3E4;
+  --role-researcher:  var(--researcher-color, #FBF3E4);
+  --role-participant: #86C99A;
+  --role-supervisor:  #C6A8F0;
+  --researcher-color: #FBF3E4;
 
-  /* ── Charts — categorical (matches instrument-type hues) ── */
-  --chart-1: #CE2029;   /* red           */
-  --chart-2: #6845A5;   /* purple        */
-  --chart-3: #4A7A40;   /* green         */
-  --chart-4: #D06828;   /* orange        */
-  --chart-5: #C41890;   /* magenta       */
+  /* ── Charts — lifted categoricals that survive on red ── */
+  --chart-1: #EBC15C;   /* gold          */
+  --chart-2: #C6A8F0;   /* lavender      */
+  --chart-3: #86C99A;   /* mint          */
+  --chart-4: #F0A65C;   /* apricot       */
+  --chart-5: #EC8FC8;   /* pink          */
 
-  --radius: 0.7rem;     /* friendly, not a circle */
+  --radius: 0.35rem;    /* sharp, editorial */
 
-  /* ── Sidebar ── */
-  --sidebar:                    #FBF8F5;
-  --sidebar-foreground:         #241F1C;
-  --sidebar-primary:            #CE2029;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent:             #EFE6DA;
-  --sidebar-accent-foreground:  #241F1C;
-  --sidebar-border:             #EAE3DB;
-  --sidebar-ring:               #CE2029;
+  /* ── Sidebar — the black rail ── */
+  --sidebar:                    #180D0C;
+  --sidebar-foreground:         #FBF3E4;
+  --sidebar-primary:            #C1122A;
+  --sidebar-primary-foreground: #FBF3E4;
+  --sidebar-accent:             #2A1414;
+  --sidebar-accent-foreground:  #FBF3E4;
+  --sidebar-border:             rgba(251,243,228,0.14);
+  --sidebar-ring:               #FBF3E4;
   --sidebar-width:              240px;
 }
 
-/* ── Dark mode — warm charcoal, lifted red ── */
+/* ── Dark mode — a deeper red room ── */
 .dark {
-  --background:         #171310;
-  --foreground:         #F1EBE4;
-  --card:               #201A16;
-  --card-foreground:    #F1EBE4;
-  --popover:            #201A16;
-  --popover-foreground: #F1EBE4;
-  --primary:            #F1585F;
-  --primary-foreground: #171310;
-  --secondary:          #271F1A;
-  --secondary-foreground: #F1EBE4;
-  --muted:              #271F1A;
-  --muted-foreground:   #B3AAA1;
-  --accent:             #312822;
-  --accent-foreground:  #F1EBE4;
-  --destructive:        #EE6A55;
-  --destructive-foreground: #171310;
-  --border:             #2E2620;
-  --input:              #2E2620;
-  --ring:               #F1585F;
-  --chart-1: #F1585F;
-  --chart-2: #A98BD1;
-  --chart-3: #6FB07A;
-  --chart-4: #E0A93F;
-  --chart-5: #E05CAF;
-  --sidebar:                    #201A16;
-  --sidebar-foreground:         #F1EBE4;
-  --sidebar-primary:            #F1585F;
-  --sidebar-primary-foreground: #171310;
-  --sidebar-accent:             #312822;
-  --sidebar-accent-foreground:  #F1EBE4;
-  --sidebar-border:             #2E2620;
-  --sidebar-ring:               #F1585F;
+  --background:         #8F0E1F;
+  --foreground:         #FBF3E4;
+  --card:               #7E0C1B;
+  --card-foreground:    #FBF3E4;
+  --popover:            #120A09;
+  --popover-foreground: #FBF3E4;
+  --primary:            #FBF3E4;
+  --primary-foreground: #8F0E1F;
+  --secondary:          #120A09;
+  --secondary-foreground: #FBF3E4;
+  --muted:              #740B18;
+  --muted-foreground:   #E7D9C0;
+  --accent:             #A50F22;
+  --accent-foreground:  #FBF3E4;
+  --destructive:        #5C0912;
+  --destructive-foreground: #FBF3E4;
+  --border:             rgba(251,243,228,0.22);
+  --input:              rgba(251,243,228,0.28);
+  --ring:               #FBF3E4;
+  --chart-1: #EBC15C;
+  --chart-2: #C6A8F0;
+  --chart-3: #86C99A;
+  --chart-4: #F0A65C;
+  --chart-5: #EC8FC8;
+  --sidebar:                    #120A09;
+  --sidebar-foreground:         #FBF3E4;
+  --sidebar-primary:            #C1122A;
+  --sidebar-primary-foreground: #FBF3E4;
+  --sidebar-accent:             #240F0F;
+  --sidebar-accent-foreground:  #FBF3E4;
+  --sidebar-border:             rgba(251,243,228,0.12);
+  --sidebar-ring:               #FBF3E4;
 }
 
-/* ── Role body themes ── */
-body.role-admin {
-  --sidebar:            #241512;
-  --sidebar-foreground: #F3EAE2;
-  --sidebar-primary:    #E23A42;
-  --sidebar-accent:     #301C18;
-  --sidebar-border:     #3A211C;
-  --role-accent:        #A5171F;
-}
-body.role-supervisor {
-  --role-accent: #6845A5;
-}
-body.role-participant {
-  --primary:     #4A7A40;
-  --ring:        #4A7A40;
-  --role-accent: #4A7A40;
-}
+/* ── Role body themes (kept subtle in the red room) ── */
+body.role-admin { --role-accent: #FBF3E4; }
+body.role-supervisor { --role-accent: #C6A8F0; }
+body.role-participant { --role-accent: #86C99A; }
 
 /* ── Tailwind bridge ── */
 @theme inline {
-  --font-sans:         var(--font-hanken), ui-sans-serif, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-serif:        var(--font-fraunces), Georgia, 'Times New Roman', serif;
-  --font-mono:         var(--font-jetbrains-mono), ui-monospace, 'Cascadia Code', 'Consolas', monospace;
-  --font-logo-crazy:   var(--font-fraunces), Georgia, serif;
-  --font-logo-sapiens: var(--font-fraunces), Georgia, serif;
+  --font-sans:         var(--font-archivo), ui-sans-serif, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-serif:        var(--font-bricolage), 'Archivo', ui-sans-serif, sans-serif;
+  --font-mono:         var(--font-space-mono), ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  --font-logo-crazy:   var(--font-bricolage), ui-sans-serif, sans-serif;
+  --font-logo-sapiens: var(--font-bricolage), ui-sans-serif, sans-serif;
 
   --color-background:            var(--background);
   --color-foreground:            var(--foreground);
@@ -225,8 +213,8 @@ body.role-participant {
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-serif);
-    font-weight: 600;
-    letter-spacing: -0.02em;
+    font-weight: 700;
+    letter-spacing: -0.025em;
   }
 
   ::-webkit-scrollbar { width: 5px; height: 5px; }
