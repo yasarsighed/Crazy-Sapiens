@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { CopyButton } from './copy-button'
 import { Link2, QrCode, Mail, ExternalLink } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import QRCode from 'qrcode'
 
 interface InviteLinkDialogProps {
   open: boolean
@@ -24,7 +25,19 @@ export function InviteLinkDialog({ open, onOpenChange, studyId, studyTitle }: In
   )
 
   const joinUrl = `${baseUrl}/participant/join/${studyId}`
-  const qrUrl   = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(joinUrl)}&bgcolor=ffffff&color=0f0f1a&margin=10&format=png`
+
+  // Generated locally so the (unauthenticated) join URL never leaves the
+  // browser via a third-party QR API.
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    QRCode.toDataURL(joinUrl, { width: 240, margin: 2, color: { dark: '#0f0f1a', light: '#ffffff' } })
+      .then(url => { if (!cancelled) setQrDataUrl(url) })
+      .catch(() => { if (!cancelled) setQrDataUrl(null) })
+    return () => { cancelled = true }
+  }, [open, joinUrl])
+
   const mailtoBody = encodeURIComponent(
     `Hi,\n\nYou have been invited to participate in a research study: "${studyTitle}".\n\nPlease click the link below to join:\n${joinUrl}\n\nThank you for contributing to research!\n\nBest regards`
   )
@@ -82,25 +95,35 @@ export function InviteLinkDialog({ open, onOpenChange, studyId, studyTitle }: In
           {/* ── QR tab ── */}
           <TabsContent value="qr" className="mt-4 space-y-3">
             <div className="flex justify-center">
-              <div className="p-3 border border-border rounded-2xl bg-white shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrUrl}
-                  alt="QR code for study invitation"
-                  width={200}
-                  height={200}
-                  className="rounded-lg"
-                />
+              <div className="p-3 border border-border rounded-2xl bg-white shadow-sm w-[216px] h-[216px] flex items-center justify-center">
+                {qrDataUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={qrDataUrl}
+                    alt="QR code for study invitation"
+                    width={200}
+                    height={200}
+                    className="rounded-lg"
+                  />
+                ) : (
+                  <QrCode className="w-8 h-8 text-muted-foreground/40 animate-pulse" />
+                )}
               </div>
             </div>
             <p className="text-[11px] text-muted-foreground text-center">
               Print or display this QR code — participants scan it to join instantly.
             </p>
-            <Button asChild variant="outline" size="sm" className="w-full gap-1.5">
-              <a href={qrUrl} download={`invite-qr-${studyId}.png`}>
+            {qrDataUrl ? (
+              <Button asChild variant="outline" size="sm" className="w-full gap-1.5">
+                <a href={qrDataUrl} download={`invite-qr-${studyId}.png`}>
+                  Download QR Code
+                </a>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" className="w-full gap-1.5" disabled>
                 Download QR Code
-              </a>
-            </Button>
+              </Button>
+            )}
           </TabsContent>
 
           {/* ── Email tab ── */}

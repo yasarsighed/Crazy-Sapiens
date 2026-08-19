@@ -11,46 +11,52 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 
+// Colors match the app-wide instrument palette (lib/globals.css / the
+// Red Room design system) rather than ad-hoc hex values — "Conflict"
+// previously used #E63946, a red close enough to the site's crimson
+// background to lose contrast; negative ties are already visually
+// distinguished by a dashed edge in the results view, so color doesn't
+// need to double as an "alarm" signal.
 const DEFAULT_RELATIONSHIP_TYPES = [
   {
     label: 'Communication',
     description: 'Who do you communicate with regularly?',
-    color_hex: '#C6A8F0',
+    color_hex: '#C6A8F0', // lavender
     is_negative_dimension: false,
     display_order: 1,
   },
   {
     label: 'Advice',
     description: 'Who do you go to for professional advice?',
-    color_hex: '#86C99A',
+    color_hex: '#86C99A', // mint
     is_negative_dimension: false,
     display_order: 2,
   },
   {
     label: 'Trust',
     description: 'Who do you trust with important information?',
-    color_hex: '#9A6B00',
+    color_hex: '#EBC15C', // brand gold
     is_negative_dimension: false,
     display_order: 3,
   },
   {
     label: 'Collaboration',
     description: 'Who do you collaborate with on tasks?',
-    color_hex: '#7C3AAF',
+    color_hex: '#86B7D6', // blue
     is_negative_dimension: false,
     display_order: 4,
   },
   {
     label: 'Conflict',
     description: 'Who do you experience tension or conflict with?',
-    color_hex: '#E63946',
+    color_hex: '#EC8FC8', // magenta — distinguished from positive ties via the dashed edge, not an alarm-red
     is_negative_dimension: true,
     display_order: 5,
   },
   {
     label: 'Avoidance',
     description: 'Who do you tend to avoid in professional settings?',
-    color_hex: '#6B6B80',
+    color_hex: '#F0A65C', // apricot
     is_negative_dimension: true,
     display_order: 6,
   },
@@ -303,6 +309,13 @@ export function AddSociogramDialog({ studyId, open, onClose, onSuccess }: Props)
                 />
               </div>
             </div>
+            {(parseInt(maxNominations) || 0) * selectedTypes.length >= 30 && (
+              <p className="text-xs text-[color:var(--brand-gold)]">
+                {selectedTypes.length} types × {maxNominations} max ≈ a lot of possible ties per
+                person — the network graph gets hard to read past a few hundred total edges.
+                Consider a lower max if your group is large.
+              </p>
+            )}
 
             <div className="flex items-center justify-between">
               <div>

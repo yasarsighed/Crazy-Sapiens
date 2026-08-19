@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CheckCircle, Circle, ClipboardList, Timer, Users, AlertTriangle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { fetchAllRows } from '@/lib/fetch-all'
 
 export default async function ParticipantsPage() {
   const supabase = await createClient()
@@ -74,27 +75,38 @@ export default async function ParticipantsPage() {
   const allSocIds = (socRes.data ?? []).map((s: any) => s.id)
   const allIatIds = (iatRes.data ?? []).map((i: any) => i.id)
 
+  // These all scale with participant × response count, not study count — an
+  // unbounded .select() silently truncates past Supabase's ~1000-row default
+  // once real usage grows. Paged with fetchAllRows to stay correct at scale.
   const [qDoneRes, socDoneRes, iatDoneRes, alertsRes] = await Promise.all([
     allQIds.length > 0
-      ? supabase.from('questionnaire_scored_results')
+      ? fetchAllRows((from, to) => supabase.from('questionnaire_scored_results')
           .select('participant_id, questionnaire_id, total_score, severity_label')
           .in('questionnaire_id', allQIds)
           .eq('is_complete', true)
+          .range(from, to))
       : { data: [] },
     allSocIds.length > 0
-      ? supabase.from('sociogram_participants')
+      ? fetchAllRows((from, to) => supabase.from('sociogram_participants')
           .select('participant_id, sociogram_id')
           .in('sociogram_id', allSocIds)
           .eq('has_submitted', true)
+          .range(from, to))
       : { data: [] },
+    // Completion marker uses the scored session table (one row per completed
+    // attempt), not the raw trial log (180 rows per completion, 14,400+ total
+    // already) — smaller, faster, and semantically correct: a leftover trial
+    // row from an abandoned attempt shouldn't count as "done".
     allIatIds.length > 0
-      ? supabase.from('iat_trial_log')
+      ? fetchAllRows((from, to) => supabase.from('iat_session_results')
           .select('participant_id, iat_id')
           .in('iat_id', allIatIds)
+          .range(from, to))
       : { data: [] },
-    supabase.from('clinical_alerts_log')
+    fetchAllRows((from, to) => supabase.from('clinical_alerts_log')
       .select('participant_id, acknowledged')
-      .in('study_id', studyIds),
+      .in('study_id', studyIds)
+      .range(from, to)),
   ])
 
   // Build completion sets
@@ -124,6 +136,18 @@ export default async function ParticipantsPage() {
   const typeIcon  = { questionnaire: ClipboardList, sociogram: Users, iat: Timer }
   const typeColor = { questionnaire: '#C6A8F0', sociogram: '#86C99A', iat: '#F0A65C' }
 
+  // Severity → color, so a researcher can visually triage the table instead of
+  // reading every cell's text. Falls back to neutral for unrecognized labels.
+  const severityColor = (label: string | null): string => {
+    if (!label) return 'var(--muted-foreground)'
+    const s = label.toLowerCase()
+    if (s.includes('severe') || s.includes('high') || s.includes('strong')) return '#E63946'
+    if (s.includes('elevated') || s.includes('moderate')) return '#F0A65C'
+    if (s.includes('mild') || s.includes('low')) return '#E9C46A'
+    if (s.includes('minimal') || s.includes('flexible') || s.includes('average')) return '#86C99A'
+    return 'var(--muted-foreground)'
+  }
+
   return (
     <div className="p-6 lg:p-8 max-w-5xl">
       <div className="mb-8">
@@ -137,8 +161,15 @@ export default async function ParticipantsPage() {
       <div className="space-y-10">
         {studyIds.map(studyId => {
           const study       = studyMap[studyId]
-          const studyEnrolls = enrollmentsByStudy[studyId] ?? []
           const instruments  = instrumentsByStudy[studyId] ?? []
+
+          // Most-concerning-first: unacknowledged alerts float to the top, so a
+          // researcher scanning a long roster sees who needs attention first.
+          const studyEnrolls = [...(enrollmentsByStudy[studyId] ?? [])].sort((a: any, b: any) => {
+            const unackA = alertsByPid[a.participant_id]?.unack ?? 0
+            const unackB = alertsByPid[b.participant_id]?.unack ?? 0
+            return unackB - unackA
+          })
 
           if (studyEnrolls.length === 0) return null
 
@@ -231,7 +262,10 @@ export default async function ParticipantsPage() {
                               <>
                                 <CheckCircle className="w-4 h-4" style={{ color: typeColor[inst.type] }} />
                                 {qScore && (
-                                  <span className="text-[9px] text-muted-foreground mt-0.5">
+                                  <span
+                                    className="text-[9px] mt-0.5 font-medium"
+                                    style={{ color: severityColor(qScore.severity) }}
+                                  >
                                     {qScore.score}{qScore.severity ? ` · ${qScore.severity}` : ''}
                                   </span>
                                 )}

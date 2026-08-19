@@ -11,6 +11,7 @@ import {
   type IatStats,
   type FunnelRow,
 } from '@/components/study-analytics-charts'
+import { fetchAllRows } from '@/lib/fetch-all'
 
 // ── Math helpers ─────────────────────────────────────────────────────────────
 function mean(a: number[]) { return a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0 }
@@ -48,11 +49,12 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
   const qStats: QInstrumentStats[] = []
 
   for (const qi of qInstrs ?? []) {
-    const { data: results } = await supabase
+    const { data: results } = await fetchAllRows((from, to) => supabase
       .from('questionnaire_scored_results')
       .select('total_score, severity_label')
       .eq('questionnaire_id', qi.id)
       .eq('is_complete', true)
+      .range(from, to))
 
     const scores = (results ?? []).map(r => Number(r.total_score)).filter(s => !isNaN(s))
     const enrolled = enrolledCount ?? 0
@@ -90,10 +92,11 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
 
   const iatStats: IatStats[] = []
   for (const iat of iatInstrs ?? []) {
-    const { data: results } = await supabase
+    const { data: results } = await fetchAllRows((from, to) => supabase
       .from('iat_session_results')
       .select('d_score')
       .eq('iat_id', iat.id)
+      .range(from, to))
 
     const dScores = (results ?? [])
       .map(r => Number(r.d_score))

@@ -5,9 +5,9 @@ import { logActivity } from '@/lib/log-activity'
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { qid: string } },
+  { params }: { params: Promise<{ qid: string }> },
 ) {
-  const { qid } = params
+  const { qid } = await params
 
   // Verify the caller is an authenticated participant
   const userClient = await createClient()

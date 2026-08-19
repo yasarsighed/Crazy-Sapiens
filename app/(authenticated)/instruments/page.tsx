@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { ClipboardList, Timer, Users, ExternalLink } from 'lucide-react'
+import { getIATType } from '@/lib/iat-types'
 
 export default async function InstrumentsPage() {
   const supabase = await createClient()
@@ -29,7 +30,7 @@ export default async function InstrumentsPage() {
     ? await Promise.all([
         supabase.from('questionnaire_instruments').select('id, title, study_id, status, validated_scale_name, estimated_duration_minutes').in('study_id', studyIds).order('created_at', { ascending: false }),
         supabase.from('sociogram_instruments').select('id, title, study_id, min_nominations, max_nominations').in('study_id', studyIds).order('created_at', { ascending: false }),
-        supabase.from('iat_instruments').select('id, title, study_id').in('study_id', studyIds).order('created_at', { ascending: false }),
+        supabase.from('iat_instruments').select('id, title, study_id, iat_type').in('study_id', studyIds).order('created_at', { ascending: false }),
       ])
     : [{ data: [] }, { data: [] }, { data: [] }]
 
@@ -63,14 +64,17 @@ export default async function InstrumentsPage() {
       meta: `${s.min_nominations}–${s.max_nominations} nominations`,
       href: `/studies/${s.study_id}/sociogram`,
     })),
-    ...(iatRes.data ?? []).map((i: any) => ({
-      id: i.id,
-      title: i.title,
-      study_id: i.study_id,
-      type: 'iat' as const,
-      meta: 'Death/Suicide IAT · ~12 min',
-      href: `/studies/${i.study_id}/iat/${i.id}`,
-    })),
+    ...(iatRes.data ?? []).map((i: any) => {
+      const iatType = getIATType(i.iat_type)
+      return {
+        id: i.id,
+        title: i.title,
+        study_id: i.study_id,
+        type: 'iat' as const,
+        meta: `${iatType.name} · ~${iatType.estimatedMinutes} min`,
+        href: `/studies/${i.study_id}/iat/${i.id}`,
+      }
+    }),
   ]
 
   const typeAccent = { questionnaire: '#C6A8F0', sociogram: '#86C99A', iat: '#F0A65C' }

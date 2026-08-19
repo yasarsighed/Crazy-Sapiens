@@ -10,8 +10,9 @@ import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Network, Download, Plus, X, ChevronDown,
   ClipboardList, Users, Timer, ExternalLink, Trash2, Link2, FileText, AlertTriangle,
-  UserPlus, QrCode, BarChart3,
+  UserPlus, QrCode, BarChart3, Database,
 } from 'lucide-react'
+import { fetchAllRows } from '@/lib/fetch-all'
 import { toast } from 'sonner'
 import { AddQuestionnaireDialog } from '@/components/add-questionnaire-dialog'
 import { AddSociogramDialog } from '@/components/add-sociogram-dialog'
@@ -38,6 +39,7 @@ export default function StudyPage() {
   const router = useRouter()
   const studyId = params.id as string
   const [study, setStudy] = useState<any>(null)
+  const [cohorts, setCohorts] = useState<Array<{ id: string; name: string }>>([])
   const [participants, setParticipants] = useState<any[]>([])
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [loading, setLoading] = useState(true)
@@ -110,10 +112,16 @@ export default function StudyPage() {
     setStudy(studyData)
     setConsentText(studyData?.consent_text ?? '')
 
-    const { data: enrollments } = await supabase
+    const { data: cohortRows } = await supabase.from('cohorts').select('id, name').eq('status', 'active').order('name')
+    setCohorts(cohortRows ?? [])
+
+    // Paged — a large study's enrollment list can cross Supabase's ~1000-row
+    // default response cap, which would silently drop participants here.
+    const { data: enrollments } = await fetchAllRows<any>((from, to) => supabase
       .from('study_enrollments')
       .select('id, participant_id, status, profiles!study_enrollments_participant_id_fkey(full_name, email)')
       .eq('study_id', studyId)
+      .range(from, to))
     setParticipants(enrollments || [])
 
     // Query all 3 instrument tables directly — bypasses any study_instruments RLS issues
@@ -275,6 +283,28 @@ export default function StudyPage() {
             <h1 className="font-serif text-2xl text-foreground">{study.title}</h1>
             {study.description && (
               <p className="text-sm text-muted-foreground mt-1 max-w-xl">{study.description}</p>
+            )}
+            {cohorts.length > 0 && (
+              <div className="flex items-center gap-1.5 mt-2">
+                <Database className="w-3 h-3 text-muted-foreground shrink-0" />
+                <select
+                  value={study.cohort_id ?? 'none'}
+                  onChange={async (e) => {
+                    const next = e.target.value
+                    const supabase = createClient()
+                    const { error } = await supabase.from('studies')
+                      .update({ cohort_id: next === 'none' ? null : next }).eq('id', studyId)
+                    if (error) toast.error('Failed to update cohort', { description: error.message })
+                    else { toast.success('Cohort updated'); await loadData() }
+                  }}
+                  className="text-xs rounded-md px-1.5 py-0.5 border border-border bg-transparent text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <option value="none">No cohort</option>
+                  {cohorts.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -622,10 +652,10 @@ export default function StudyPage() {
                   {creatingManual ? 'Creating…' : 'Create & enroll'}
                 </Button>
                 {lastTempPassword && (
-                  <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs space-y-1">
-                    <p className="font-medium text-amber-900">Temporary password</p>
-                    <code className="block bg-white rounded px-2 py-1 text-[11px] break-all">{lastTempPassword}</code>
-                    <p className="text-amber-800">Share securely with the participant. They can reset via &quot;Forgot password&quot;.</p>
+                  <div className="rounded-md border border-brand-gold/40 bg-brand-gold/10 p-3 text-xs space-y-1">
+                    <p className="font-medium text-brand-gold">Temporary password</p>
+                    <code className="block bg-popover text-foreground rounded px-2 py-1 text-[11px] break-all">{lastTempPassword}</code>
+                    <p className="text-muted-foreground">Share securely with the participant. They can reset via &quot;Forgot password&quot;.</p>
                   </div>
                 )}
                 <p className="text-[10px] text-muted-foreground">

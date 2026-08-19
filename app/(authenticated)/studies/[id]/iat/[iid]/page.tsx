@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EditDebriefButton } from '@/components/edit-debrief-button'
 import { mean, sd, cohensD } from '@/lib/questionnaire-psychometrics'
 import { getIATType, bandForD } from '@/lib/iat-types'
+import { fetchAllRows } from '@/lib/fetch-all'
 
 function fmt(n: number, dp = 3): string { return n.toFixed(dp) }
 
@@ -90,12 +91,25 @@ export default async function IATResultsPage({
     }
   }
 
-  // Fetch ALL trial data (for RT and error analysis)
+  // Fetch ALL trial data (for RT and error analysis) — paged, since a single
+  // IAT with 180 trials/participant crosses Supabase's ~1000-row default
+  // response cap at just 6 completers (confirmed live: 14,400+ rows exist
+  // across this app's IATs today, so an unbounded .select() here was
+  // silently analyzing a truncated subset of real participants).
   // Note: block_number is the correct column name (not block_num)
-  const { data: allTrials } = await supabase
-    .from('iat_trial_log')
-    .select('participant_id, block_number, response_time_ms, is_correct, excluded_from_scoring')
-    .eq('iat_id', iid)
+  const { data: allTrials } = await fetchAllRows<{
+    participant_id: string
+    block_number: number
+    response_time_ms: number | null
+    is_correct: boolean | null
+    excluded_from_scoring: boolean
+  }>((from, to) =>
+    supabase
+      .from('iat_trial_log')
+      .select('participant_id, block_number, response_time_ms, is_correct, excluded_from_scoring')
+      .eq('iat_id', iid)
+      .range(from, to),
+  )
 
   // Build per-participant trial maps
   const trialsByParticipant: Record<string, typeof allTrials> = {}
@@ -128,9 +142,9 @@ export default async function IATResultsPage({
     const incompatTrials = scoringTrials.filter(t => t.block_number === 6 || t.block_number === 7)
 
     const meanRT_comp   = compatTrials.length > 0
-      ? mean(compatTrials.map(t => t.response_time_ms).filter(Boolean)) : null
+      ? mean(compatTrials.map(t => t.response_time_ms).filter((n): n is number => n != null)) : null
     const meanRT_incomp = incompatTrials.length > 0
-      ? mean(incompatTrials.map(t => t.response_time_ms).filter(Boolean)) : null
+      ? mean(incompatTrials.map(t => t.response_time_ms).filter((n): n is number => n != null)) : null
 
     const errorCount = scoringTrials.filter(t => !t.is_correct).length
     const errorRate  = scoringTrials.length > 0 ? errorCount / scoringTrials.length : null

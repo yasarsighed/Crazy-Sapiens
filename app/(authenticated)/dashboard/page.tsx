@@ -81,24 +81,56 @@ export default async function DashboardPage() {
   const recentActivityQ = isAdmin
     ? supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(10)
     : supabase.from('activity_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10)
+  // Full (unlimited) set of study ids this viewer owns — used to scope clinical
+  // alerts so a non-admin never sees another researcher's participants' alerts.
+  // The `studies` query above is capped at 6 for the dashboard table, which is
+  // too narrow to safely scope alerts against.
+  const ownedStudyIdsQ = isAdmin
+    ? Promise.resolve({ data: [] as { id: string }[] })
+    : supabase.from('studies').select('id').eq('created_by', user.id)
 
   const [
     { data: studies },
     { count: activeStudiesCount },
-    { data: clinicalAlerts },
-    { count: alertsCount },
     { data: recentActivity },
     { data: peers },
+    { data: ownedStudyIds },
   ] = await Promise.all([
     studiesQ,
     activeStudiesQ,
-    supabase.from('clinical_alerts_log').select('*').eq('acknowledged', false).order('created_at', { ascending: false }).limit(5),
-    supabase.from('clinical_alerts_log').select('*', { count: 'exact', head: true }).eq('acknowledged', false),
     recentActivityQ,
     supabase.from('profiles').select('id,full_name,researcher_color,role').in('role', ['researcher','supervisor']).neq('id', user.id).limit(6),
+    ownedStudyIdsQ,
   ])
 
   const studyIds = studies?.map(s => s.id) || []
+
+  // Clinical alerts, scoped to the viewer's own studies unless admin.
+  const alertScopeIds = isAdmin ? null : (ownedStudyIds ?? []).map(s => s.id)
+  const alertsBaseQ = supabase.from('clinical_alerts_log').select('*').eq('acknowledged', false)
+  const alertsCountBaseQ = supabase.from('clinical_alerts_log').select('*', { count: 'exact', head: true }).eq('acknowledged', false)
+  const [{ data: clinicalAlerts }, { count: alertsCount }] = isAdmin
+    ? await Promise.all([
+        alertsBaseQ.order('created_at', { ascending: false }).limit(5),
+        alertsCountBaseQ,
+      ])
+    : alertScopeIds!.length
+      ? await Promise.all([
+          alertsBaseQ.in('study_id', alertScopeIds!).order('created_at', { ascending: false }).limit(5),
+          alertsCountBaseQ.in('study_id', alertScopeIds!),
+        ])
+      : [{ data: [] as ClinicalAlertType[] }, { count: 0 }]
+
+  // Resolve participant names + study titles for the alert cards so they're
+  // actionable instead of showing a raw truncated participant UUID.
+  const alertParticipantIds = [...new Set((clinicalAlerts ?? []).map(a => a.participant_id))]
+  const alertStudyIds = [...new Set((clinicalAlerts ?? []).map((a: any) => a.study_id).filter(Boolean))]
+  const [{ data: alertProfiles }, { data: alertStudies }] = await Promise.all([
+    alertParticipantIds.length ? supabase.from('profiles').select('id, full_name').in('id', alertParticipantIds) : Promise.resolve({ data: [] as any[] }),
+    alertStudyIds.length ? supabase.from('studies').select('id, title').in('id', alertStudyIds) : Promise.resolve({ data: [] as any[] }),
+  ])
+  const alertProfileMap = Object.fromEntries((alertProfiles ?? []).map((p: any) => [p.id, p.full_name as string | null]))
+  const alertStudyMap = Object.fromEntries((alertStudies ?? []).map((s: any) => [s.id, s.title as string]))
 
   // ── Phase 2: study-scoped instruments + participant count (need studyIds) ──
   const empty = Promise.resolve({ data: [] as { id: string; study_id: string }[] })
@@ -206,7 +238,7 @@ export default async function DashboardPage() {
               />
             )}
             {alertsCount ? (
-              <Link href="/admin/requests">
+              <Link href="/audit-log?type=alert">
                 <Button variant="destructive" size="sm" className="gap-1.5 animate-pulse">
                   <Bell className="w-3.5 h-3.5" />
                   {alertsCount} Alert{alertsCount > 1 ? 's' : ''}
@@ -438,16 +470,31 @@ export default async function DashboardPage() {
                   </p>
                 </CardHeader>
                 <CardContent className="p-3 space-y-2">
-                  {clinicalAlerts!.map((alert: ClinicalAlertType) => (
-                    <ClinicalAlert
-                      key={alert.id}
-                      id={alert.id}
-                      severity={alert.severity}
-                      message={alert.message}
-                      participantId={alert.participant_id}
-                      createdAt={alert.created_at}
-                    />
-                  ))}
+                  {clinicalAlerts!.map((alert: any) => {
+                    // The live clinical_alerts_log table has no severity/message
+                    // columns at all (confirmed against a real row 2026-08-19) —
+                    // reading alert.severity/alert.message here always produced
+                    // undefined, so every alert card rendered blank text with
+                    // generic "low" styling regardless of true severity. The
+                    // real signal is alert_level (free text: 'critical' | 'high'
+                    // | 'moderate' seen in practice) and trigger_description.
+                    const severity =
+                      alert.alert_level === 'critical' || alert.alert_level === 'high' ? 'critical'
+                      : alert.alert_level === 'moderate' ? 'moderate'
+                      : 'low'
+                    return (
+                      <ClinicalAlert
+                        key={alert.id}
+                        id={alert.id}
+                        severity={severity}
+                        message={alert.trigger_description ?? alert.scale_name ?? 'Clinical alert'}
+                        participantId={alert.participant_id}
+                        participantName={alertProfileMap[alert.participant_id]}
+                        studyTitle={alertStudyMap[alert.study_id]}
+                        createdAt={alert.created_at}
+                      />
+                    )
+                  })}
                 </CardContent>
               </Card>
             )}

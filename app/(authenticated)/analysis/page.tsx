@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { BarChart3, Users, ClipboardList, Timer, AlertTriangle, TrendingUp } from 'lucide-react'
+import { IAT_TYPES, bandForD } from '@/lib/iat-types'
+import { fetchAllRows } from '@/lib/fetch-all'
 
 function mean(arr: number[]): number {
   if (!arr.length) return 0
@@ -66,42 +68,61 @@ export default async function AnalysisPage() {
     )
   }
 
-  // Questionnaire results across all studies
-  const { data: allQResults } = await supabase
-    .from('questionnaire_scored_results')
-    .select('questionnaire_id, participant_id, total_score, severity_label, submitted_at')
-    .in('questionnaire_id',
-      (await supabase.from('questionnaire_instruments').select('id').in('study_id', studyIds)).data?.map(q => q.id) ?? []
-    )
-    .eq('is_complete', true)
-
-  // Questionnaire instruments (for scale names)
+  // Questionnaire instruments (for scale names) — fetched first since the
+  // results query below filters by their ids.
   const { data: allQInstruments } = await supabase
     .from('questionnaire_instruments')
     .select('id, title, validated_scale_name, study_id')
     .in('study_id', studyIds)
 
-  // IAT results
-  const { data: allIatResults } = await supabase
-    .from('iat_session_results')
-    .select('iat_id, participant_id, d_score')
-    .in('iat_id',
-      (await supabase.from('iat_instruments').select('id').in('study_id', studyIds)).data?.map(i => i.id) ?? []
-    )
-
-  // Enrollments
-  const { data: allEnrollments } = await supabase
-    .from('study_enrollments')
-    .select('study_id, participant_id, status')
+  // IAT instruments (need iat_type so each IAT's D-scores get judged against
+  // ITS OWN band system, not a different IAT's — see fix below)
+  const { data: allIatInstruments } = await supabase
+    .from('iat_instruments')
+    .select('id, title, iat_type')
     .in('study_id', studyIds)
-    .eq('status', 'active')
+
+  // The queries below scale with participant × response count, not study
+  // count — an unbounded .select() silently truncates at Supabase's ~1000-row
+  // default once real usage grows (this app's iat_trial_log already holds
+  // 14,400+ rows), so every one of these pages through with fetchAllRows.
+  const qInstrumentIds = (allQInstruments ?? []).map(q => q.id)
+  const { data: allQResults } = await fetchAllRows((from, to) =>
+    supabase
+      .from('questionnaire_scored_results')
+      .select('questionnaire_id, participant_id, total_score, severity_label, submitted_at')
+      .in('questionnaire_id', qInstrumentIds)
+      .eq('is_complete', true)
+      .range(from, to),
+  )
+
+  const iatInstrumentIds = (allIatInstruments ?? []).map(i => i.id)
+  const { data: allIatResults } = await fetchAllRows((from, to) =>
+    supabase
+      .from('iat_session_results')
+      .select('iat_id, participant_id, d_score')
+      .in('iat_id', iatInstrumentIds)
+      .range(from, to),
+  )
+
+  const { data: allEnrollments } = await fetchAllRows((from, to) =>
+    supabase
+      .from('study_enrollments')
+      .select('study_id, participant_id, status')
+      .in('study_id', studyIds)
+      .eq('status', 'active')
+      .range(from, to),
+  )
 
   // Unacknowledged clinical alerts
-  const { data: unackAlerts } = await supabase
-    .from('clinical_alerts_log')
-    .select('id, study_id, participant_id, alert_level, created_at')
-    .in('study_id', studyIds)
-    .eq('acknowledged', false)
+  const { data: unackAlerts } = await fetchAllRows((from, to) =>
+    supabase
+      .from('clinical_alerts_log')
+      .select('id, study_id, participant_id, alert_level, created_at')
+      .in('study_id', studyIds)
+      .eq('acknowledged', false)
+      .range(from, to),
+  )
 
   // Aggregate stats
   const totalParticipants = new Set((allEnrollments ?? []).map(e => e.participant_id)).size
@@ -116,6 +137,19 @@ export default async function AnalysisPage() {
     .map(r => r.d_score)
     .filter((d): d is number => d !== null)
 
+  // Group IAT D-scores by their actual iat_type — pooling scores from
+  // unrelated IATs (e.g. a political-attitude IAT and the Death/Suicide IAT)
+  // into a single distribution and judging all of them against the
+  // Death/Suicide band labels would misrepresent unrelated scores as
+  // clinical risk. Each type gets its own distribution using its own bands.
+  const iatTypeById = Object.fromEntries((allIatInstruments ?? []).map(i => [i.id, i.iat_type]))
+  const dScoresByType: Record<string, number[]> = {}
+  for (const r of allIatResults ?? []) {
+    if (r.d_score === null) continue
+    const key = iatTypeById[r.iat_id] ?? 'death_suicide'
+    ;(dScoresByType[key] ??= []).push(r.d_score)
+  }
+
   // Per-scale aggregates
   const scaleMap: Record<string, { name: string; scores: number[]; severities: Record<string, number> }> = {}
   for (const r of allQResults ?? []) {
@@ -127,15 +161,6 @@ export default async function AnalysisPage() {
       scaleMap[scaleName].severities[r.severity_label] = (scaleMap[scaleName].severities[r.severity_label] ?? 0) + 1
     }
   }
-
-  // IAT D-score bands
-  const dBands = [
-    { label: 'Leans toward Life',     range: '< 0',       color: '#52B788', test: (d: number) => d < 0 },
-    { label: 'Little association',    range: '0 – 0.15',  color: '#888888', test: (d: number) => d >= 0 && d < 0.15 },
-    { label: 'Slight Self–Death',     range: '0.15 – 0.35', color: '#E9C46A', test: (d: number) => d >= 0.15 && d < 0.35 },
-    { label: 'Moderate Self–Death',   range: '0.35 – 0.65', color: '#F0A65C', test: (d: number) => d >= 0.35 && d < 0.65 },
-    { label: 'Strong Self–Death',     range: '≥ 0.65',    color: '#E63946', test: (d: number) => d >= 0.65 },
-  ]
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl">
@@ -251,55 +276,73 @@ export default async function AnalysisPage() {
           </Card>
         )}
 
-        {/* IAT D-score distribution */}
+        {/* IAT D-score distributions — one per IAT type, each judged against
+            its own band system. Never pool D-scores across different IATs:
+            a high D-score on a stereotype/political-attitude IAT means
+            something completely different from a high D-score on the
+            Death/Suicide IAT, and must never be framed with the same
+            clinical-risk language. */}
         {allDScores.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="font-serif text-base flex items-center gap-2">
                 <Timer className="w-4 h-4 text-muted-foreground" />
-                IAT D-score distribution
+                IAT D-score distributions
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground mb-3">
-                n = {allDScores.length} · Mean D = <span className="font-mono text-foreground">{mean(allDScores).toFixed(3)}</span>
-                {' '}· SD = <span className="font-mono text-foreground">{sd(allDScores).toFixed(3)}</span>
-              </p>
-              <div className="space-y-2">
-                {dBands.map(band => {
-                  const count = allDScores.filter(band.test).length
-                  const pct = allDScores.length > 0 ? (count / allDScores.length) * 100 : 0
-                  const isClinical = band.range === '≥ 0.65'
-                  return (
-                    <div key={band.label} className="flex items-center gap-2 text-xs">
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: band.color }}
-                        aria-label={band.label}
-                      />
-                      <span className="text-muted-foreground w-36 truncate">
-                        {band.label}
-                        {isClinical && count > 0 && (
-                          <span className="ml-1 text-destructive font-medium">⚑</span>
-                        )}
-                      </span>
-                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${pct}%`, backgroundColor: band.color }}
-                        />
-                      </div>
-                      <span className="text-muted-foreground w-6 text-right">{count}</span>
+            <CardContent className="space-y-5">
+              {IAT_TYPES.filter(t => dScoresByType[t.key]?.length).map(iatType => {
+                const scores = dScoresByType[iatType.key]
+                const n = scores.length
+                const clinicalCount = scores.filter(d => bandForD(d, iatType.dscore_bands).clinical).length
+
+                return (
+                  <div key={iatType.key} className="border-b border-border last:border-0 pb-4 last:pb-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium text-foreground">{iatType.name}</p>
+                      <Badge variant="outline" className="text-[10px]">n = {n}</Badge>
                     </div>
-                  )
-                })}
-              </div>
-              {allDScores.filter(d => d >= 0.65).length > 0 && (
-                <p className="text-xs text-destructive mt-3">
-                  ⚑ {allDScores.filter(d => d >= 0.65).length} participant(s) in the strong Self–Death band.
-                  Ensure clinical alerts are acknowledged.
-                </p>
-              )}
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Mean D = <span className="font-mono text-foreground">{mean(scores).toFixed(3)}</span>
+                      {' '}· SD = <span className="font-mono text-foreground">{sd(scores).toFixed(3)}</span>
+                    </p>
+                    <div className="space-y-1.5">
+                      {iatType.dscore_bands.map(band => {
+                        const count = scores.filter(d => bandForD(d, iatType.dscore_bands) === band).length
+                        const pct = n > 0 ? (count / n) * 100 : 0
+                        return (
+                          <div key={band.label} className="flex items-center gap-2 text-xs">
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: band.color }}
+                              aria-label={band.label}
+                            />
+                            <span className="text-muted-foreground w-40 truncate">
+                              {band.short.replace(/\s*⚑$/, '')}
+                              {band.clinical && count > 0 && (
+                                <span className="ml-1 text-destructive font-medium">⚑</span>
+                              )}
+                            </span>
+                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full"
+                                style={{ width: `${pct}%`, backgroundColor: band.color }}
+                              />
+                            </div>
+                            <span className="text-muted-foreground w-6 text-right">{count}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {clinicalCount > 0 && (
+                      <p className="text-xs text-destructive mt-2">
+                        ⚑ {clinicalCount} participant(s) in a clinical-flag band for this instrument.
+                        Ensure clinical alerts are acknowledged.
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
             </CardContent>
           </Card>
         )}

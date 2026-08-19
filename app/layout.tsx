@@ -67,6 +67,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${bricolage.variable} ${archivo.variable} ${spaceMono.variable} bg-background`}
     >
       <body className="font-sans antialiased">

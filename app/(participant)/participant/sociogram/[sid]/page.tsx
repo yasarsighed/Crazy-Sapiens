@@ -4,10 +4,9 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
-import { CheckCircle, Search, Users } from 'lucide-react'
+import { CheckCircle, Search, Users, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConsentScreen } from '@/components/consent-screen'
 
@@ -71,6 +70,8 @@ export default function SociogramNominationPage() {
   const [needsConsent, setNeedsConsent] = useState(false)
   const [consentText, setConsentText] = useState<string | null>(null)
   const [studyId, setStudyId] = useState<string | null>(null)
+  const [restoredDraft, setRestoredDraft] = useState(false)
+  const [draftKey, setDraftKey] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -200,10 +201,60 @@ export default function SociogramNominationPage() {
         cfg.allow_self_nomination || p.participant_id !== user.id
       )
       setParticipants(filtered)
+
+      // Restore an in-progress draft from localStorage, if one exists — a
+      // sociogram can involve up to (types × max_nominations) selections
+      // (e.g. 6 types × 5 = 30 people to pick), and there was previously no
+      // way to recover that work after a refresh, tab close, or session
+      // hiccup, unlike questionnaires which autosave server-side. Kept
+      // client-only (no new API/schema) since it only needs to survive a
+      // browser mishap, not sync across devices.
+      const key = `sociogram_draft_${sid}_${user.id}`
+      setDraftKey(key)
+      try {
+        const raw = localStorage.getItem(key)
+        if (raw) {
+          const draft = JSON.parse(raw) as Record<string, { nominees: string[]; scores: Record<string, number> }>
+          const validParticipantIds = new Set(filtered.map(p => p.id))
+          let restoredAny = false
+          const restored: NominationState = {}
+          loadedTypes.forEach(t => {
+            const d = draft[t.id]
+            const nomineeIds = (d?.nominees ?? []).filter(id => validParticipantIds.has(id))
+            if (nomineeIds.length > 0) restoredAny = true
+            restored[t.id] = {
+              nominees: new Set(nomineeIds),
+              scores: Object.fromEntries(
+                Object.entries(d?.scores ?? {}).filter(([pid]) => nomineeIds.includes(pid)),
+              ),
+            }
+          })
+          if (restoredAny) {
+            setNominations(restored)
+            setRestoredDraft(true)
+          }
+        }
+      } catch {
+        // Corrupt/unparseable draft — ignore and start fresh rather than crash the page.
+      }
+
       setLoading(false)
     }
     load()
   }, [sid])
+
+  // Persist the in-progress draft on every change (debounced by React's own
+  // batching — this is cheap, localStorage writes aren't a performance
+  // concern at this data size). Cleared on successful submit.
+  useEffect(() => {
+    if (!draftKey || loading) return
+    const hasAny = Object.values(nominations).some(v => v.nominees.size > 0)
+    if (!hasAny) { localStorage.removeItem(draftKey); return }
+    const serializable = Object.fromEntries(
+      Object.entries(nominations).map(([typeId, v]) => [typeId, { nominees: [...v.nominees], scores: v.scores }]),
+    )
+    try { localStorage.setItem(draftKey, JSON.stringify(serializable)) } catch { /* storage full/unavailable — non-fatal */ }
+  }, [nominations, draftKey, loading])
 
   // ─── Nomination handlers ─────────────────────────────────────────────────────
 
@@ -327,6 +378,7 @@ export default function SociogramNominationPage() {
 
       if (updateError) throw new Error(updateError.message)
 
+      if (draftKey) { try { localStorage.removeItem(draftKey) } catch { /* non-fatal */ } }
       setSubmitted(true)
     } catch (err) {
       toast.error('Submission failed', {
@@ -349,7 +401,10 @@ export default function SociogramNominationPage() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-16 text-center">
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 animate-pulse">
+          <Users className="w-6 h-6 text-primary" />
+        </div>
+        <p className="text-sm text-muted-foreground font-medium">Loading…</p>
       </div>
     )
   }
@@ -370,39 +425,56 @@ export default function SociogramNominationPage() {
 
   if (enrollmentError) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-16 text-center">
-        <p className="font-serif text-xl mb-2">Registration error</p>
-        <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
-          {enrollmentError}
-        </p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-6 text-sm underline text-primary"
-        >
-          Refresh page
-        </button>
+      <div className="max-w-2xl mx-auto px-6 py-16 text-center animate-slide-up">
+        <div className="rounded-3xl bg-card/80 backdrop-blur-sm border border-border shadow-sm p-10">
+          <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+            <Users className="w-7 h-7 text-destructive" />
+          </div>
+          <p className="font-serif text-xl font-semibold text-foreground mb-2">Registration error</p>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+            {enrollmentError}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 text-sm font-medium underline text-primary hover:opacity-80 transition-opacity"
+          >
+            Refresh page
+          </button>
+        </div>
       </div>
     )
   }
 
   if (!config) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-16 text-center">
-        <p className="font-serif text-xl mb-2">Sociogram not found.</p>
-        <p className="text-sm text-muted-foreground">The link may be invalid.</p>
+      <div className="max-w-2xl mx-auto px-6 py-16 text-center animate-slide-up">
+        <div className="rounded-3xl bg-card/80 backdrop-blur-sm border border-border shadow-sm p-10">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <Users className="w-7 h-7 text-muted-foreground/60" />
+          </div>
+          <p className="font-serif text-xl font-semibold text-foreground mb-2">Sociogram not found.</p>
+          <p className="text-sm text-muted-foreground">The link may be invalid.</p>
+        </div>
       </div>
     )
   }
 
   if (submitted) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-16 text-center">
-        <CheckCircle className="w-12 h-12 mx-auto mb-4" style={{ color: '#86C99A' }} />
-        <h1 className="font-serif text-2xl mb-2">All done. Thank you.</h1>
-        <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
-          Your nominations have been recorded. Your researcher will use these to map the
-          network structure of your group.
-        </p>
+      <div className="max-w-2xl mx-auto px-6 py-16 text-center animate-slide-up">
+        <div className="rounded-3xl overflow-hidden bg-card/80 backdrop-blur-sm border border-border shadow-sm">
+          <div className="px-8 pt-10 pb-8" style={{ background: 'color-mix(in srgb, #86C99A 12%, var(--card))' }}>
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #86C99A, #C6A8F0)' }}>
+              <CheckCircle className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="font-serif text-2xl font-bold text-foreground mb-2">All done — thank you.</h1>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+              Your nominations have been recorded. Your researcher will use these to map the
+              network structure of your group.
+            </p>
+          </div>
+        </div>
       </div>
     )
   }
@@ -410,28 +482,56 @@ export default function SociogramNominationPage() {
   // ─── Nomination form ─────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 animate-slide-up">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="font-serif text-2xl text-foreground mb-2">{config.title}</h1>
-        {config.instructions && (
-          <p className="text-sm text-muted-foreground leading-relaxed">{config.instructions}</p>
-        )}
-        <div className="mt-4 space-y-1.5">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>
-              {completedCount} of {relationshipTypes.length} relationship types completed
-            </span>
-            <span>{Math.round(progress)}%</span>
+      <div className="mb-6 rounded-3xl overflow-hidden bg-card/80 backdrop-blur-sm border border-border shadow-sm">
+        <div className="px-6 pt-6 pb-5" style={{ background: 'color-mix(in srgb, #86C99A 9%, var(--card))' }}>
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
+              style={{ background: 'linear-gradient(135deg, #86C99A, #C6A8F0)' }}>
+              <Users className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="font-serif text-xl font-bold text-foreground leading-tight">{config.title}</h1>
+              {restoredDraft && (
+                <div className="flex items-center gap-1.5 text-xs mt-1" style={{ color: '#86C99A' }}>
+                  <RotateCcw className="w-3 h-3 shrink-0" />
+                  Picked up where you left off.
+                </div>
+              )}
+              {config.instructions && (
+                <p className="text-sm text-muted-foreground leading-relaxed mt-1.5">{config.instructions}</p>
+              )}
+            </div>
           </div>
-          <Progress value={progress} className="h-1.5" />
+
+          <div className="mt-5 flex items-center gap-3">
+            <div className="relative shrink-0">
+              <svg width="40" height="40" viewBox="0 0 40 40" className="-rotate-90">
+                <circle cx="20" cy="20" r="17" fill="none" stroke="var(--muted)" strokeWidth="5" />
+                <circle
+                  cx="20" cy="20" r="17" fill="none" stroke="#86C99A" strokeWidth="5"
+                  strokeDasharray={2 * Math.PI * 17}
+                  strokeDashoffset={2 * Math.PI * 17 - (progress / 100) * 2 * Math.PI * 17}
+                  strokeLinecap="round"
+                  style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-[10px] font-bold text-foreground">{Math.round(progress)}%</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">{completedCount}</span> of {relationshipTypes.length} relationship types completed
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Tabs — one per relationship type */}
       {relationshipTypes.length > 0 && (
         <Tabs defaultValue={relationshipTypes[0].id}>
-          <TabsList className="w-full flex-wrap h-auto gap-1 mb-6 bg-muted/50 p-1">
+          <TabsList className="w-full h-auto flex flex-wrap gap-1.5 mb-6 bg-transparent p-0">
             {relationshipTypes.map(type => {
               const count = nominations[type.id]?.nominees.size ?? 0
               const done = count >= (config.min_nominations ?? 1)
@@ -439,7 +539,12 @@ export default function SociogramNominationPage() {
                 <TabsTrigger
                   key={type.id}
                   value={type.id}
-                  className="text-xs flex items-center gap-1.5"
+                  className="text-xs font-semibold flex items-center gap-1.5 rounded-xl border px-3 py-2 data-[state=active]:shadow-sm transition-all"
+                  style={{
+                    borderColor: `color-mix(in srgb, ${type.color_hex} 45%, transparent)`,
+                    color: 'var(--foreground)',
+                    background: `color-mix(in srgb, ${type.color_hex} 10%, var(--card))`,
+                  }}
                 >
                   <div
                     className="w-2 h-2 rounded-full shrink-0"
@@ -464,40 +569,43 @@ export default function SociogramNominationPage() {
               <TabsContent key={type.id} value={type.id} className="space-y-4">
                 {/* Tab description */}
                 <div
-                  className="p-4 rounded-xl border-l-4"
+                  className="p-4 rounded-2xl border"
                   style={{
-                    borderColor: type.color_hex,
-                    backgroundColor: type.color_hex + '12',
+                    borderColor: `color-mix(in srgb, ${type.color_hex} 35%, transparent)`,
+                    background: `color-mix(in srgb, ${type.color_hex} 8%, var(--card))`,
                   }}
                 >
-                  <p className="font-medium text-sm">{type.label}</p>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: type.color_hex }} />
+                    <p className="font-serif font-bold text-sm text-foreground">{type.label}</p>
+                  </div>
                   {type.description && (
                     <p className="text-xs text-muted-foreground mt-0.5">{type.description}</p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     Select {config.min_nominations}–{config.max_nominations} people ·{' '}
-                    <span className="font-medium">{selectedCount} selected</span>
+                    <span className="font-semibold text-foreground">{selectedCount} selected</span>
                     {isMaxed && ' (maximum reached)'}
                   </p>
                 </div>
 
                 {/* Search */}
                 <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="Search participants..."
+                    placeholder="Search participants…"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full pl-9 pr-4 py-2.5 text-sm border border-border rounded-full bg-card/60 placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
 
                 {/* Participant list */}
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                <div className="space-y-2 max-h-96 overflow-y-auto pr-0.5">
                   {filteredParticipants.length === 0 ? (
-                    <div className="text-center py-8 text-sm text-muted-foreground">
-                      <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <div className="text-center py-10 text-sm text-muted-foreground rounded-2xl border border-dashed border-border">
+                      <Users className="w-7 h-7 mx-auto mb-2 opacity-40" />
                       No participants found.
                     </div>
                   ) : (
@@ -513,20 +621,23 @@ export default function SociogramNominationPage() {
                             onClick={() => !disabled && toggleNominee(type.id, participant.id)}
                             disabled={disabled}
                             className={cn(
-                              'w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all',
-                              isSelected
-                                ? 'border-primary bg-primary/5'
-                                : disabled
-                                ? 'border-border opacity-40 cursor-not-allowed'
-                                : 'border-border hover:border-primary hover:bg-primary/5'
+                              'w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all',
+                              disabled && !isSelected && 'opacity-40 cursor-not-allowed border-border',
                             )}
+                            style={
+                              isSelected
+                                ? { borderColor: `color-mix(in srgb, ${type.color_hex} 55%, transparent)`, background: `color-mix(in srgb, ${type.color_hex} 12%, var(--card))` }
+                                : disabled
+                                  ? undefined
+                                  : { borderColor: 'var(--border)' }
+                            }
                           >
                             {/* Checkbox */}
                             <div
-                              className={cn(
-                                'w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
-                                isSelected ? 'border-primary bg-primary' : 'border-border'
-                              )}
+                              className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors"
+                              style={isSelected
+                                ? { background: type.color_hex, border: `1px solid ${type.color_hex}` }
+                                : { border: '2px solid var(--border)' }}
                             >
                               {isSelected && (
                                 <svg
@@ -547,13 +658,13 @@ export default function SociogramNominationPage() {
 
                             {/* Avatar */}
                             <div
-                              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium shrink-0"
+                              className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm"
                               style={{ backgroundColor: type.color_hex }}
                             >
                               {name.charAt(0).toUpperCase()}
                             </div>
 
-                            <span className="text-sm">{name}</span>
+                            <span className="text-sm font-medium text-foreground">{name}</span>
                           </button>
 
                           {/* Strength rating — shown inline after selection */}
@@ -563,20 +674,21 @@ export default function SociogramNominationPage() {
                                 {config.scale_label_low ?? 'Weak'}
                               </span>
                               <div className="flex gap-1">
-                                {[1, 2, 3, 4, 5].map(val => (
-                                  <button
-                                    key={val}
-                                    onClick={() => setScore(type.id, participant.id, val)}
-                                    className={cn(
-                                      'w-8 h-8 rounded text-xs font-medium border transition-colors',
-                                      typeState.scores[participant.id] === val
-                                        ? 'border-primary bg-primary text-primary-foreground'
-                                        : 'border-border hover:border-primary hover:bg-primary/5'
-                                    )}
-                                  >
-                                    {val}
-                                  </button>
-                                ))}
+                                {[1, 2, 3, 4, 5].map(val => {
+                                  const active = typeState.scores[participant.id] === val
+                                  return (
+                                    <button
+                                      key={val}
+                                      onClick={() => setScore(type.id, participant.id, val)}
+                                      className="w-8 h-8 rounded-lg text-xs font-bold border transition-colors"
+                                      style={active
+                                        ? { background: type.color_hex, borderColor: type.color_hex, color: 'white' }
+                                        : { borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
+                                    >
+                                      {val}
+                                    </button>
+                                  )
+                                })}
                               </div>
                               <span className="text-xs text-muted-foreground w-12 shrink-0 text-right">
                                 {config.scale_label_high ?? 'Strong'}
@@ -605,7 +717,7 @@ export default function SociogramNominationPage() {
         <Button
           onClick={handleSubmit}
           disabled={!myParticipantId || completedCount < relationshipTypes.length || submitting}
-          className="w-full"
+          className="w-full rounded-xl shadow-md"
           size="lg"
         >
           {submitting ? 'Submitting...' : 'Submit nominations'}

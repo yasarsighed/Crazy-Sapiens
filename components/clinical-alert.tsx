@@ -1,11 +1,13 @@
 import { cn } from '@/lib/utils'
 import { AlertTriangle } from 'lucide-react'
+import Link from 'next/link'
 
 interface ClinicalAlertProps {
   id: string
   severity: 'critical' | 'moderate' | 'low'
   message: string
   participantId: string
+  participantName?: string | null
   studyTitle?: string
   createdAt: string
   onAcknowledge?: (id: string) => void
@@ -14,15 +16,15 @@ interface ClinicalAlertProps {
 
 const severityStyles = {
   critical: {
-    bg: 'bg-[#FEF0F0]',
-    border: 'border-[#F5B8B8]',
+    bg: 'bg-destructive/10',
+    border: 'border-destructive/40',
     icon: 'text-destructive',
     label: 'Critical',
   },
   moderate: {
-    bg: 'bg-[#FEF9F0]',
-    border: 'border-[#F5D88A]',
-    icon: 'text-amber-600',
+    bg: 'bg-[color:var(--brand-gold)]/10',
+    border: 'border-[color:var(--brand-gold)]/40',
+    icon: 'text-[color:var(--brand-gold)]',
     label: 'Moderate',
   },
   low: {
@@ -33,17 +35,18 @@ const severityStyles = {
   },
 }
 
-export function ClinicalAlert({ 
-  severity, 
-  message, 
+export function ClinicalAlert({
+  severity,
+  message,
   participantId,
+  participantName,
   studyTitle,
   createdAt,
   onAcknowledge,
-  className 
+  className
 }: ClinicalAlertProps) {
   const styles = severityStyles[severity] ?? severityStyles.low
-  
+
   return (
     <div className={cn(
       'p-3 rounded-lg border',
@@ -65,15 +68,18 @@ export function ClinicalAlert({
           <p className="text-xs text-foreground mb-1 line-clamp-2">
             {message}
           </p>
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] text-muted-foreground">
-              Participant: {participantId.slice(0, 8)}...
-              {studyTitle && ` | ${studyTitle}`}
-            </p>
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              href={`/participants/${participantId}`}
+              className="text-[10px] text-foreground font-medium hover:text-primary hover:underline truncate"
+            >
+              {participantName || `Participant ${participantId.slice(0, 8)}…`}
+              {studyTitle && ` · ${studyTitle}`}
+            </Link>
             {onAcknowledge && (
-              <button 
+              <button
                 onClick={() => onAcknowledge(participantId)}
-                className="text-[10px] text-primary hover:underline"
+                className="text-[10px] text-primary hover:underline shrink-0"
               >
                 Acknowledge
               </button>

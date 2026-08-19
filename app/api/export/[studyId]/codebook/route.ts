@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getIATType } from '@/lib/iat-types'
 
 function csvEscape(v: unknown): string {
   if (v === null || v === undefined) return ''
@@ -42,7 +43,7 @@ export async function GET(
 
   const [qRes, iatRes, socioRes] = await Promise.all([
     supabase.from('questionnaire_instruments').select('id, title, validated_scale_name, clinical_alert_threshold').eq('study_id', studyId),
-    supabase.from('iat_instruments').select('id, title').eq('study_id', studyId),
+    supabase.from('iat_instruments').select('id, title, iat_type').eq('study_id', studyId),
     supabase.from('sociogram_instruments').select('id, title').eq('study_id', studyId),
   ])
 
@@ -94,8 +95,16 @@ export async function GET(
   }
 
   for (const iat of iatRes.data ?? []) {
+    // Each IAT variant measures a different construct (self–death, gender–career,
+    // Hindu–Muslim attitudes, etc.) — the d_score description and clinical-threshold
+    // note must match THIS instrument's actual type, not assume Death/Suicide.
+    const iatType = getIATType((iat as any).iat_type)
+    const hasClinicalBand = iatType.dscore_bands.some(b => b.clinical)
     rows.push(
-      csvRow(['iat', iat.title, 'd_score',        'IAT D2 score (Greenwald 2003). Positive = faster Self–Death pairings.', 'float', '—', 'sign-corrected across block-order A/B', '—', 'Clinical threshold D ≥ 0.65 (Millner 2019)']),
+      csvRow(['iat', iat.title, 'd_score',
+        `IAT D2 score (Greenwald 2003). Positive = ${iatType.positiveD}.`,
+        'float', iatType.name, 'sign-corrected across block-order A/B', '—',
+        hasClinicalBand ? 'Clinical threshold D ≥ 0.65 (Millner 2019) — Death/Suicide IAT only' : '']),
       csvRow(['iat', iat.title, 'assigned_order', 'Counterbalancing condition: A = compatible-first, B = incompatible-first', 'categorical (A|B)', '—', '—', 'A,B', 'Randomly assigned at session start']),
       csvRow(['iat', iat.title, 'response_time_ms','Per-trial reaction time in milliseconds (iat_trial_log)', 'integer ms', '—', '—', '—', 'Trials <300ms or >10000ms excluded from D2 per Greenwald algorithm']),
       csvRow(['iat', iat.title, 'is_correct',     "Whether the participant's first keypress matched the correct category", 'boolean', '—', '—', 'true,false', 'Error trials have a correction-time penalty in D2']),

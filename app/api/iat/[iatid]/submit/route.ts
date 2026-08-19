@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { logActivity } from '@/lib/log-activity'
+import { getIATType, bandForD } from '@/lib/iat-types'
 
 // POST /api/iat/[iatid]/submit
 //
@@ -52,6 +53,17 @@ export async function POST(
 
   const svc = createServiceClient()
 
+  // The client's WordCategory type ('conceptA' | 'conceptB' | 'attrA' | 'attrB')
+  // doesn't match the live iat_trial_log.stimulus_category CHECK constraint
+  // ('concept_a' | 'concept_b' | 'attribute_a' | 'attribute_b') — every trial
+  // insert was failing on this until the mapping below was added.
+  const STIMULUS_CATEGORY_MAP: Record<string, string> = {
+    conceptA: 'concept_a',
+    conceptB: 'concept_b',
+    attrA:    'attribute_a',
+    attrB:    'attribute_b',
+  }
+
   // ── Idempotency check ─────────────────────────────────────────────────────
   // Use session_results as the canonical "completed" marker.
   const { data: existing } = await svc
@@ -81,9 +93,16 @@ export async function POST(
     session_id:           body.sessionId,
     block_number:         t.blockNumber,
     block_label:          t.blockLabel,
+    // The live table has a NOT NULL + CHECK block_type column ('practice' |
+    // 'test') not present in the tracked supabase/schema.sql — every real
+    // submission was failing this insert until this was added. Values
+    // confirmed against existing seeded rows. Derived from the same
+    // practice/scored distinction the client already computes (blocks
+    // 3,4,6,7 are scored/test; 1,2,5 are practice).
+    block_type:           t.excludedFromScoring ? 'practice' : 'test',
     trial_number:         t.trialNumber,
     stimulus_text:        t.stimulusText,
-    stimulus_category:    t.stimulusCategory,
+    stimulus_category:    STIMULUS_CATEGORY_MAP[t.stimulusCategory] ?? t.stimulusCategory,
     correct_key:          t.correctKey,
     pressed_key:          t.pressedKey,
     response_time_ms:     t.responseTimeMs,
@@ -133,6 +152,57 @@ export async function POST(
         { error: `Failed to save session result: ${sessionErr.message}` },
         { status: 500 },
       )
+    }
+  }
+
+  // ── Clinical alert (non-fatal, but never silent) ──────────────────────────
+  // Computed server-side from the IAT's own iat_type — not trusted from the
+  // client — so this can't be spoofed or accidentally omitted, and each IAT
+  // variant is judged against ITS OWN clinical band (only Death/Suicide has
+  // one; a high D-score on e.g. the Gender-Career IAT is not a risk signal
+  // and must never fire this). Before this fix, no IAT submission of any
+  // kind ever created a clinical_alerts_log row, so a participant scoring in
+  // the clinical band on the Death/Suicide IAT produced no alert, no
+  // notification, nothing actionable for the research team.
+  if (body.dScore !== null && !body.excluded) {
+    const { data: iatInstrument } = await svc
+      .from('iat_instruments')
+      .select('study_id, iat_type, title')
+      .eq('id', iatid)
+      .single()
+
+    if (iatInstrument) {
+      const iatType = getIATType(iatInstrument.iat_type)
+      const band = bandForD(body.dScore, iatType.dscore_bands)
+
+      if (band.clinical) {
+        // Column set verified directly against a live row (2026-08-19) —
+        // the tracked supabase/schema.sql is stale here: it lists severity/
+        // message/triggered_by columns that DO NOT actually exist live, and
+        // is missing several that do (trigger_item_id, protocol_followed,
+        // notified_researcher_ids, notification_sent_at, acknowledgement_notes,
+        // action_taken, escalated_to, escalated_at, resolved_at,
+        // resolution_notes). Only inserting columns confirmed to exist.
+        const { error: alertErr } = await svc.from('clinical_alerts_log').insert({
+          study_id:            iatInstrument.study_id,
+          participant_id:      user.id,
+          alert_level:         'critical',
+          alert_type:          'iat_dscore_threshold',
+          trigger_description: `${iatInstrument.title}: ${band.label} (D = ${body.dScore.toFixed(2)}). ${iatType.clinicalNote}`,
+          trigger_score:       body.dScore,
+          trigger_threshold:   iatType.dscore_bands.find(b => b.clinical)?.min ?? 0.65,
+          scale_name:          iatType.name,
+          acknowledged:        false,
+          resolved:            false,
+          escalated:           false,
+        })
+        if (alertErr) {
+          // Never let this fail silently — this is the single highest-stakes
+          // signal the platform collects. If the insert schema drifts, we
+          // need to know immediately, not discover it retroactively.
+          console.error(`[iat/submit] Failed to insert clinical alert for participant ${user.id}, iat ${iatid}:`, alertErr.message)
+        }
+      }
     }
   }
 

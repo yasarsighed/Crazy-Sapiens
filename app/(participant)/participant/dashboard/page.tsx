@@ -13,7 +13,7 @@ import { PendingTasksReminder } from '@/components/pending-tasks-reminder'
 const TYPE_META = {
   questionnaire: { color: '#C6A8F0', Icon: ClipboardList, kind: 'Questionnaire',   est: null as string | null },
   sociogram:     { color: '#86C99A', Icon: Users,         kind: 'Peer nomination', est: '~3 min' },
-  iat:           { color: '#F0A65C', Icon: Timer,         kind: 'Reaction task',   est: '~5 min' },
+  iat:           { color: '#F0A65C', Icon: Timer,         kind: 'Reaction task',   est: '~10 min' },
 } as const
 
 function getInitials(name: string | null) {
@@ -186,6 +186,15 @@ export default async function ParticipantDashboardPage() {
   const overallPct   = grandTotal > 0 ? Math.round((grandDone / grandTotal) * 100) : 0
   const allDone      = grandTotal > 0 && grandPending === 0
 
+  // Rough total time remaining across every pending task — questionnaires use
+  // their own estimate when set, sociograms/IATs use the same flat estimate
+  // shown per-task elsewhere on this page (3 min / 5 min).
+  const minutesRemaining = studyIds.reduce((total, sid) => {
+    const m = studyMap[sid]
+    const qMin = m.pendingQ.reduce((a: number, q: any) => a + (q.estimated_duration_minutes ?? 3), 0)
+    return total + qMin + m.pendingSoc.length * 3 + m.pendingIat.length * 10
+  }, 0)
+
   // First pending task across all studies — powers the "do this next" reminder.
   let nextTask: { href: string; title: string; color: string } | null = null
   for (const sid of studyIds) {
@@ -244,6 +253,11 @@ export default async function ParticipantDashboardPage() {
                   ? '🎉 All done — you are awesome!'
                   : `${grandPending} remaining · you got this!`}
               </p>
+              {!allDone && minutesRemaining > 0 && (
+                <p className="text-xs text-muted-foreground/80 mt-0.5">
+                  ~{minutesRemaining} min left in total
+                </p>
+              )}
             </div>
           </div>
         ) : studyIds.length > 0 ? (

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { AlertTriangle, CheckCircle, Clock, ClipboardList, Timer, Users } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { AlertTriangle } from 'lucide-react'
+import { AuditLogFeed } from '@/components/audit-log-feed'
 
 // ─── Activity feed from multiple sources ────────────────────────────────────
 
@@ -15,7 +15,12 @@ interface ActivityItem {
   urgent?: boolean
 }
 
-export default async function AuditLogPage() {
+export default async function AuditLogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>
+}) {
+  const { type: initialType } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -210,55 +215,8 @@ export default async function AuditLogPage() {
           <p className="text-sm italic text-muted-foreground">The log is watching. Always.</p>
         </div>
       ) : (
-        <div className="space-y-1">
-          {activity.map(item => {
-            const Icon =
-              item.type === 'alert' ? AlertTriangle
-              : item.type === 'questionnaire' ? ClipboardList
-              : item.type === 'iat' ? Timer
-              : Users
-
-            return (
-              <div
-                key={item.id}
-                className={`flex items-start gap-4 py-3 border-b border-border last:border-0 ${item.urgent ? 'bg-destructive/3 -mx-2 px-2 rounded-lg' : ''}`}
-              >
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ backgroundColor: item.color + '20' }}
-                >
-                  <Icon className="w-3.5 h-3.5" style={{ color: item.color }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium text-foreground">{item.label}</p>
-                    {item.urgent && (
-                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                        needs review
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{item.sub}</p>
-                </div>
-                <p className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {item.timestamp
-                    ? new Date(item.timestamp).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })
-                    : '—'}
-                </p>
-              </div>
-            )
-          })}
-        </div>
+        <AuditLogFeed activity={activity} initialType={initialType as any} />
       )}
-
-      <p className="text-xs text-muted-foreground mt-8 italic text-center">
-        Showing the last 50 events per category. The log is watching. Always.
-      </p>
     </div>
   )
 }

@@ -47,6 +47,38 @@ const rScale = (idx: number, indegree: number[]) => {
   return max === min ? 14 : 10 + ((indegree[idx] - min) / (max - min)) * 16
 }
 
+// A force simulation + 1000 individually-updated SVG paths (this app's real
+// Stress360 sociogram: 20 participants × 6 relationship types ≈ 1000
+// nominations) never finishes settling — the tick handler was still running
+// after 35+ seconds of wall-clock time in testing, effectively hanging the
+// page. The relationship/score filters only toggled CSS opacity; the
+// simulation itself always processed every edge regardless. Fixed by
+// filtering (and, as a last-resort safety net, hard-capping) the edge set
+// that actually goes into the simulation and gets rendered as DOM elements —
+// filters now change what's SIMULATED, not just what's visible.
+const MAX_RENDERED_EDGES = 400
+
+function filterEdges(
+  edges: EdgeTuple[],
+  activeRelTypes: Set<string>,
+  minScore: number,
+  showRecipOnly: boolean,
+): { edges: EdgeTuple[]; cappedFrom: number | null } {
+  let filtered = edges.filter(([, , typeId, score]) => activeRelTypes.has(typeId) && score >= minScore)
+
+  if (showRecipOnly) {
+    const pairSet = new Set(filtered.map(([a, b]) => `${a}|${b}`))
+    filtered = filtered.filter(([a, b]) => pairSet.has(`${b}|${a}`))
+  }
+
+  if (filtered.length > MAX_RENDERED_EDGES) {
+    const total = filtered.length
+    filtered = [...filtered].sort((a, b) => b[3] - a[3]).slice(0, MAX_RENDERED_EDGES)
+    return { edges: filtered, cappedFrom: total }
+  }
+  return { edges: filtered, cappedFrom: null }
+}
+
 // ── Curved arc path ───────────────────────────────────────────────────────────
 function arcPath(sx: number, sy: number, tx: number, ty: number, bidirectional: boolean) {
   const dx = tx - sx, dy = ty - sy
@@ -71,6 +103,7 @@ export default function SociogramResultsPage() {
   const zoomRef      = useRef<any>(null)
   const svgSel       = useRef<any>(null)
   const pinnedRef    = useRef<Set<number>>(new Set())
+  const renderedEdgesRef = useRef<EdgeTuple[]>([])
 
   const [vizData, setVizData]       = useState<VizData | null>(null)
   const [loading, setLoading]       = useState(true)
@@ -84,6 +117,7 @@ export default function SociogramResultsPage() {
   const [minScore, setMinScore]     = useState(1)
   const [activeRelTypes, setActiveRelTypes] = useState<Set<string>>(new Set())
   const [showRecipOnly, setShowRecipOnly]   = useState(false)
+  const [cappedInfo, setCappedInfo] = useState<{ shown: number; total: number } | null>(null)
   const [sortBy, setSortBy] = useState<'betweenness' | 'closeness' | 'eigenvector' | 'in' | 'out'>('betweenness')
 
   const stateRef = useRef({ focusNode, search, showLabels, activeRelTypes, minScore, showRecipOnly, vizData })
@@ -140,6 +174,14 @@ export default function SociogramResultsPage() {
       const clustering  = clusteringCoefficient(nodes.length, dirEdges)
       const mod         = modularity(nodes.length, dirEdges, community)
       const maxEdges    = nodes.length > 1 ? nodes.length * (nodes.length - 1) : 1
+      // Density is "share of possible directed pairs that have a tie," so it
+      // must be computed on UNIQUE (source, target) dyads — the previous
+      // version divided the raw edge count (which includes one entry per
+      // relationship type, so the same pair nominated under multiple types
+      // counted multiple times) by maxEdges, letting density exceed 100%
+      // whenever more than one relationship type was in use (e.g. 1000 raw
+      // nominations / 380 possible pairs = 263%, seen live on real data).
+      const uniqueDyads = new Set(edges.map(e => `${e[0]}|${e[1]}`)).size
 
       setVizData({
         nodes, edges, indegree, edgeCfg, relTypes,
@@ -149,7 +191,7 @@ export default function SociogramResultsPage() {
           inDegree: indegree, outDegree: nodes.map((_, i) => edges.filter(e => e[0] === i).length),
           betweenness, closeness, eigenvector, community,
           reciprocity: recip, clustering, components: new Set(components).size,
-          modularity: mod, density: edges.length / maxEdges,
+          modularity: mod, density: uniqueDyads / maxEdges,
           isolates: nodes.filter((_, i) => indegree[i] === 0 && edges.filter(e => e[0] === i).length === 0).length,
         },
       })
@@ -159,30 +201,34 @@ export default function SociogramResultsPage() {
     load()
   }, [studyId])
 
+  // Structural filters (relationship type / min score / reciprocal-only)
+  // actually change which edges the simulation computes, so this rebuilds
+  // the whole viz — cheap now since the edge set is filtered+capped first.
   useEffect(() => {
     if (vizData) buildViz(vizData)
     return () => simRef.current?.stop()
-  }, [vizData])
+  }, [vizData, activeRelTypes, minScore, showRecipOnly])
 
-  useEffect(() => { applyFilters() }, [focusNode, search, showLabels, activeRelTypes, minScore, showRecipOnly])
+  // Focus/search/label toggles only change opacity/visibility of what's
+  // already rendered — no rebuild needed.
+  useEffect(() => { applyFilters() }, [focusNode, search, showLabels])
 
   const applyFilters = useCallback(() => {
     if (!svgSel.current) return
-    const { focusNode: fn, search: sq, showLabels: sl, activeRelTypes: art, minScore: ms, showRecipOnly: rOnly, vizData: vd } = stateRef.current
+    const { focusNode: fn, search: sq, showLabels: sl, vizData: vd } = stateRef.current
     if (!vd) return
     const lq = sq.toLowerCase()
-    const edgeSet = new Set(vd.edges.map(([a, b]) => `${a}|${b}`))
-    const isRecip  = (a: number, b: number) => edgeSet.has(`${b}|${a}`)
 
     svgSel.current.selectAll('.edge-path').each(function (d: any) {
       const sa = d.source.id ?? d.source, ta = d.target.id ?? d.target
-      const show = art.has(d.typeId) && d.score >= ms && (!rOnly || isRecip(sa, ta)) && (fn === null || sa === fn || ta === fn)
+      const show = fn === null || sa === fn || ta === fn
       d3Lib.select(this).style('opacity', show ? 0.8 : 0).style('pointer-events', show ? null : 'none')
     })
 
+    const visibleEdges = renderedEdgesRef.current
     svgSel.current.selectAll('.node-g').each(function (d: any) {
       const nameMatch = !lq || (d.name as string).toLowerCase().includes(lq)
-      const focusDim  = fn !== null && d.id !== fn && !vd.edges.some(e => (e[0] === fn && e[1] === d.id) || (e[1] === fn && e[0] === d.id))
+      const focusDim  = fn !== null && d.id !== fn && !visibleEdges.some(e => (e[0] === fn && e[1] === d.id) || (e[1] === fn && e[0] === d.id))
       d3Lib.select(this).style('opacity', (focusDim || (!!lq && !nameMatch)) ? 0.06 : 1)
     })
 
@@ -193,6 +239,12 @@ export default function SociogramResultsPage() {
     const d3 = d3Lib
     if (!svgRef.current || !containerRef.current) return
     pinnedRef.current.clear()
+    setSettled(false)
+
+    const { activeRelTypes: art, minScore: ms, showRecipOnly: rOnly } = stateRef.current
+    const { edges: filteredEdgeTuples, cappedFrom } = filterEdges(vd.edges, art, ms, rOnly)
+    setCappedInfo(cappedFrom !== null ? { shown: filteredEdgeTuples.length, total: cappedFrom } : null)
+    renderedEdgesRef.current = filteredEdgeTuples
 
     const W = containerRef.current.clientWidth || 900
     const H = containerRef.current.clientHeight || 680
@@ -234,9 +286,10 @@ export default function SociogramResultsPage() {
     zoomRef.current = zoom
     svg.call(zoom as any)
 
-    // Edges
-    const edgeSet = new Set(vd.edges.map(([a, b]) => `${a}|${b}`))
-    const links = vd.edges.map(([s, t, typeId, score]) => ({
+    // Edges — filtered/capped set only (see filterEdges above): this is what
+    // actually gets simulated and rendered, not the full unfiltered graph.
+    const edgeSet = new Set(filteredEdgeTuples.map(([a, b]) => `${a}|${b}`))
+    const links = filteredEdgeTuples.map(([s, t, typeId, score]) => ({
       source: s, target: t, typeId, score,
       ...(vd.edgeCfg[typeId] || { label: typeId, color: '#9B9BAB', dash: null }),
     }))
@@ -310,11 +363,15 @@ export default function SociogramResultsPage() {
       .attr('r', (d: any) => rScale(d.id, vd.indegree) + 2.5).attr('fill', 'none')
       .attr('stroke', '#F97316').attr('stroke-width', 2).attr('stroke-dasharray', '3 2').attr('display', 'none')
 
-    // Initials
+    // Initials — was hardcoded to 'Plus Jakarta Sans', a font this app never
+    // loads (the real brand fonts are Bricolage Grotesque / Archivo / Space
+    // Mono, set up in app/layout.tsx), so it was silently falling back to
+    // whatever generic sans the browser picked — visually inconsistent with
+    // every other label on the page.
     node.append('text').text((d: any) => d.short)
       .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
-      .attr('font-size', (d: any) => Math.max(9, rScale(d.id, vd.indegree) * 0.62))
-      .attr('font-weight', '800').attr('font-family', 'Plus Jakarta Sans, sans-serif')
+      .attr('font-size', (d: any) => Math.max(10, rScale(d.id, vd.indegree) * 0.62))
+      .attr('font-weight', '800').attr('font-family', 'var(--font-archivo), Archivo, sans-serif')
       .attr('fill', 'white').attr('pointer-events', 'none')
 
     // Name label
@@ -323,10 +380,10 @@ export default function SociogramResultsPage() {
         const r = rScale(d.id, vd.indegree); const parts = d.name.split(' ')
         return r >= 22 ? parts.slice(0,2).join(' ') : parts[0]
       })
-      .attr('text-anchor', 'middle').attr('y', (d: any) => rScale(d.id, vd.indegree) + 14)
-      .attr('font-size', '11px').attr('font-weight', '600').attr('font-family', 'Plus Jakarta Sans, sans-serif')
-      .attr('fill', 'var(--foreground, #241F1C)')
-      .attr('stroke', 'var(--background, #FAFAF8)').attr('stroke-width', 3).attr('paint-order', 'stroke')
+      .attr('text-anchor', 'middle').attr('y', (d: any) => rScale(d.id, vd.indegree) + 15)
+      .attr('font-size', '12px').attr('font-weight', '600').attr('font-family', 'var(--font-archivo), Archivo, sans-serif')
+      .attr('fill', 'var(--foreground)')
+      .attr('stroke', 'var(--background)').attr('stroke-width', 3).attr('paint-order', 'stroke')
       .attr('pointer-events', 'none')
 
     // Simulation
@@ -446,32 +503,33 @@ export default function SociogramResultsPage() {
       {/* ══ LEFT PANEL ══ */}
       <div className="w-64 flex-shrink-0 bg-card border-r border-border flex flex-col overflow-hidden">
 
-        {/* Header */}
-        <div className="px-4 pt-4 pb-3 border-b border-border shrink-0"
-          style={{ background: 'var(--primary)' }}>
-          <Link href={`/studies/${studyId}`} className="flex items-center gap-1 text-white/60 hover:text-white text-[10px] mb-2 transition-colors">
-            <ArrowLeft className="w-3 h-3" /> Back to study
+        {/* Header — dark ink, matching the app's own sidebar header treatment.
+            Was `background: var(--primary)` (a near-white cream, #FBF3E4)
+            with white text on top — effectively invisible. */}
+        <div className="px-4 pt-5 pb-4 shrink-0" style={{ background: 'var(--popover)' }}>
+          <Link href={`/studies/${studyId}`} className="flex items-center gap-1 text-white/60 hover:text-white text-xs mb-3 transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to study
           </Link>
-          <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-0.5">Sociogram</p>
-          <h1 className="text-[13px] font-bold text-white leading-tight" style={{ fontFamily: 'Fraunces,serif' }}>{vizData?.sociogramTitle}</h1>
-          <p className="text-[10px] text-white/60 mt-1">{vizData?.participantCount} enrolled · {vizData?.submittedCount} submitted</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--brand-gold)' }}>Sociogram</p>
+          <h1 className="font-serif text-lg font-bold text-white leading-tight">{vizData?.sociogramTitle}</h1>
+          <p className="text-xs text-white/60 mt-1.5">{vizData?.participantCount} enrolled · {vizData?.submittedCount} submitted</p>
         </div>
 
         {/* Search */}
-        <div className="px-3 py-2.5 border-b border-border shrink-0">
+        <div className="px-3.5 py-3 border-b border-border shrink-0">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search participant…"
-              className="w-full bg-muted/50 border border-border rounded-xl pl-7 pr-7 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-all" />
-            {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>}
+              className="w-full bg-muted/50 border border-border rounded-full pl-8 pr-7 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-all" />
+            {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>}
           </div>
         </div>
 
         {/* Tabs */}
         <Tabs defaultValue="controls" className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <TabsList className="mx-3 mt-2 mb-1 shrink-0 h-7">
-            <TabsTrigger value="controls" className="flex-1 text-[10px] h-6">Controls</TabsTrigger>
-            <TabsTrigger value="analysis" className="flex-1 text-[10px] h-6">Analysis</TabsTrigger>
+          <TabsList className="mx-3.5 mt-3 mb-1 shrink-0 h-8">
+            <TabsTrigger value="controls" className="flex-1 text-xs font-semibold h-7">Controls</TabsTrigger>
+            <TabsTrigger value="analysis" className="flex-1 text-xs font-semibold h-7">Analysis</TabsTrigger>
           </TabsList>
 
           {/* Controls */}
@@ -479,22 +537,22 @@ export default function SociogramResultsPage() {
 
             {/* Relationship filters */}
             {vizData && vizData.relTypes.length > 0 && (
-              <div className="px-3 py-2.5 border-b border-border">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Relationships</p>
-                <div className="space-y-1">
+              <div className="px-3.5 py-3.5 border-b border-border">
+                <p className="section-label mb-2.5">Relationships</p>
+                <div className="space-y-1.5">
                   {vizData.relTypes.map(rt => {
                     const cfg = vizData.edgeCfg[rt.id]; const active = activeRelTypes.has(rt.id)
                     const count = relNomCounts.find(r => r.rt.id === rt.id)?.count ?? 0
                     return (
                       <button key={rt.id} onClick={() => toggleRelType(rt.id)}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-[11px] transition-all border"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] transition-all border"
                         style={active
                           ? { backgroundColor: cfg.color+'18', borderColor: cfg.color+'55', color: 'var(--foreground)' }
                           : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }
                         }>
                         <span className="w-6 h-1.5 rounded-full shrink-0" style={{ background: active ? cfg.color : 'var(--muted)' }} />
                         <span className="flex-1 font-semibold text-left truncate">{rt.label}</span>
-                        <span className="text-[10px] font-mono opacity-60 shrink-0">{count}</span>
+                        <span className="text-[11px] font-mono opacity-60 shrink-0">{count}</span>
                       </button>
                     )
                   })}
@@ -503,30 +561,30 @@ export default function SociogramResultsPage() {
             )}
 
             {/* Score filter */}
-            <div className="px-3 py-2.5 border-b border-border">
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Min Tie Strength</p>
-                <span className="text-[12px] font-bold text-primary">{minScore}</span>
+            <div className="px-3.5 py-3.5 border-b border-border">
+              <div className="flex items-center justify-between mb-2">
+                <p className="section-label">Min Tie Strength</p>
+                <span className="text-sm font-bold text-primary">{minScore}</span>
               </div>
               <input type="range" min={1} max={5} step={1} value={minScore} onChange={e => setMinScore(Number(e.target.value))}
                 className="w-full h-1.5 rounded-full cursor-pointer accent-primary" />
-              <div className="flex justify-between text-[9px] text-muted-foreground/60 mt-1"><span>1 (weak)</span><span>5 (strong)</span></div>
+              <div className="flex justify-between text-[11px] text-muted-foreground/70 mt-1.5"><span>1 (weak)</span><span>5 (strong)</span></div>
             </div>
 
             {/* Toggles */}
-            <div className="px-3 py-2.5 border-b border-border space-y-2">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">View</p>
+            <div className="px-3.5 py-3.5 border-b border-border space-y-2.5">
+              <p className="section-label">View</p>
               {[
                 { label: 'Show name labels', state: showLabels, toggle: () => setShowLabels(p => !p) },
                 { label: 'Reciprocal ties only', state: showRecipOnly, toggle: () => setShowRecipOnly(p => !p) },
               ].map(opt => (
-                <label key={opt.label} className="flex items-center gap-2 cursor-pointer select-none">
+                <label key={opt.label} className="flex items-center gap-2.5 cursor-pointer select-none">
                   <button onClick={opt.toggle}
-                    className="w-8 h-4 rounded-full relative shrink-0 focus:outline-none"
+                    className="w-9 h-5 rounded-full relative shrink-0 focus:outline-none transition-colors"
                     style={{ background: opt.state ? 'var(--primary)' : 'var(--muted)' }}>
-                    <span className="absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all" style={{ left: opt.state ? 18 : 2 }} />
+                    <span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all" style={{ left: opt.state ? 18 : 2 }} />
                   </button>
-                  <span className="text-[11px] text-foreground font-medium">{opt.label}</span>
+                  <span className="text-[13px] text-foreground font-medium">{opt.label}</span>
                 </label>
               ))}
               <p className="text-[10px] text-muted-foreground/60">Double-click node to pin · Click to focus</p>
@@ -534,17 +592,17 @@ export default function SociogramResultsPage() {
 
             {/* Most nominated */}
             {topNodes.length > 0 && (
-              <div className="px-3 py-2.5">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Most Nominated</p>
+              <div className="px-3.5 py-3.5">
+                <p className="section-label mb-2.5">Most Nominated</p>
                 <div className="space-y-1">
                   {topNodes.map((n, i) => (
                     <button key={n.id} onClick={() => setFocusNode(p => p === n.id ? null : n.id)}
-                      className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl transition-all hover:bg-muted/60"
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all hover:bg-muted/60"
                       style={focusNode === n.id ? { background: 'color-mix(in srgb, var(--primary) 10%, var(--background))' } : {}}>
-                      <span className="w-5 h-5 rounded-lg flex items-center justify-center text-[9px] font-black text-white shrink-0"
+                      <span className="w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-black text-white shrink-0"
                         style={{ background: communityColor(vizData?.metrics.community[n.id] ?? 0) }}>{i+1}</span>
-                      <span className="flex-1 text-[11px] font-medium text-foreground truncate text-left">{n.name}</span>
-                      <span className="text-[11px] font-bold tabular-nums shrink-0" style={{ color: communityColor(vizData?.metrics.community[n.id]??0) }}>
+                      <span className="flex-1 text-[13px] font-medium text-foreground truncate text-left">{n.name}</span>
+                      <span className="text-[13px] font-bold tabular-nums shrink-0" style={{ color: communityColor(vizData?.metrics.community[n.id]??0) }}>
                         {vizData?.indegree[n.id]??0}
                       </span>
                     </button>
@@ -559,11 +617,11 @@ export default function SociogramResultsPage() {
 
             {/* Network metrics */}
             {analytics && (
-              <div className="px-3 py-2.5 border-b border-border">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <BarChart3 className="w-3 h-3" /> Network Metrics
+              <div className="px-3.5 py-3.5 border-b border-border">
+                <p className="section-label mb-2.5 flex items-center gap-1.5">
+                  <BarChart3 className="w-3.5 h-3.5" /> Network Metrics
                 </p>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-2">
                   {[
                     { l:'Nodes',      v:analytics.n,           c:'#CE2029' },
                     { l:'Edges',       v:analytics.e,           c:'#C6A8F0' },
@@ -577,23 +635,23 @@ export default function SociogramResultsPage() {
                     { l:'Avg in',      v:analytics.avgIn,       c:'#C6A8F0' },
                     { l:'Avg out',     v:analytics.avgOut,      c:'#F0A65C' },
                   ].map(s => (
-                    <div key={s.l} className="bg-muted/50 rounded-xl p-2 text-center">
-                      <p className="text-[13px] font-bold tabular-nums" style={{ color: s.c }}>{s.v}</p>
-                      <p className="text-[8px] text-muted-foreground uppercase tracking-wide leading-tight mt-0.5">{s.l}</p>
+                    <div key={s.l} className="bg-muted/50 rounded-xl p-2.5 text-center">
+                      <p className="text-base font-bold tabular-nums" style={{ color: s.c }}>{s.v}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide leading-tight mt-1">{s.l}</p>
                     </div>
                   ))}
                 </div>
-                <p className="text-[9px] text-muted-foreground/70 mt-2 leading-snug">Modularity &gt; 0.3 = strong structure. Reciprocity = mutual/total ties.</p>
+                <p className="text-[11px] text-muted-foreground/70 mt-2.5 leading-snug">Modularity &gt; 0.3 = strong structure. Reciprocity = mutual/total ties.</p>
               </div>
             )}
 
             {/* Centrality with mini bars */}
             {centralityRows.length > 0 && (
-              <div className="px-3 py-2.5 border-b border-border">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Top Centrality</p>
+              <div className="px-3.5 py-3.5 border-b border-border">
+                <div className="flex items-center justify-between mb-2.5">
+                  <p className="section-label">Top Centrality</p>
                   <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
-                    className="text-[9px] bg-muted border border-border rounded-lg px-1.5 py-0.5 text-foreground focus:outline-none">
+                    className="text-[11px] bg-muted border border-border rounded-lg px-2 py-1 text-foreground focus:outline-none">
                     <option value="betweenness">Betweenness</option>
                     <option value="closeness">Closeness</option>
                     <option value="eigenvector">Eigenvector</option>
@@ -601,7 +659,7 @@ export default function SociogramResultsPage() {
                     <option value="out">Out-degree</option>
                   </select>
                 </div>
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {centralityRows.slice(0, 12).map(r => {
                     const rv = sortBy==='in'?r.inD:sortBy==='out'?r.outD:sortBy==='betweenness'?r.betw:sortBy==='closeness'?r.clos:r.eig
                     const dv = typeof rv==='number'&&!Number.isInteger(rv)?rv.toFixed(3):String(rv)
@@ -610,14 +668,14 @@ export default function SociogramResultsPage() {
                     const col = communityColor(r.comm)
                     return (
                       <button key={r.node.id} onClick={() => setFocusNode(p => p===r.node.id?null:r.node.id)}
-                        className="w-full flex flex-col px-2 py-1.5 rounded-xl transition-all hover:bg-muted/50 gap-0.5"
+                        className="w-full flex flex-col px-2.5 py-2 rounded-xl transition-all hover:bg-muted/50 gap-1"
                         style={focusNode===r.node.id?{background:`color-mix(in srgb, ${col} 12%, var(--background))`}:{}}>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: col }} />
-                          <span className="flex-1 text-[10px] font-semibold text-foreground truncate text-left">{r.node.name}</span>
-                          <span className="text-[10px] font-mono font-bold shrink-0" style={{ color: col }}>{dv}</span>
+                          <span className="flex-1 text-[13px] font-semibold text-foreground truncate text-left">{r.node.name}</span>
+                          <span className="text-[12px] font-mono font-bold shrink-0" style={{ color: col }}>{dv}</span>
                         </div>
-                        <div className="h-1 bg-muted/60 rounded-full overflow-hidden ml-3.5">
+                        <div className="h-1.5 bg-muted/60 rounded-full overflow-hidden ml-4">
                           <div className="h-full rounded-full" style={{ width:`${Math.max(2,bp)}%`, background:col, opacity:0.65 }} />
                         </div>
                       </button>
@@ -629,32 +687,32 @@ export default function SociogramResultsPage() {
 
             {/* Community legend */}
             {communities.length > 1 && (
-              <div className="px-3 py-2.5 border-b border-border">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Communities</p>
-                <div className="space-y-1.5">
+              <div className="px-3.5 py-3.5 border-b border-border">
+                <p className="section-label mb-2.5">Communities</p>
+                <div className="space-y-2">
                   {communities.slice(0,8).map(c => (
-                    <div key={c.id} className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-md shrink-0" style={{ background: communityColor(c.id) }} />
-                      <span className="text-[11px] text-foreground font-medium flex-1">Group {c.id+1}</span>
-                      <span className="text-[10px] text-muted-foreground">{c.nodes.length} members</span>
+                    <div key={c.id} className="flex items-center gap-2.5">
+                      <span className="w-3.5 h-3.5 rounded-md shrink-0" style={{ background: communityColor(c.id) }} />
+                      <span className="text-[13px] text-foreground font-medium flex-1">Group {c.id+1}</span>
+                      <span className="text-xs text-muted-foreground">{c.nodes.length} members</span>
                     </div>
                   ))}
                 </div>
-                <p className="text-[9px] text-muted-foreground/70 mt-2">Label propagation (undirected).</p>
+                <p className="text-[11px] text-muted-foreground/70 mt-2.5">Label propagation (undirected).</p>
               </div>
             )}
 
             {/* Export */}
-            <div className="px-3 py-2.5 space-y-1.5">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Export</p>
+            <div className="px-3.5 py-3.5 space-y-2">
+              <p className="section-label mb-1">Export</p>
               {[
                 { l: 'Edge list CSV', s: 'Gephi / igraph', fn: exportEdges },
                 { l: 'Node metrics CSV', s: 'All centrality scores', fn: exportNodes },
               ].map(b => (
                 <button key={b.l} onClick={b.fn}
-                  className="w-full text-left px-3 py-2 rounded-xl bg-muted/50 hover:bg-muted border border-border/50 transition-colors">
-                  <p className="text-[11px] font-semibold text-foreground">{b.l}</p>
-                  <p className="text-[9px] text-muted-foreground">{b.s}</p>
+                  className="w-full text-left px-3.5 py-2.5 rounded-xl bg-muted/50 hover:bg-muted border border-border/50 transition-colors">
+                  <p className="text-[13px] font-semibold text-foreground">{b.l}</p>
+                  <p className="text-[11px] text-muted-foreground">{b.s}</p>
                 </button>
               ))}
             </div>
@@ -668,15 +726,24 @@ export default function SociogramResultsPage() {
 
         {/* Status */}
         <div className="absolute top-3 left-3 flex items-center gap-2 pointer-events-none">
-          <div className="flex items-center gap-1.5 bg-card/90 backdrop-blur-md border border-border rounded-xl px-3 py-1.5 shadow-sm">
+          <div className="flex items-center gap-2 bg-card/90 backdrop-blur-md border border-border rounded-xl px-3.5 py-2 shadow-sm">
             <span className={`w-1.5 h-1.5 rounded-full ${settled?'':'animate-pulse'}`} style={{ background: settled ? '#86C99A' : '#F0A65C' }} />
-            <span className="text-[11px] font-medium text-muted-foreground">{settled?'Layout ready':'Computing…'}</span>
+            <span className="text-[13px] font-medium text-muted-foreground">{settled?'Layout ready':'Computing…'}</span>
           </div>
           {focusNode !== null && vizData && (
-            <div className="flex items-center gap-2 bg-card/90 backdrop-blur-md border border-primary/30 rounded-xl px-3 py-1.5 shadow-sm pointer-events-auto">
+            <div className="flex items-center gap-2 bg-card/90 backdrop-blur-md border border-primary/30 rounded-xl px-3.5 py-2 shadow-sm pointer-events-auto">
               <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-              <span className="text-[11px] font-semibold text-primary">{vizData.nodes[focusNode]?.name}</span>
-              <button onClick={() => setFocusNode(null)} className="text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
+              <span className="text-[13px] font-semibold text-primary">{vizData.nodes[focusNode]?.name}</span>
+              <button onClick={() => setFocusNode(null)} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+            </div>
+          )}
+          {cappedInfo && (
+            <div className="flex items-center gap-2 bg-card/90 backdrop-blur-md border border-[color:var(--brand-gold)]/50 rounded-xl px-3.5 py-2 shadow-sm"
+              title="Too many ties to render at once — showing the strongest. Narrow the relationship/score filters to see the rest.">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--brand-gold)' }} />
+              <span className="text-[13px] font-medium text-muted-foreground">
+                Showing top {cappedInfo.shown} of {cappedInfo.total} ties
+              </span>
             </div>
           )}
         </div>
@@ -684,50 +751,47 @@ export default function SociogramResultsPage() {
         {/* Controls */}
         <div className="absolute top-3 right-3 flex items-center gap-2">
           <div className="flex items-center bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm overflow-hidden">
-            <button onClick={() => zoomBy(1.4)} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all font-bold text-base">+</button>
+            <button onClick={() => zoomBy(1.4)} className="w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all font-bold text-lg">+</button>
             <div className="w-px h-5 bg-border" />
-            <button onClick={zoomFit} className="px-2.5 h-8 text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all tracking-widest">FIT</button>
+            <button onClick={zoomFit} className="px-3 h-9 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all tracking-widest">FIT</button>
             <div className="w-px h-5 bg-border" />
-            <button onClick={() => zoomBy(0.7)} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all font-bold text-base">−</button>
+            <button onClick={() => zoomBy(0.7)} className="w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all font-bold text-lg">−</button>
           </div>
-          <button onClick={resetLayout} title="Restart layout" className="w-8 h-8 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground flex items-center justify-center transition-all">
-            <RefreshCw className="w-3.5 h-3.5" />
+          <button onClick={resetLayout} title="Restart layout" className="w-9 h-9 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground flex items-center justify-center transition-all">
+            <RefreshCw className="w-4 h-4" />
           </button>
-          <button onClick={exportPNG} className="h-8 px-2.5 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground text-[10px] font-bold transition-all">PNG</button>
-          <button onClick={exportSVG} className="h-8 px-2.5 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground text-[10px] font-bold transition-all">SVG</button>
+          <button onClick={exportPNG} className="h-9 px-3 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground text-xs font-bold transition-all">PNG</button>
+          <button onClick={exportSVG} className="h-9 px-3 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground text-xs font-bold transition-all">SVG</button>
           <button onClick={() => setFullscreen(p => !p)} title={fullscreen?'Exit fullscreen':'Fullscreen'}
-            className="w-8 h-8 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground flex items-center justify-center transition-all">
-            {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            className="w-9 h-9 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground flex items-center justify-center transition-all">
+            {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
         </div>
 
-        {/* Legend */}
-        <div className="absolute bottom-4 left-4 pointer-events-none">
+        {/* Legend — simplified to one line instead of three separate columns */}
+        <div className="absolute bottom-4 left-4 pointer-events-none hidden sm:block">
           <div className="bg-card/85 backdrop-blur-md border border-border rounded-2xl px-4 py-2.5 shadow-sm">
-            <div className="flex items-center gap-5">
-              <div>
-                <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Node size = in-degree</p>
-                <div className="flex items-center gap-1.5">
-                  {[8,12,18,24].map(s => <div key={s} className="rounded-full" style={{width:s*0.5,height:s*0.5,background:'var(--primary)',opacity:0.5}} />)}
-                </div>
-              </div>
-              <div className="w-px h-8 bg-border" />
-              <div>
-                <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Node colour = community</p>
+            <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-1">
-                  {COMMUNITY_PALETTE.slice(0,6).map((c,i) => <div key={i} className="w-3 h-3 rounded-md" style={{background:c}} />)}
+                  {[8,14,20].map(s => <div key={s} className="rounded-full" style={{width:s*0.5,height:s*0.5,background:'var(--primary)',opacity:0.6}} />)}
                 </div>
+                <span>size = in-degree</span>
               </div>
-              <div className="w-px h-8 bg-border" />
-              <div>
-                <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Arc = directed tie</p>
-                <div className="flex items-center gap-1.5">
-                  <svg width="32" height="14" viewBox="0 0 32 14">
-                    <path d="M2,7 Q16,2 30,7" stroke="var(--primary)" strokeWidth="1.5" fill="none" opacity="0.7"/>
-                    <polygon points="26,5 30,7 26,9" fill="var(--primary)" opacity="0.7"/>
-                  </svg>
-                  <span className="text-[10px] text-muted-foreground">curved</span>
+              <div className="w-px h-4 bg-border" />
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
+                  {COMMUNITY_PALETTE.slice(0,4).map((c,i) => <div key={i} className="w-2.5 h-2.5 rounded-md" style={{background:c}} />)}
                 </div>
+                <span>colour = community</span>
+              </div>
+              <div className="w-px h-4 bg-border" />
+              <div className="flex items-center gap-1.5">
+                <svg width="26" height="12" viewBox="0 0 32 14">
+                  <path d="M2,7 Q16,2 30,7" stroke="var(--primary)" strokeWidth="1.5" fill="none" opacity="0.7"/>
+                  <polygon points="26,5 30,7 26,9" fill="var(--primary)" opacity="0.7"/>
+                </svg>
+                <span>arc = directed tie</span>
               </div>
             </div>
           </div>
@@ -743,8 +807,8 @@ export default function SociogramResultsPage() {
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0"
                   style={{ background: communityColor(vizData.metrics.community[tipNode.id]??0) }}>{tipNode.short}</div>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-bold text-foreground truncate">{tipNode.name}</p>
-                  <p className="text-[10px] text-muted-foreground">Group {(vizData.metrics.community[tipNode.id]??0)+1}</p>
+                  <p className="font-serif text-sm font-bold text-foreground truncate">{tipNode.name}</p>
+                  <p className="text-xs text-muted-foreground">Group {(vizData.metrics.community[tipNode.id]??0)+1}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-1.5 mb-3">
@@ -754,34 +818,34 @@ export default function SociogramResultsPage() {
                 ].map(s => (
                   <div key={s.l} className="bg-muted/60 rounded-xl p-2 text-center">
                     <p className="text-lg font-serif font-bold" style={{color:s.c}}>{s.v}</p>
-                    <p className="text-[9px] text-muted-foreground">{s.l}</p>
+                    <p className="text-[11px] text-muted-foreground">{s.l}</p>
                   </div>
                 ))}
               </div>
               <div className="space-y-1">
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Centrality</p>
+                <p className="section-label">Centrality</p>
                 {[
                   { l:'Betweenness', v:vizData.metrics.betweenness[tipNode.id]?.toFixed(3)??"—", c:'#CE2029' },
                   { l:'Closeness',   v:vizData.metrics.closeness[tipNode.id]?.toFixed(3)??"—",   c:'#F0A65C' },
                   { l:'Eigenvector', v:vizData.metrics.eigenvector[tipNode.id]?.toFixed(3)??"—", c:'#C6A8F0' },
                 ].map(s => (
                   <div key={s.l} className="flex items-center justify-between">
-                    <span className="text-[10px] text-muted-foreground">{s.l}</span>
-                    <span className="text-[10px] font-bold font-mono tabular-nums" style={{color:s.c}}>{s.v}</span>
+                    <span className="text-xs text-muted-foreground">{s.l}</span>
+                    <span className="text-xs font-bold font-mono tabular-nums" style={{color:s.c}}>{s.v}</span>
                   </div>
                 ))}
               </div>
               {vizData.relTypes.length > 0 && (
                 <div className="mt-2.5 pt-2.5 border-t border-border">
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Received by type</p>
+                  <p className="section-label mb-1">Received by type</p>
                   {vizData.relTypes.map(rt => {
                     const c = vizData.edges.filter(e=>e[1]===tipNode.id&&e[2]===rt.id).length
                     if (!c) return null
                     return (
                       <div key={rt.id} className="flex items-center gap-2 mb-0.5">
                         <span className="w-2 h-2 rounded-full shrink-0" style={{background:vizData.edgeCfg[rt.id]?.color??'#888'}} />
-                        <span className="text-[10px] text-foreground flex-1 truncate">{rt.label}</span>
-                        <span className="text-[10px] font-bold" style={{color:vizData.edgeCfg[rt.id]?.color??'#888'}}>{c}</span>
+                        <span className="text-xs text-foreground flex-1 truncate">{rt.label}</span>
+                        <span className="text-xs font-bold" style={{color:vizData.edgeCfg[rt.id]?.color??'#888'}}>{c}</span>
                       </div>
                     )
                   })}

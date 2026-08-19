@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { fetchAllRows } from '@/lib/fetch-all'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ function toCSV(headers: string[], rows: any[][]): string {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { studyId: string } }
+  { params }: { params: Promise<{ studyId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -45,7 +46,7 @@ export async function GET(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { studyId } = params
+  const { studyId } = await params
 
   // Verify study exists and belongs to this user (or user is admin)
   const { data: study } = await supabase
@@ -72,13 +73,17 @@ export async function GET(
   const qIds = (qInstruments ?? []).map((q: any) => q.id)
   const qMap = Object.fromEntries((qInstruments ?? []).map((q: any) => [q.id, q]))
 
+  // Paged — an unbounded .select() silently truncates past Supabase's
+  // ~1000-row default once a study's response count grows, which for a data
+  // export means researchers unknowingly analyze an incomplete dataset.
   const { data: qResults } = qIds.length > 0
-    ? await supabase
+    ? await fetchAllRows((from, to) => supabase
         .from('questionnaire_scored_results')
         .select('questionnaire_id, participant_id, total_score, severity_label, is_complete, submitted_at')
         .in('questionnaire_id', qIds)
         .eq('is_complete', true)
         .order('submitted_at', { ascending: true })
+        .range(from, to))
     : { data: [] }
 
   // ─── Fetch IAT results ────────────────────────────────────────────────────────
@@ -93,11 +98,12 @@ export async function GET(
 
   // Try to fetch from iat_session_results (may not exist)
   const { data: iatResults } = iatIds.length > 0
-    ? await supabase
+    ? await fetchAllRows((from, to) => supabase
         .from('iat_session_results')
         .select('iat_id, participant_id, d_score, computed_at')
         .in('iat_id', iatIds)
         .order('computed_at', { ascending: true })
+        .range(from, to))
     : { data: [] }
 
   // ─── Fetch sociogram nominations ──────────────────────────────────────────────
@@ -111,18 +117,20 @@ export async function GET(
   const socMap = Object.fromEntries((socInstruments ?? []).map((s: any) => [s.id, s]))
 
   const { data: socNominations } = socIds.length > 0
-    ? await supabase
+    ? await fetchAllRows((from, to) => supabase
         .from('sociogram_nominations')
         .select('sociogram_id, nominator_id, nominee_id, score, submitted_at')
         .in('sociogram_id', socIds)
         .order('submitted_at', { ascending: true })
+        .range(from, to))
     : { data: [] }
 
   const { data: socParticipants } = socIds.length > 0
-    ? await supabase
+    ? await fetchAllRows((from, to) => supabase
         .from('sociogram_participants')
         .select('id, display_name, participant_id, sociogram_id')
         .in('sociogram_id', socIds)
+        .range(from, to))
     : { data: [] }
 
   const socPartMap = Object.fromEntries(

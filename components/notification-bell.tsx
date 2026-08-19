@@ -61,7 +61,7 @@ export function NotificationBell() {
           id: `alert-${a.id}`,
           type: 'alert' as const,
           message: a.message || `Clinical alert for participant`,
-          href: '/admin/requests',
+          href: '/audit-log?type=alert',
           createdAt: a.created_at,
           read: false,
         })),
@@ -102,7 +102,7 @@ export function NotificationBell() {
             >
               <Bell className="w-3.5 h-3.5" />
               {unread > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center leading-none border border-sidebar">
+                <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-destructive text-white text-[8px] font-bold rounded-full flex items-center justify-center leading-none border border-sidebar">
                   {unread > 9 ? '9+' : unread}
                 </span>
               )}

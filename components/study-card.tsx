@@ -72,12 +72,20 @@ export function StudyCard({
         </div>
         
         {/* Stats row */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
           <div className="flex items-center gap-1">
             <Users className="w-3 h-3" />
             <span>{participantCount} participants</span>
           </div>
           <span>{completionPercentage}% complete</span>
+        </div>
+
+        {/* Completion bar */}
+        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${completionPercentage}%`, background: researcherColor }}
+          />
         </div>
       </div>
     </Link>

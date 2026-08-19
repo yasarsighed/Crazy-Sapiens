@@ -46,17 +46,38 @@ export interface Participant {
   created_at: string
 }
 
+// Verified directly against a live row (2026-08-19) — the previous version of
+// this type listed severity/message/triggered_by, none of which exist on the
+// real table, and was missing several columns that do. That mismatch is what
+// let app/(authenticated)/dashboard/page.tsx silently read undefined for
+// every alert's severity and message for who knows how long.
 export interface ClinicalAlert {
   id: string
-  study_id: string
+  study_id: string | null
   participant_id: string
-  severity: 'critical' | 'moderate' | 'low'
-  alert_type: string
-  message: string
-  triggered_by: string | null
+  questionnaire_id: string | null
+  scored_result_id: string | null
+  alert_level: string | null
+  alert_type: string | null
+  trigger_description: string | null
+  trigger_item_id: string | null
+  trigger_score: number | null
+  trigger_threshold: number | null
+  scale_name: string | null
+  protocol_followed: string | null
+  notified_researcher_ids: string[] | null
+  notification_sent_at: string | null
   acknowledged: boolean
   acknowledged_by: string | null
   acknowledged_at: string | null
+  acknowledgement_notes: string | null
+  action_taken: string | null
+  escalated: boolean
+  escalated_to: string | null
+  escalated_at: string | null
+  resolved: boolean
+  resolved_at: string | null
+  resolution_notes: string | null
   created_at: string
 }
 
