@@ -190,7 +190,9 @@ export function Sidebar({ profile }: SidebarProps) {
       : (profile?.researcher_color || '#CE2029')
 
   const roleMeta = ROLE_META[role] || ROLE_META.researcher
-  const quip = QUIPS[Math.floor(Date.now() / 86400000) % QUIPS.length] // changes daily
+  // Picked once per mount (so it changes on refresh, not mid-session while
+  // navigating between pages within the same layout).
+  const [quip] = useState(() => QUIPS[Math.floor(Math.random() * QUIPS.length)])
 
   // Header background per role — flat warm colour, no gradients
   const headerBg =

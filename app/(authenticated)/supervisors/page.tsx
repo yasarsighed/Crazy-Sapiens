@@ -208,7 +208,7 @@ export default function SupervisorsPage() {
               <Shield className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
               <p className="font-serif text-base text-foreground mb-1">No supervisor relationships yet</p>
               <p className="text-xs text-muted-foreground">
-                {isAdmin ? 'Use the button above to assign a supervisor to a researcher.' : 'An admin must create supervisor relationships.'}
+                {isAdmin ? 'Use the button above to assign a supervisor to a researcher. Someone has to keep an eye on things.' : 'An admin must create supervisor relationships.'}
               </p>
             </div>
           ) : (

@@ -98,7 +98,7 @@ export default async function InstrumentsPage() {
       {all.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <p className="font-serif text-xl text-foreground mb-2">No instruments yet.</p>
-          <p className="text-sm italic text-muted-foreground">Add instruments inside a study to see them here.</p>
+          <p className="text-sm italic text-muted-foreground">Add instruments inside a study to see them here. An empty instrument list has a 0% Type I error rate.</p>
         </div>
       ) : (
         <div className="space-y-1">

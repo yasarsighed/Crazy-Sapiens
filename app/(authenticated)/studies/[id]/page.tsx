@@ -433,7 +433,7 @@ export default function StudyPage() {
             </Button>
           </div>
           {participants.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No participants yet. Add or invite participants to begin.</p>
+            <p className="text-sm text-muted-foreground italic">No participants yet. Add or invite participants to begin — a sample size of zero has excellent internal validity and no external validity whatsoever.</p>
           ) : (
             <div className="space-y-1">
               {participants.map((enrollment: any) => (
@@ -484,7 +484,7 @@ export default function StudyPage() {
             </DropdownMenu>
           </div>
           {instruments.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No instruments yet. Add one to get started.</p>
+            <p className="text-sm text-muted-foreground italic">No instruments yet. Add one to get started — an unmeasured construct is still a construct, technically.</p>
           ) : (
             <div className="space-y-1">
               {instruments.map((instrument) => {

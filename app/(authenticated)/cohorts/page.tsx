@@ -173,7 +173,7 @@ export default function CohortsPage() {
           <p className="font-serif text-base text-foreground mb-1">No cohorts yet</p>
           <p className="text-xs text-muted-foreground">
             {isAdmin
-              ? 'Create the first cohort using the button above.'
+              ? 'Create the first cohort using the button above. Someone has to be first.'
               : 'Request a new cohort or ask an admin for access to an existing one.'}
           </p>
         </div>

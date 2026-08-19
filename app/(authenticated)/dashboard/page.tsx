@@ -29,13 +29,16 @@ const GREETINGS = [
   (n: string) => `Back again, ${n}? The data missed you.`,
   (n: string) => `Statistically speaking, ${n}, today's a good day for science.`,
   (n: string) => `The IRB isn't watching, ${n}. Probably.`,
+  (n: string) => `Outliers happen, ${n}. That's why we have you.`,
+  (n: string) => `Another day, another dataset, ${n}.`,
+  (n: string) => `Your sample size called, ${n}. It wants friends.`,
+  (n: string) => `Confidence intervals don't build themselves, ${n}.`,
 ]
 
 function getGreeting(name: string): string {
-  const now = new Date()
-  // Stable per-day pick so the greeting doesn't reshuffle on every navigation.
-  const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000)
-  return GREETINGS[dayOfYear % GREETINGS.length](name)
+  // Random on every load, not stable per-day — the point is that it keeps
+  // surprising you on refresh, not that it's predictable.
+  return GREETINGS[Math.floor(Math.random() * GREETINGS.length)](name)
 }
 
 function firstName(full: string | null) {
