@@ -3,7 +3,10 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { ArrowLeft, Users, BarChart3, Maximize2, Minimize2, Search, X, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Users, BarChart3, Maximize2, Minimize2, Search, X, RefreshCw, Download, ChevronDown } from 'lucide-react'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import * as d3Lib from 'd3'
 import {
   reciprocity, clusteringCoefficient, connectedComponents,
@@ -32,12 +35,23 @@ interface VizData {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-const COMMUNITY_PALETTE = [
-  '#CE2029','#86C99A','#F0A65C','#C6A8F0',
-  '#F0A65C','#C6A8F0','#7A1010','#86C99A',
-  '#CE2029','#86C99A',
-]
+// Every color here is one of the app's own established Red Room accents
+// (lifted for the red background elsewhere in the app). Deliberately no red
+// tones: the canvas itself sits on a dark surface, and a "red" community
+// would be nearly invisible against it, on top of visually merging with the
+// app's own brand red everywhere else on the page.
+const COMMUNITY_PALETTE = ['#86C99A', '#F0A65C', '#C6A8F0', '#EC8FC8', '#86B7D6', '#EBC15C']
 const communityColor = (c: number) => COMMUNITY_PALETTE[c % COMMUNITY_PALETTE.length]
+
+// The graph canvas's own surface — deliberately NOT var(--background). That
+// var resolves to this app's saturated brand red (#A50E22), so a naive
+// `var(--background, #FAFAF8)` fallback (the previous code) never actually
+// fell back to anything: the whole node/edge canvas was rendering as solid
+// red, the densest and most detail-heavy part of the page. Using the same
+// dark ink surface as the panel header instead keeps the graph on-brand
+// (ink is an established Red Room token) while giving 1000+ thin colored
+// lines and pastel node fills the contrast they need to actually read.
+const CANVAS_BG = 'var(--popover, #14090A)'
 
 function initials(name: string) {
   return name.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2) || '?'
@@ -118,7 +132,11 @@ export default function SociogramResultsPage() {
   const [activeRelTypes, setActiveRelTypes] = useState<Set<string>>(new Set())
   const [showRecipOnly, setShowRecipOnly]   = useState(false)
   const [cappedInfo, setCappedInfo] = useState<{ shown: number; total: number } | null>(null)
-  const [sortBy, setSortBy] = useState<'betweenness' | 'closeness' | 'eigenvector' | 'in' | 'out'>('betweenness')
+  // Defaults to in-degree ("who got nominated the most") — the question a
+  // researcher almost always asks first, rather than the more academic
+  // betweenness/closeness/eigenvector metrics.
+  const [sortBy, setSortBy] = useState<'betweenness' | 'closeness' | 'eigenvector' | 'in' | 'out'>('in')
+  const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false)
 
   const stateRef = useRef({ focusNode, search, showLabels, activeRelTypes, minScore, showRecipOnly, vizData })
   stateRef.current = { focusNode, search, showLabels, activeRelTypes, minScore, showRecipOnly, vizData }
@@ -279,7 +297,7 @@ export default function SociogramResultsPage() {
       g.append('stop').attr('offset', '100%').attr('stop-color', col)
     })
 
-    svg.append('rect').attr('width', W).attr('height', H).attr('fill', 'var(--background, #FAFAF8)')
+    svg.append('rect').attr('width', W).attr('height', H).attr('fill', CANVAS_BG)
 
     const g = svg.append('g').attr('class', 'root-g')
     const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.05, 6]).on('zoom', (ev: any) => g.attr('transform', ev.transform))
@@ -383,7 +401,7 @@ export default function SociogramResultsPage() {
       .attr('text-anchor', 'middle').attr('y', (d: any) => rScale(d.id, vd.indegree) + 15)
       .attr('font-size', '12px').attr('font-weight', '600').attr('font-family', 'var(--font-archivo), Archivo, sans-serif')
       .attr('fill', 'var(--foreground)')
-      .attr('stroke', 'var(--background)').attr('stroke-width', 3).attr('paint-order', 'stroke')
+      .attr('stroke', CANVAS_BG).attr('stroke-width', 3).attr('paint-order', 'stroke')
       .attr('pointer-events', 'none')
 
     // Simulation
@@ -433,7 +451,11 @@ export default function SociogramResultsPage() {
     const svg = svgRef.current; if (!svg) return
     const { width: W, height: H } = svg.getBoundingClientRect(); const scale = 2
     const canvas = Object.assign(document.createElement('canvas'), { width: W*scale, height: H*scale })
-    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#FAFAF8'; ctx.fillRect(0,0,canvas.width,canvas.height)
+    // Canvas 2D can't resolve a CSS var() — matches CANVAS_BG's hex fallback
+    // by hand so the exported PNG's backing color doesn't drift from what's
+    // actually on screen (the SVG's own background rect, drawn on top of
+    // this, already carries the real CANVAS_BG paint).
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#14090A'; ctx.fillRect(0,0,canvas.width,canvas.height)
     const img = new Image()
     img.onload = () => { ctx.scale(scale,scale); ctx.drawImage(img,0,0,W,H); canvas.toBlob(b => { if(!b)return; const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:'sociogram.png'}); a.click() },'image/png') }
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg))
@@ -441,9 +463,13 @@ export default function SociogramResultsPage() {
   const exportEdges = () => { if (!vizData) return; const labels = Object.fromEntries(vizData.relTypes.map(rt => [rt.id, rt.label])); const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([edgeListCSV(vizData.nodes, vizData.edges, labels)],{type:'text/csv'})),download:'sociogram_edges.csv'}); a.click() }
   const exportNodes = () => { if (!vizData) return; const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([nodeListCSV(vizData.nodes, vizData.metrics)],{type:'text/csv'})),download:'sociogram_nodes.csv'}); a.click() }
   const toggleRelType = (id: string) => setActiveRelTypes(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const filtersActive = minScore > 1 || showRecipOnly || (vizData ? activeRelTypes.size < vizData.relTypes.length : false) || search !== ''
+  const resetFilters = () => {
+    setMinScore(1); setShowRecipOnly(false); setSearch(''); setFocusNode(null)
+    if (vizData) setActiveRelTypes(new Set(vizData.relTypes.map(rt => rt.id)))
+  }
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const topNodes = vizData ? [...vizData.nodes].sort((a,b) => vizData.indegree[b.id]-vizData.indegree[a.id]).slice(0,6) : []
   const tipNode  = tooltip && vizData ? vizData.nodes[tooltip.id] : null
   const relNomCounts = vizData ? vizData.relTypes.map(rt => ({ rt, count: vizData.edges.filter(e => e[2]===rt.id).length })) : []
 
@@ -516,13 +542,19 @@ export default function SociogramResultsPage() {
         </div>
 
         {/* Search */}
-        <div className="px-3.5 py-3 border-b border-border shrink-0">
-          <div className="relative">
+        <div className="px-3.5 py-3 border-b border-border shrink-0 flex items-center gap-2">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search participant…"
               className="w-full bg-muted/50 border border-border rounded-full pl-8 pr-7 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-all" />
             {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>}
           </div>
+          {filtersActive && (
+            <button onClick={resetFilters} title="Reset all filters"
+              className="shrink-0 w-9 h-9 rounded-full bg-muted/50 border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Tabs */}
@@ -590,58 +622,78 @@ export default function SociogramResultsPage() {
               <p className="text-[10px] text-muted-foreground/60">Double-click node to pin · Click to focus</p>
             </div>
 
-            {/* Most nominated */}
-            {topNodes.length > 0 && (
-              <div className="px-3.5 py-3.5">
-                <p className="section-label mb-2.5">Most Nominated</p>
-                <div className="space-y-1">
-                  {topNodes.map((n, i) => (
-                    <button key={n.id} onClick={() => setFocusNode(p => p === n.id ? null : n.id)}
-                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all hover:bg-muted/60"
-                      style={focusNode === n.id ? { background: 'color-mix(in srgb, var(--primary) 10%, var(--background))' } : {}}>
-                      <span className="w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-black text-white shrink-0"
-                        style={{ background: communityColor(vizData?.metrics.community[n.id] ?? 0) }}>{i+1}</span>
-                      <span className="flex-1 text-[13px] font-medium text-foreground truncate text-left">{n.name}</span>
-                      <span className="text-[13px] font-bold tabular-nums shrink-0" style={{ color: communityColor(vizData?.metrics.community[n.id]??0) }}>
-                        {vizData?.indegree[n.id]??0}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* "Most Nominated" used to live here as its own list, duplicating
+                the Analysis tab's centrality ranking sorted by in-degree —
+                same data, second place to look. Removed; the Analysis tab
+                now defaults to that same sort instead, so it's one list, one
+                place, not two. */}
           </TabsContent>
 
           {/* Analysis */}
           <TabsContent value="analysis" className="flex-1 overflow-y-auto m-0 p-0">
 
-            {/* Network metrics */}
+            {/* Network metrics — was a flat grid of 11 equally-weighted mini
+                cards (a data dump). Restructured into an actual hierarchy:
+                the two numbers a researcher asks about first are large and
+                explained in plain language; simple counts are a compact
+                strip; the more academic metrics (clustering, modularity,
+                components, avg degree) are tucked behind a disclosure
+                instead of always competing for attention. */}
             {analytics && (
               <div className="px-3.5 py-3.5 border-b border-border">
                 <p className="section-label mb-2.5 flex items-center gap-1.5">
                   <BarChart3 className="w-3.5 h-3.5" /> Network Metrics
                 </p>
-                <div className="grid grid-cols-2 gap-2">
+
+                <div className="grid grid-cols-2 gap-2 mb-2">
                   {[
-                    { l:'Nodes',      v:analytics.n,           c:'#CE2029' },
-                    { l:'Edges',       v:analytics.e,           c:'#C6A8F0' },
-                    { l:'Density',     v:`${analytics.density}%`, c:'#F0A65C' },
-                    { l:'Reciprocity', v:`${analytics.reciprocity}%`, c:'#86C99A' },
-                    { l:'Clustering',  v:analytics.clustering,  c:'#F0A65C' },
-                    { l:'Modularity',  v:analytics.modularity,  c:'#C6A8F0' },
-                    { l:'Communities', v:analytics.communities, c:'#7A1010' },
-                    { l:'Components',  v:analytics.components,  c:'#86C99A' },
-                    { l:'Isolates',    v:analytics.isolates,    c:analytics.isolates>0?'#CE2029':'#7A7268' },
-                    { l:'Avg in',      v:analytics.avgIn,       c:'#C6A8F0' },
-                    { l:'Avg out',     v:analytics.avgOut,      c:'#F0A65C' },
+                    { l: 'Density', v: `${analytics.density}%`, c: '#F0A65C', d: 'Share of possible ties that exist' },
+                    { l: 'Reciprocity', v: `${analytics.reciprocity}%`, c: '#86C99A', d: 'Ties that go both ways' },
                   ].map(s => (
-                    <div key={s.l} className="bg-muted/50 rounded-xl p-2.5 text-center">
-                      <p className="text-base font-bold tabular-nums" style={{ color: s.c }}>{s.v}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide leading-tight mt-1">{s.l}</p>
+                    <div key={s.l} className="bg-muted/50 rounded-2xl p-3">
+                      <p className="text-2xl font-serif font-bold tabular-nums leading-none" style={{ color: s.c }}>{s.v}</p>
+                      <p className="text-xs font-semibold text-foreground mt-1.5">{s.l}</p>
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{s.d}</p>
                     </div>
                   ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground/70 mt-2.5 leading-snug">Modularity &gt; 0.3 = strong structure. Reciprocity = mutual/total ties.</p>
+
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { l:'Nodes',      v:analytics.n },
+                    { l:'Ties',       v:analytics.e },
+                    { l:'Groups',     v:analytics.communities },
+                    { l:'Isolated',   v:analytics.isolates, warn: analytics.isolates > 0 },
+                  ].map(s => (
+                    <div key={s.l} className="bg-muted/40 rounded-xl p-2 text-center">
+                      <p className="text-sm font-bold tabular-nums" style={{ color: s.warn ? '#CE2029' : 'var(--foreground)' }}>{s.v}</p>
+                      <p className="text-[9px] text-muted-foreground uppercase tracking-wide leading-tight mt-0.5">{s.l}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <button onClick={() => setShowAdvancedMetrics(p => !p)}
+                  className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors mt-2.5">
+                  <ChevronDown className={`w-3 h-3 transition-transform ${showAdvancedMetrics ? 'rotate-180' : ''}`} />
+                  {showAdvancedMetrics ? 'Hide' : 'Show'} advanced metrics
+                </button>
+
+                {showAdvancedMetrics && (
+                  <div className="grid grid-cols-2 gap-2 mt-2.5">
+                    {[
+                      { l:'Clustering',  v:analytics.clustering,  c:'#F0A65C' },
+                      { l:'Modularity',  v:analytics.modularity,  c:'#C6A8F0' },
+                      { l:'Components',  v:analytics.components,  c:'#86C99A' },
+                      { l:'Avg in / out', v:`${analytics.avgIn} / ${analytics.avgOut}`, c:'#C6A8F0' },
+                    ].map(s => (
+                      <div key={s.l} className="bg-muted/50 rounded-xl p-2.5 text-center">
+                        <p className="text-sm font-bold tabular-nums" style={{ color: s.c }}>{s.v}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide leading-tight mt-1">{s.l}</p>
+                      </div>
+                    ))}
+                    <p className="col-span-2 text-[11px] text-muted-foreground/70 leading-snug">Modularity &gt; 0.3 = strong subgroup structure.</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -649,14 +701,14 @@ export default function SociogramResultsPage() {
             {centralityRows.length > 0 && (
               <div className="px-3.5 py-3.5 border-b border-border">
                 <div className="flex items-center justify-between mb-2.5">
-                  <p className="section-label">Top Centrality</p>
+                  <p className="section-label">Ranked By</p>
                   <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
                     className="text-[11px] bg-muted border border-border rounded-lg px-2 py-1 text-foreground focus:outline-none">
+                    <option value="in">Most nominated</option>
+                    <option value="out">Most nominations sent</option>
                     <option value="betweenness">Betweenness</option>
                     <option value="closeness">Closeness</option>
                     <option value="eigenvector">Eigenvector</option>
-                    <option value="in">In-degree</option>
-                    <option value="out">Out-degree</option>
                   </select>
                 </div>
                 <div className="space-y-1">
@@ -760,8 +812,20 @@ export default function SociogramResultsPage() {
           <button onClick={resetLayout} title="Restart layout" className="w-9 h-9 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground flex items-center justify-center transition-all">
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button onClick={exportPNG} className="h-9 px-3 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground text-xs font-bold transition-all">PNG</button>
-          <button onClick={exportSVG} className="h-9 px-3 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground text-xs font-bold transition-all">SVG</button>
+          {/* PNG + SVG used to be two separate always-visible buttons — one
+              export menu instead of two, matching the researcher tables
+              elsewhere in the app that already use this dropdown pattern. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="h-9 px-3 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground text-xs font-bold transition-all flex items-center gap-1.5">
+                <Download className="w-3.5 h-3.5" /> Export
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportPNG}>Image (PNG)</DropdownMenuItem>
+              <DropdownMenuItem onClick={exportSVG}>Vector (SVG)</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button onClick={() => setFullscreen(p => !p)} title={fullscreen?'Exit fullscreen':'Fullscreen'}
             className="w-9 h-9 bg-card/90 backdrop-blur-md border border-border rounded-xl shadow-sm text-muted-foreground hover:text-foreground flex items-center justify-center transition-all">
             {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
