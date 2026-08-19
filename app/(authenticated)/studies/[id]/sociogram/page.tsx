@@ -94,16 +94,23 @@ function filterEdges(
 }
 
 // ── Curved arc path ───────────────────────────────────────────────────────────
-function arcPath(sx: number, sy: number, tx: number, ty: number, bidirectional: boolean) {
-  const dx = tx - sx, dy = ty - sy
-  const len = Math.sqrt(dx * dx + dy * dy) || 1
-  const curvature = 0.22
-  const mx = (sx + tx) / 2 + (bidirectional ? 1 : -1) * curvature * dy
-  const my = (sy + ty) / 2 - (bidirectional ? 1 : -1) * curvature * dx
-  const pad = 18
-  const sx2 = sx + (dx / len) * pad, sy2 = sy + (dy / len) * pad
-  const tx2 = tx - (dx / len) * pad, ty2 = ty - (dy / len) * pad
-  return `M${sx2},${sy2} Q${mx},${my} ${tx2},${ty2}`
+// Fixed anchor convention (not relative to the other node's position): every
+// tie leaves its source at the BOTTOM of that node's circle and arrives at
+// its target at the TOP of that node's circle — so direction reads instantly
+// from where a line touches a node, not just from the arrowhead. A vertical
+// S-curve (cubic Bezier, control points pulled straight down from the exit
+// and straight up into the entry) makes that anchor pair render smoothly
+// however the two nodes actually sit relative to each other, including when
+// the target ends up above the source — same convention flow-chart tools
+// use for fixed bottom/top connection points.
+function arcPath(sx: number, sy: number, tx: number, ty: number, rS: number, rT: number, bidirectional: boolean) {
+  const ex = sx, ey = sy + rS   // exit: bottom of source circle
+  const nx = tx, ny = ty - rT   // entry: top of target circle
+  const lateral = bidirectional ? 16 : 0 // separate a reciprocal pair's two curves so they don't overlap
+  const bend = Math.max(26, Math.min(140, Math.abs(ny - ey) / 2))
+  const c1x = ex + lateral, c1y = ey + bend
+  const c2x = nx + lateral, c2y = ny - bend
+  return `M${ex},${ey} C${c1x},${c1y} ${c2x},${c2y} ${nx},${ny}`
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -420,7 +427,8 @@ export default function SociogramResultsPage() {
         const sx = d.source.x, sy = d.source.y, tx = d.target.x, ty = d.target.y
         if (sx === undefined || tx === undefined) return ''
         const hasPair = edgeSet.has(`${d.target.id ?? d.target}|${d.source.id ?? d.source}`)
-        return arcPath(sx, sy, tx, ty, hasPair)
+        const rS = rScale(d.source.id, vd.indegree), rT = rScale(d.target.id, vd.indegree)
+        return arcPath(sx, sy, tx, ty, rS, rT, hasPair)
       })
       node.attr('transform', (d: any) => `translate(${d.x},${d.y})`)
     })
