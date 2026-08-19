@@ -176,18 +176,19 @@ export async function POST(
       const band = bandForD(body.dScore, iatType.dscore_bands)
 
       if (band.clinical) {
-        // Column set verified directly against a live row (2026-08-19) —
-        // the tracked supabase/schema.sql is stale here: it lists severity/
-        // message/triggered_by columns that DO NOT actually exist live, and
-        // is missing several that do (trigger_item_id, protocol_followed,
-        // notified_researcher_ids, notification_sent_at, acknowledgement_notes,
-        // action_taken, escalated_to, escalated_at, resolved_at,
-        // resolution_notes). Only inserting columns confirmed to exist.
+        // Column set + allowed values verified directly against the live
+        // table (2026-08-19): the tracked supabase/schema.sql is stale here
+        // (lists severity/message/triggered_by columns that DO NOT actually
+        // exist, is missing several that do, and doesn't show the CHECK
+        // constraints on alert_level/alert_type at all). alert_type must be
+        // one of total_score_threshold | subscale_threshold | item_level_flag
+        // | clinical_cutoff_exceeded | custom_rule — 'clinical_cutoff_exceeded'
+        // is the correct fit for a D-score crossing the clinical band.
         const { error: alertErr } = await svc.from('clinical_alerts_log').insert({
           study_id:            iatInstrument.study_id,
           participant_id:      user.id,
           alert_level:         'critical',
-          alert_type:          'iat_dscore_threshold',
+          alert_type:          'clinical_cutoff_exceeded',
           trigger_description: `${iatInstrument.title}: ${band.label} (D = ${body.dScore.toFixed(2)}). ${iatType.clinicalNote}`,
           trigger_score:       body.dScore,
           trigger_threshold:   iatType.dscore_bands.find(b => b.clinical)?.min ?? 0.65,
