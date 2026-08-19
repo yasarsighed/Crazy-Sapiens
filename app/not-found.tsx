@@ -10,11 +10,11 @@ const NOT_FOUND_LINES = [
   'p > .05 — we fail to reject the null: this page does not exist.',
   "Even a null result is still a result. This isn't even that.",
   'Reviewer 2 requested this page be removed.',
+  'Even Rashmin sir couldn’t find this one.',
 ]
 
 function pickLine(): string {
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
-  return NOT_FOUND_LINES[dayOfYear % NOT_FOUND_LINES.length]
+  return NOT_FOUND_LINES[Math.floor(Math.random() * NOT_FOUND_LINES.length)]
 }
 
 export default function NotFound() {
