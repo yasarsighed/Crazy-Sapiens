@@ -237,7 +237,7 @@ export default function StudiesPage() {
                 {query || status !== 'all' ? 'No studies match your filters' : 'No studies yet'}
               </p>
               <p className="text-sm italic text-muted-foreground mb-6">
-                {query || status !== 'all' ? 'Try clearing your search or filter.' : 'Create your first study to get started.'}
+                {query || status !== 'all' ? 'Try clearing your search or filter.' : 'Every legendary dataset starts as an empty table.'}
               </p>
               {!isAdmin && !query && status === 'all' && (
                 <Button asChild><Link href="/studies/new">Create your first study</Link></Button>

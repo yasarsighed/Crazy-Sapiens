@@ -104,13 +104,21 @@ const ROLE_META: Record<string, { label: string; emoji: string; color: string }>
   researcher: { label: 'Researcher', emoji: '🧪', color: 'var(--researcher-color)' },
 }
 
-// Footer notes — warm, but professional
+// Footer notes — warm, but professional, with the occasional dry aside
+// (researcher-only chrome — never anywhere near clinical data or the
+// participant side, per the house style)
 const QUIPS = [
   'built for rigorous, humane research',
   'your data, handled with care',
   'made with and for researchers',
   'clarity in, insight out',
   'good science, made a little easier',
+  "p < .05 or it didn't happen",
+  'reviewer 2 was unavailable for comment',
+  'the null hypothesis never lets you down',
+  'built on caffeine and confidence intervals',
+  'correlation is not causation, but it is suspicious',
+  'n=20 and a prayer',
 ]
 
 function getInitials(name: string | null): string {

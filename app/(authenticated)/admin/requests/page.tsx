@@ -257,7 +257,7 @@ export default function AdminRequestsPage() {
             {filter === 'pending' ? 'No pending requests' : 'No requests yet'}
           </p>
           <p className="text-xs text-muted-foreground">
-            {filter === 'pending' ? 'All caught up!' : 'Requests from researchers will appear here.'}
+            {filter === 'pending' ? "All caught up! Reviewer 2 wishes they could say the same." : 'Requests from researchers will appear here.'}
           </p>
         </div>
       ) : (

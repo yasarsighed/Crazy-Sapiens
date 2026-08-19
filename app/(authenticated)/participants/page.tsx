@@ -32,7 +32,7 @@ export default async function ParticipantsPage() {
         <p className="text-sm text-muted-foreground mb-12">Everyone enrolled across your studies.</p>
         <div className="text-center py-24">
           <p className="font-serif text-xl mb-2">No studies yet.</p>
-          <p className="text-sm italic text-muted-foreground">Create a study first, then add participants.</p>
+          <p className="text-sm italic text-muted-foreground">Create a study first, then add participants. Can't study people who don't exist yet — we checked the literature.</p>
         </div>
       </div>
     )

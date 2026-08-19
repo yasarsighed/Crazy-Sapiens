@@ -80,7 +80,7 @@ export function AuditLogFeed({
 
       {filtered.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-sm text-muted-foreground italic">No events match this filter.</p>
+          <p className="text-sm text-muted-foreground italic">No events match this filter. Either it's quiet, or everyone's being suspiciously well-behaved.</p>
         </div>
       ) : (
         <div className="space-y-1">

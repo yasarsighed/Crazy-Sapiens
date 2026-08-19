@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import type { Profile, Study, ClinicalAlert as ClinicalAlertType } from '@/types/database'
 
-// ── Greetings — warm, but professional ──
+// ── Greetings — warm, but professional, with the odd wry one mixed in ──
 const GREETINGS = [
   (n: string) => `Welcome back, ${n}.`,
   (n: string) => `Good to see you, ${n}.`,
@@ -26,6 +26,9 @@ const GREETINGS = [
   (n: string) => `Your studies are waiting, ${n}.`,
   (n: string) => `Let's get to work, ${n}.`,
   (n: string) => `Hope the research is going well, ${n}.`,
+  (n: string) => `Back again, ${n}? The data missed you.`,
+  (n: string) => `Statistically speaking, ${n}, today's a good day for science.`,
+  (n: string) => `The IRB isn't watching, ${n}. Probably.`,
 ]
 
 function getGreeting(name: string): string {
@@ -448,7 +451,7 @@ export default async function DashboardPage() {
                     ))}
                   </div>
                 ) : (
-                  <EmptyState title="No other researchers yet." subtitle="Invite colleagues to collaborate on studies." />
+                  <EmptyState title="No other researchers yet." subtitle="Invite colleagues to collaborate — or to share the blame when the p-value doesn't cooperate." />
                 )}
               </CardContent>
             </Card>
@@ -523,7 +526,7 @@ export default async function DashboardPage() {
                     ))}
                   </div>
                 ) : (
-                  <EmptyState title="No activity yet." subtitle="Activity from your studies will appear here." />
+                  <EmptyState title="No activity yet." subtitle="The calm before the data storm." />
                 )}
               </CardContent>
             </Card>
