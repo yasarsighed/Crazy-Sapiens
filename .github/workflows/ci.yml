@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build (Next.js)
+    runs-on: ubuntu-latest
+    env:
+      # The app's Supabase clients are constructed lazily inside functions,
+      # not at module scope, so `next build` never actually calls out to
+      # Supabase for this app's routes (all authenticated pages read
+      # cookies(), which makes them dynamic, not statically prerendered).
+      # These placeholders exist only as a hedge against a future page
+      # accidentally constructing a client eagerly — a real, empty/missing
+      # URL would throw during the Supabase SDK's own URL validation.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-ci-build-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit -p .
+      - run: npm run build
+
+  scoring-scripts:
+    name: Scoring reference self-tests (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run every scoring script's self-test
+        run: |
+          set -e
+          for f in scripts/scoring/*.py; do
+            echo "── $f ──"
+            python3 "$f"
+          done
