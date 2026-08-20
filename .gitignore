@@ -13,6 +13,10 @@ next.user-config.*
 # Environment variables
 .env*.local
 
+# Python (scripts/scoring reference implementations)
+__pycache__/
+*.pyc
+
 # Common ignores
 node_modules
 .next/

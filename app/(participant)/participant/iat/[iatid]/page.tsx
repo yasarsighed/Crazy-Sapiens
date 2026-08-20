@@ -201,39 +201,97 @@ function generateTrials(defs: BlockDef[]): Trial[] {
   return defs.flatMap(def => generateBalancedBlock(def))
 }
 
-// ─── D-score Algorithm D2 (Greenwald et al. 2003) ───────────────────────────
+// ─── D-score — Greenwald, Nosek & Banaji (2003) "improved algorithm", ──────
+// Measure D6 in the paper's Table 4 / Study 6 (600 ms error penalty +
+// deletion of sub-400ms trials — the best-performing variant overall).
+// Verified line-by-line against the authors' own distributed SAS scoring
+// syntax (Nosek, projectimplicit.net/nosek/papers/scoringalgorithm.sas.txt)
+// and mirrored exactly in scripts/scoring/iat_dscore.py, which carries the
+// full citation and rationale for each step — read that file's docstring
+// before touching this function again.
+//
+// The previous version of this function computed a materially different,
+// non-standard statistic: it pooled blocks by task CONDITION (B3+B4 vs
+// B6+B7) instead of by ROUND (B3+B6 vs B4+B7), used a single grand SD
+// across all four blocks instead of two round-specific pooled SDs, used a
+// combined-pair mean for the error penalty instead of each block's own
+// mean, and capped (rather than deleted) trials over 10,000 ms. Those are
+// each real deviations from the published algorithm, not stylistic
+// differences — fixed here.
 function computeDScore(
   responses: TrialResponse[],
   orderB: boolean,
 ): { d: number | null; excluded: boolean; reason?: string } {
-  const scoringBlocks = [3, 4, 6, 7]
-  const all = responses.filter(r => scoringBlocks.includes(r.blockNum))
-  if (all.length < 20) return { d: null, excluded: true, reason: 'Too few trials in scoring blocks.' }
+  const scoredBlocks = [3, 4, 6, 7]
+  const byBlock = (rows: TrialResponse[], b: number) => rows.filter(r => r.blockNum === b)
 
-  const capped   = all.map(r => ({ ...r, rt: Math.min(r.rt, 10_000) }))
-  const fastPct  = capped.filter(r => r.rt < 300).length / capped.length
-  if (fastPct > 0.10) return { d: null, excluded: true, reason: `${Math.round(fastPct * 100)}% of responses were faster than 300 ms — data excluded.` }
+  // Step 2a: delete (not cap) trials with latency > 10,000 ms.
+  let data = responses.filter(r => scoredBlocks.includes(r.blockNum) && r.rt <= 10_000)
 
-  const b34 = capped.filter(r => r.blockNum === 3 || r.blockNum === 4)
-  const b67 = capped.filter(r => r.blockNum === 6 || r.blockNum === 7)
-  if (b34.length < 10 || b67.length < 10) return { d: null, excluded: true, reason: 'Insufficient trials in one block pair.' }
+  if (scoredBlocks.some(b => byBlock(data, b).length === 0)) {
+    return { d: null, excluded: true, reason: 'One or more blocks has zero usable trials.' }
+  }
 
-  const mean = (arr: { rt: number }[]) => arr.reduce((s, r) => s + r.rt, 0) / arr.length
+  // Step 2b: subject-level exclusion — the MEAN, across the four blocks,
+  // of each block's own fraction of trials under 300 ms (not one flat
+  // fraction over all trials pooled together).
+  const fastFractions = scoredBlocks.map(b => {
+    const block = byBlock(data, b)
+    return block.filter(r => r.rt < 300).length / block.length
+  })
+  const meanFastFraction = fastFractions.reduce((s, v) => s + v, 0) / fastFractions.length
+  if (meanFastFraction > 0.10) {
+    return { d: null, excluded: true, reason: `${Math.round(meanFastFraction * 100)}% mean fast-response rate across blocks exceeds the 10% exclusion threshold.` }
+  }
 
-  const pen34 = b34.map(r => r.isCorrect ? r.rt : mean(b34.filter(x => x.isCorrect)) + 600)
-  const pen67 = b67.map(r => r.isCorrect ? r.rt : mean(b67.filter(x => x.isCorrect)) + 600)
+  // Step 4 (D6 variant): delete trials with latency < 400 ms.
+  data = data.filter(r => r.rt >= 400)
+  const blocks = Object.fromEntries(scoredBlocks.map(b => [b, byBlock(data, b)])) as Record<number, TrialResponse[]>
+  if (scoredBlocks.some(b => blocks[b].length === 0)) {
+    return { d: null, excluded: true, reason: 'Insufficient trials remaining in one or more blocks after the 400 ms floor.' }
+  }
 
-  const m34 = pen34.reduce((s, v) => s + v, 0) / pen34.length
-  const m67 = pen67.reduce((s, v) => s + v, 0) / pen67.length
+  const mean = (vals: number[]) => vals.reduce((s, v) => s + v, 0) / vals.length
+  const sampleSD = (vals: number[]) => {
+    if (vals.length < 2) return 0
+    const m = mean(vals)
+    return Math.sqrt(vals.reduce((s, v) => s + (v - m) ** 2, 0) / (vals.length - 1))
+  }
 
-  const allPen    = [...pen34, ...pen67]
-  const grandMean = allPen.reduce((s, v) => s + v, 0) / allPen.length
-  const pooledSD  = Math.sqrt(allPen.reduce((s, v) => s + (v - grandMean) ** 2, 0) / allPen.length)
+  // Step 5: mean of CORRECT latencies, per individual block (pre-penalty).
+  const blockMean: Record<number, number | null> = {}
+  for (const b of scoredBlocks) {
+    const correct = blocks[b].filter(r => r.isCorrect).map(r => r.rt)
+    blockMean[b] = correct.length ? mean(correct) : null
+  }
+  if (scoredBlocks.some(b => blockMean[b] === null)) {
+    return { d: null, excluded: true, reason: 'A block has no correct trials to compute a penalty mean from.' }
+  }
 
-  if (pooledSD === 0) return { d: null, excluded: true, reason: 'All response times identical.' }
+  // Step 7: error penalty — that SAME block's own correct-mean + 600 ms.
+  const penalized: Record<number, number[]> = {}
+  for (const b of scoredBlocks) {
+    penalized[b] = blocks[b].map(r => r.isCorrect ? r.rt : blockMean[b]! + 600)
+  }
 
-  const rawD = (m67 - m34) / pooledSD
-  return { d: orderB ? -rawD : rawD, excluded: false }
+  // Step 9: block averages of the penalized values.
+  const blockAvg: Record<number, number> = {}
+  for (const b of scoredBlocks) blockAvg[b] = mean(penalized[b])
+
+  // Step 6: pooled SD of the penalized values, combined by ROUND pair —
+  // {B3,B6} together and {B4,B7} together (NOT {B3,B4}/{B6,B7}).
+  const sd36 = sampleSD([...penalized[3], ...penalized[6]])
+  const sd47 = sampleSD([...penalized[4], ...penalized[7]])
+  if (sd36 === 0 || sd47 === 0) {
+    return { d: null, excluded: true, reason: 'A round pair has zero variance in penalized latencies.' }
+  }
+
+  // Steps 10-12: two round-quotients, averaged.
+  const diff36 = blockAvg[6] - blockAvg[3]
+  const diff47 = blockAvg[7] - blockAvg[4]
+  const d = (diff36 / sd36 + diff47 / sd47) / 2
+
+  return { d: orderB ? -d : d, excluded: false }
 }
 
 // ─── Phase ────────────────────────────────────────────────────────────────────
