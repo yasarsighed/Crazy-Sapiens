@@ -128,7 +128,7 @@ export async function GET(
   const { data: socParticipants } = socIds.length > 0
     ? await fetchAllRows((from, to) => supabase
         .from('sociogram_participants')
-        .select('id, display_name, participant_id, sociogram_id')
+        .select('id, display_name, participant_id, sociogram_id, has_submitted')
         .in('sociogram_id', socIds)
         .range(from, to))
     : { data: [] }
@@ -160,6 +160,52 @@ export async function GET(
 
   const sections: string[] = []
   const studyTitle = study.title.replace(/[^a-zA-Z0-9_-]/g, '_')
+
+  // 0. Participant summary — one row per participant, one column per
+  // instrument, instead of three separate long-format sections a researcher
+  // has to manually cross-reference by participant_id to see one person's
+  // full picture. The detailed sections below are unchanged and still
+  // carry everything this can't fit (raw sociogram ties, submission
+  // timestamps, per-item detail).
+  if (allParticipantIds.length > 0) {
+    sections.push('# PARTICIPANT SUMMARY (one row per participant)')
+    const qTitles = (qInstruments ?? []).map((q: any) => q.title)
+    const iatTitles = (iatInstruments ?? []).map((i: any) => i.title)
+    const socTitles = (socInstruments ?? []).map((s: any) => s.title)
+
+    const summaryHeaders = [
+      'participant_id', 'participant_name', 'participant_email',
+      ...qTitles.map((t: string) => `Q: ${t} (score / severity)`),
+      ...iatTitles.map((t: string) => `IAT: ${t} (D-score)`),
+      ...socTitles.map((t: string) => `Sociogram: ${t} (submitted?)`),
+    ]
+
+    // O(1)-lookup maps keyed by "participant|instrument" instead of a
+    // .find() per cell — matters once a study has real participant counts
+    // (e.g. 200 people x several instruments is 200x too many linear scans
+    // otherwise).
+    const qByKey = new Map((qResults ?? []).map((r: any) => [`${r.participant_id}|${r.questionnaire_id}`, r]))
+    const iatByKey = new Map((iatResults ?? []).map((r: any) => [`${r.participant_id}|${r.iat_id}`, r]))
+    const socByKey = new Map((socParticipants ?? []).map((p: any) => [`${p.participant_id}|${p.sociogram_id}`, p]))
+
+    const summaryRows = allParticipantIds.map(pid => {
+      const profile = profileMap[pid]
+      const qCells = (qInstruments ?? []).map((q: any) => {
+        const r = qByKey.get(`${pid}|${q.id}`)
+        return r ? `${r.total_score} / ${r.severity_label ?? '—'}` : ''
+      })
+      const iatCells = (iatInstruments ?? []).map((i: any) => {
+        const r = iatByKey.get(`${pid}|${i.id}`)
+        return r ? r.d_score : ''
+      })
+      const socCells = (socInstruments ?? []).map((s: any) => {
+        const p = socByKey.get(`${pid}|${s.id}`)
+        return p ? (p.has_submitted ? 'Yes' : 'No') : ''
+      })
+      return [pid, profile?.full_name ?? '', profile?.email ?? '', ...qCells, ...iatCells, ...socCells]
+    })
+    sections.push(toCSV(summaryHeaders, summaryRows))
+  }
 
   // 1. Questionnaire results
   if ((qResults ?? []).length > 0) {
