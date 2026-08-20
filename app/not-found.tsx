@@ -1,10 +1,14 @@
 import Link from 'next/link'
 import { Mascot } from '@/components/mascot'
 import { Button } from '@/components/ui/button'
+import { RandomLine } from '@/components/random-line'
 
 // A handful of dry, researcher-flavoured 404 lines — never shown anywhere
 // near clinical data or the participant side, just here where a mistyped
-// URL landed someone.
+// URL landed someone. Picked client-side (see RandomLine) rather than with
+// Math.random() directly in this server component's render output — that
+// pattern caused a real, recurring hydration-mismatch error elsewhere in
+// the app (the dashboard greeting) once deployed.
 const NOT_FOUND_LINES = [
   "This page didn't replicate.",
   'p > .05 — we fail to reject the null: this page does not exist.',
@@ -12,10 +16,6 @@ const NOT_FOUND_LINES = [
   'Reviewer 2 requested this page be removed.',
   'Even Rashmin sir couldn’t find this one.',
 ]
-
-function pickLine(): string {
-  return NOT_FOUND_LINES[Math.floor(Math.random() * NOT_FOUND_LINES.length)]
-}
 
 export default function NotFound() {
   return (
@@ -29,9 +29,7 @@ export default function NotFound() {
           404
         </p>
 
-        <p className="font-serif text-2xl text-foreground mb-3">
-          {pickLine()}
-        </p>
+        <RandomLine lines={NOT_FOUND_LINES} className="font-serif text-2xl text-foreground mb-3" />
 
         <p className="text-sm text-muted-foreground font-sans mb-2 max-w-sm">
           The page you're looking for wandered off the sampling frame.

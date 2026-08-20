@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -192,9 +192,14 @@ export function Sidebar({ profile }: SidebarProps) {
       : (profile?.researcher_color || '#CE2029')
 
   const roleMeta = ROLE_META[role] || ROLE_META.researcher
-  // Picked once per mount (so it changes on refresh, not mid-session while
-  // navigating between pages within the same layout).
-  const [quip] = useState(() => QUIPS[Math.floor(Math.random() * QUIPS.length)])
+  // Deterministic on the initial render (server and client must produce the
+  // same output, or React throws a hydration-mismatch error — confirmed
+  // live in production: an earlier version picked this randomly in the
+  // initializer, which server-rendered one value and could hydrate a
+  // different one). The random swap happens in an effect, which only runs
+  // after hydration has already succeeded — same fix as RandomGreeting.
+  const [quip, setQuip] = useState(QUIPS[0])
+  useEffect(() => { setQuip(QUIPS[Math.floor(Math.random() * QUIPS.length)]) }, [])
 
   // Header background per role — flat warm colour, no gradients
   const headerBg =

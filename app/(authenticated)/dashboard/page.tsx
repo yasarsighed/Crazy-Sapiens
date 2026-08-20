@@ -9,6 +9,7 @@ import { ClinicalAlert } from '@/components/clinical-alert'
 import { EmptyState } from '@/components/empty-state'
 import { Mascot } from '@/components/mascot'
 import { DashboardCustomizer } from '@/components/dashboard-customizer'
+import { RandomGreeting } from '@/components/random-greeting'
 import { StatusBadge } from '@/components/status-badge'
 import {
   Plus, ExternalLink, Library, ClipboardList, ShieldAlert,
@@ -17,29 +18,6 @@ import {
   Brain, Clock, BookOpen, Mail,
 } from 'lucide-react'
 import type { Profile, Study, ClinicalAlert as ClinicalAlertType } from '@/types/database'
-
-// ── Greetings — warm, but professional, with the odd wry one mixed in ──
-const GREETINGS = [
-  (n: string) => `Welcome back, ${n}.`,
-  (n: string) => `Good to see you, ${n}.`,
-  (n: string) => `Ready when you are, ${n}.`,
-  (n: string) => `Your studies are waiting, ${n}.`,
-  (n: string) => `Let's get to work, ${n}.`,
-  (n: string) => `Hope the research is going well, ${n}.`,
-  (n: string) => `Back again, ${n}? The data missed you.`,
-  (n: string) => `Statistically speaking, ${n}, today's a good day for science.`,
-  (n: string) => `The IRB isn't watching, ${n}. Probably.`,
-  (n: string) => `Outliers happen, ${n}. That's why we have you.`,
-  (n: string) => `Another day, another dataset, ${n}.`,
-  (n: string) => `Your sample size called, ${n}. It wants friends.`,
-  (n: string) => `Confidence intervals don't build themselves, ${n}.`,
-]
-
-function getGreeting(name: string): string {
-  // Random on every load, not stable per-day — the point is that it keeps
-  // surprising you on refresh, not that it's predictable.
-  return GREETINGS[Math.floor(Math.random() * GREETINGS.length)](name)
-}
 
 function firstName(full: string | null) {
   return full?.split(' ')[0] || 'Researcher'
@@ -190,7 +168,6 @@ export default async function DashboardPage() {
   const prefs = (profile?.dashboard_prefs as { hidden?: string[]; greeting?: string | null } | null) ?? {}
   const hidden = new Set<string>(prefs.hidden ?? [])
   const show = (key: string) => !hidden.has(key)
-  const greetingText = prefs.greeting?.trim() ? prefs.greeting.trim() : getGreeting(name)
 
   return (
     <div className="min-h-screen bg-background">
@@ -214,11 +191,11 @@ export default async function DashboardPage() {
               <Mascot size="md" animate />
             </div>
             <div>
-              <h1
+              <RandomGreeting
+                name={name}
+                customGreeting={prefs.greeting}
                 className="font-serif text-2xl lg:text-3xl font-semibold leading-tight text-foreground"
-              >
-                {greetingText}
-              </h1>
+              />
               {isAdmin && (
                 <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
                   <ShieldAlert className="w-3 h-3" />
