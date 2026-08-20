@@ -44,13 +44,30 @@ export function NotificationBell() {
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
       const isAdmin = profile?.role === 'admin'
 
-      // Clinical alerts (unacknowledged)
-      const { data: alerts } = await supabase
+      // Clinical alerts (unacknowledged) — the real columns are
+      // alert_level/trigger_description, not severity/message (those don't
+      // exist on this table; selecting them was silently failing the whole
+      // query, so no clinical alert had ever actually reached this bell).
+      //
+      // Also scoped to the viewer's own studies unless admin — same PHI-leak
+      // bug already found and fixed on the dashboard (every researcher was
+      // seeing every unacknowledged clinical alert platform-wide); this
+      // query had the identical gap and needed the identical fix.
+      const alertsBaseQ = supabase
         .from('clinical_alerts_log')
-        .select('id, message, severity, created_at, participant_id')
+        .select('id, trigger_description, alert_level, created_at, participant_id')
         .eq('acknowledged', false)
         .order('created_at', { ascending: false })
         .limit(5)
+
+      let alerts: { id: string; trigger_description: string | null; alert_level: string | null; created_at: string; participant_id: string }[] | null = null
+      if (isAdmin) {
+        alerts = (await alertsBaseQ).data
+      } else {
+        const { data: ownedStudyIds } = await supabase.from('studies').select('id').eq('created_by', user.id)
+        const scopeIds = (ownedStudyIds ?? []).map(s => s.id)
+        alerts = scopeIds.length ? (await alertsBaseQ.in('study_id', scopeIds)).data : []
+      }
 
       // Recent activity
       const actQ = supabase.from('activity_logs').select('id, action_type, entity_type, created_at').order('created_at', { ascending: false }).limit(5)
@@ -60,7 +77,7 @@ export function NotificationBell() {
         ...(alerts || []).map(a => ({
           id: `alert-${a.id}`,
           type: 'alert' as const,
-          message: a.message || `Clinical alert for participant`,
+          message: a.trigger_description || `Clinical alert for participant`,
           href: '/audit-log?type=alert',
           createdAt: a.created_at,
           read: false,
@@ -80,9 +97,29 @@ export function NotificationBell() {
     }
 
     load()
-    // Poll every 2 minutes
+
+    // Realtime: re-fetch the instant a clinical alert is inserted or an
+    // activity log row lands, instead of waiting up to 2 minutes to notice
+    // a suicide-risk (or any clinical) alert. Relies on clinical_alerts_log
+    // having a correctly-scoped RLS SELECT policy — Supabase Realtime
+    // enforces the table's own RLS for postgres_changes, so a researcher's
+    // subscription only ever receives rows their policy actually lets them
+    // read; it isn't a separate access-control surface to worry about.
+    const supabase = createClient()
+    const channel = supabase
+      .channel('notification-bell')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'clinical_alerts_log' }, () => load())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_logs' }, () => load())
+      .subscribe()
+
+    // Still poll as a fallback in case the realtime connection drops
+    // silently (network blips, tab backgrounded, etc.) — cheap insurance,
+    // not the primary mechanism anymore.
     const interval = setInterval(load, 120_000)
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const markAllRead = () => {
