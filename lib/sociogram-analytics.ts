@@ -186,6 +186,68 @@ export function labelPropagationCommunities(n: number, edges: DirectedEdge[]): n
   })
 }
 
+// ─── Maximal cliques (undirected, Bron–Kerbosch with pivoting) ───────────────
+// A clique is a set of nodes that are all mutually connected. Standard
+// algorithm: Bron, C., & Kerbosch, J. (1973). "Algorithm 457: finding all
+// cliques of an undirected graph." Communications of the ACM, 16(9), 575-577
+// — with the Tomita et al. (2006) pivoting rule for practical performance.
+// Direction is ignored (mirrors clusteringCoefficient's convention): a tie
+// either way between two people counts as a connection for clique purposes.
+// Only cliques of size >= 3 are returned — a 2-clique is just a single edge
+// and isn't the "tight subgroup" a researcher means by the term.
+
+export function maximalCliques(n: number, edges: DirectedEdge[], minSize = 3): number[][] {
+  const adj = undirectedAdj(n, edges)
+  const cliques: number[][] = []
+
+  function bronKerbosch(R: Set<number>, P: Set<number>, X: Set<number>) {
+    if (P.size === 0 && X.size === 0) {
+      if (R.size >= minSize) cliques.push([...R].sort((a, b) => a - b))
+      return
+    }
+    // Pivot: pick the P∪X vertex with the most neighbors in P, to minimize branching.
+    let pivot = -1, pivotCount = -1
+    for (const v of [...P, ...X]) {
+      const count = [...adj[v]].filter(u => P.has(u)).length
+      if (count > pivotCount) { pivot = v; pivotCount = count }
+    }
+    const candidates = [...P].filter(v => pivot === -1 || !adj[pivot].has(v))
+    for (const v of candidates) {
+      const neighbors = adj[v]
+      bronKerbosch(
+        new Set([...R, v]),
+        new Set([...P].filter(u => neighbors.has(u))),
+        new Set([...X].filter(u => neighbors.has(u))),
+      )
+      P.delete(v)
+      X.add(v)
+    }
+  }
+
+  bronKerbosch(new Set(), new Set(Array.from({ length: n }, (_, i) => i)), new Set())
+  return cliques
+}
+
+// ─── Per-relationship-type density & reciprocity ─────────────────────────────
+// The overall density/reciprocity figures pool every active relationship
+// type together, which hides whether e.g. "Trust" ties are much sparser
+// than "Communication" ties. Break each type out separately.
+
+export function densityByType(
+  n: number,
+  edgesWithType: Array<[number, number, string]>,
+  typeIds: string[],
+): Record<string, { density: number; reciprocity: number; edgeCount: number }> {
+  const maxEdges = n > 1 ? n * (n - 1) : 1
+  const out: Record<string, { density: number; reciprocity: number; edgeCount: number }> = {}
+  for (const id of typeIds) {
+    const subset: DirectedEdge[] = edgesWithType.filter(e => e[2] === id).map(e => [e[0], e[1]])
+    const uniqueDyads = new Set(subset.map(([a, b]) => `${a}|${b}`)).size
+    out[id] = { density: uniqueDyads / maxEdges, reciprocity: reciprocity(subset), edgeCount: subset.length }
+  }
+  return out
+}
+
 // ─── Modularity (for reporting) ───────────────────────────────────────────────
 
 export function modularity(n: number, edges: DirectedEdge[], communities: number[]): number {

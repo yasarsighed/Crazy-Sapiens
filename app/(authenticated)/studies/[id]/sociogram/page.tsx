@@ -12,6 +12,7 @@ import {
   reciprocity, clusteringCoefficient, connectedComponents,
   betweennessCentrality, closenessCentrality, eigenvectorCentrality,
   labelPropagationCommunities, modularity, edgeListCSV, nodeListCSV,
+  maximalCliques, densityByType,
 } from '@/lib/sociogram-analytics'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -27,6 +28,8 @@ interface NetworkMetrics {
   closeness: number[]; eigenvector: number[]; community: number[]
   reciprocity: number; clustering: number; components: number
   modularity: number; density: number; isolates: number
+  cliqueCount: number
+  byType: Array<{ id: string; label: string; color: string; density: number; reciprocity: number; edgeCount: number }>
 }
 interface VizData {
   nodes: VizNode[]; edges: EdgeTuple[]; indegree: number[]
@@ -124,6 +127,7 @@ export default function SociogramResultsPage() {
   const zoomRef      = useRef<any>(null)
   const svgSel       = useRef<any>(null)
   const pinnedRef    = useRef<Set<number>>(new Set())
+  const minimapRef   = useRef<SVGSVGElement>(null)
   const renderedEdgesRef = useRef<EdgeTuple[]>([])
 
   const [vizData, setVizData]       = useState<VizData | null>(null)
@@ -144,9 +148,10 @@ export default function SociogramResultsPage() {
   // betweenness/closeness/eigenvector metrics.
   const [sortBy, setSortBy] = useState<'betweenness' | 'closeness' | 'eigenvector' | 'in' | 'out'>('in')
   const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false)
+  const [highlightCentral, setHighlightCentral] = useState(false)
 
-  const stateRef = useRef({ focusNode, search, showLabels, activeRelTypes, minScore, showRecipOnly, vizData })
-  stateRef.current = { focusNode, search, showLabels, activeRelTypes, minScore, showRecipOnly, vizData }
+  const stateRef = useRef({ focusNode, search, showLabels, activeRelTypes, minScore, showRecipOnly, vizData, highlightCentral, sortBy })
+  stateRef.current = { focusNode, search, showLabels, activeRelTypes, minScore, showRecipOnly, vizData, highlightCentral, sortBy }
 
   // ── Load ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -207,6 +212,13 @@ export default function SociogramResultsPage() {
       // whenever more than one relationship type was in use (e.g. 1000 raw
       // nominations / 380 possible pairs = 263%, seen live on real data).
       const uniqueDyads = new Set(edges.map(e => `${e[0]}|${e[1]}`)).size
+      const cliqueCount = maximalCliques(nodes.length, dirEdges).length
+      const typeDensity = densityByType(nodes.length, edges.map(e => [e[0], e[1], e[2]]), relTypes.map(rt => rt.id))
+      const byType = relTypes.map((rt, i) => ({
+        id: rt.id, label: rt.label,
+        color: rt.color_hex || COMMUNITY_PALETTE[i % COMMUNITY_PALETTE.length],
+        ...typeDensity[rt.id],
+      }))
 
       setVizData({
         nodes, edges, indegree, edgeCfg, relTypes,
@@ -218,6 +230,7 @@ export default function SociogramResultsPage() {
           reciprocity: recip, clustering, components: new Set(components).size,
           modularity: mod, density: uniqueDyads / maxEdges,
           isolates: nodes.filter((_, i) => indegree[i] === 0 && edges.filter(e => e[0] === i).length === 0).length,
+          cliqueCount, byType,
         },
       })
       setActiveRelTypes(new Set(relTypes.map(rt => rt.id)))
@@ -236,13 +249,25 @@ export default function SociogramResultsPage() {
 
   // Focus/search/label toggles only change opacity/visibility of what's
   // already rendered — no rebuild needed.
-  useEffect(() => { applyFilters() }, [focusNode, search, showLabels])
+  useEffect(() => { applyFilters() }, [focusNode, search, showLabels, highlightCentral, sortBy])
 
   const applyFilters = useCallback(() => {
     if (!svgSel.current) return
-    const { focusNode: fn, search: sq, showLabels: sl, vizData: vd } = stateRef.current
+    const { focusNode: fn, search: sq, showLabels: sl, vizData: vd, highlightCentral: hc, sortBy: sb } = stateRef.current
     if (!vd) return
     const lq = sq.toLowerCase()
+
+    let centralId: number | null = null
+    if (hc) {
+      const m = vd.metrics
+      const metricArr = sb === 'in' ? m.inDegree : sb === 'out' ? m.outDegree
+        : sb === 'betweenness' ? m.betweenness : sb === 'closeness' ? m.closeness : m.eigenvector
+      let best = -Infinity
+      metricArr.forEach((v, i) => { if (v > best) { best = v; centralId = i } })
+    }
+    svgSel.current.selectAll('.central-ring').attr('display', function (this: any, d: any) {
+      return hc && d.id === centralId ? null : 'none'
+    })
 
     svgSel.current.selectAll('.edge-path').each(function (d: any) {
       const sa = d.source.id ?? d.source, ta = d.target.id ?? d.target
@@ -307,9 +332,40 @@ export default function SociogramResultsPage() {
     svg.append('rect').attr('width', W).attr('height', H).attr('fill', CANVAS_BG)
 
     const g = svg.append('g').attr('class', 'root-g')
-    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.05, 6]).on('zoom', (ev: any) => g.attr('transform', ev.transform))
+
+    // Minimap — a small always-visible overview so a zoomed-in researcher
+    // can tell where they are in a dense graph without zooming back out.
+    // Pure D3, updated imperatively alongside the main canvas (same
+    // pattern as everything else here) rather than through React state,
+    // so it costs nothing extra on every simulation tick.
+    const MMW = 140, MMH = 100
+    const mmScale = Math.min(MMW / W, MMH / H) * 0.92
+    const mmOffsetX = (MMW - W * mmScale) / 2
+    const mmOffsetY = (MMH - H * mmScale) / 2
+    let mmDots: any = null
+    let mmViewport: any = null
+    if (minimapRef.current) {
+      const mm = d3.select(minimapRef.current).attr('width', MMW).attr('height', MMH)
+      mm.selectAll('*').remove()
+      mm.append('rect').attr('width', MMW).attr('height', MMH).attr('rx', 8).attr('fill', CANVAS_BG).attr('opacity', 0.92)
+      mmDots = mm.append('g')
+      mmViewport = mm.append('rect').attr('fill', 'none').attr('stroke', 'var(--brand-gold)').attr('stroke-width', 1.5).attr('rx', 2)
+    }
+
+    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.05, 6]).on('zoom', (ev: any) => {
+      g.attr('transform', ev.transform)
+      if (!mmViewport) return
+      const t = ev.transform
+      mmViewport
+        .attr('x', mmOffsetX + (-t.x / t.k) * mmScale)
+        .attr('y', mmOffsetY + (-t.y / t.k) * mmScale)
+        .attr('width', Math.min(MMW, (W / t.k) * mmScale))
+        .attr('height', Math.min(MMH, (H / t.k) * mmScale))
+    })
     zoomRef.current = zoom
     svg.call(zoom as any)
+    // Initial viewport rect covers the whole minimap (identity transform).
+    mmViewport?.attr('x', mmOffsetX).attr('y', mmOffsetY).attr('width', W * mmScale).attr('height', H * mmScale)
 
     // Edges — filtered/capped set only (see filterEdges above): this is what
     // actually gets simulated and rendered, not the full unfiltered graph.
@@ -334,6 +390,10 @@ export default function SociogramResultsPage() {
     // Nodes
     const nodeData = vd.nodes.map(n => ({ ...n }))
     let clickTimer: any = null
+
+    const mmNodeDots = mmDots
+      ? mmDots.selectAll('circle').data(nodeData).join('circle').attr('r', 1.6).attr('fill', 'var(--primary)').attr('opacity', 0.75)
+      : null
 
     const node = g.append('g').selectAll('g').data(nodeData).join('g')
       .attr('class', 'node-g').style('cursor', 'pointer')
@@ -388,6 +448,12 @@ export default function SociogramResultsPage() {
       .attr('r', (d: any) => rScale(d.id, vd.indegree) + 2.5).attr('fill', 'none')
       .attr('stroke', '#F97316').attr('stroke-width', 2).attr('stroke-dasharray', '3 2').attr('display', 'none')
 
+    // Central-node highlight ring — shown on whichever single node is top of
+    // the currently-selected "Ranked By" metric, toggled via applyFilters().
+    node.append('circle').attr('class', 'central-ring')
+      .attr('r', (d: any) => rScale(d.id, vd.indegree) + 5).attr('fill', 'none')
+      .attr('stroke', 'var(--brand-gold)').attr('stroke-width', 2.5).attr('display', 'none')
+
     // Initials — was hardcoded to 'Plus Jakarta Sans', a font this app never
     // loads (the real brand fonts are Bricolage Grotesque / Archivo / Space
     // Mono, set up in app/layout.tsx), so it was silently falling back to
@@ -431,6 +497,7 @@ export default function SociogramResultsPage() {
         return arcPath(sx, sy, tx, ty, rS, rT, hasPair)
       })
       node.attr('transform', (d: any) => `translate(${d.x},${d.y})`)
+      mmNodeDots?.attr('cx', (d: any) => mmOffsetX + (d.x ?? 0) * mmScale).attr('cy', (d: any) => mmOffsetY + (d.y ?? 0) * mmScale)
     })
 
     sim.on('end', () => {
@@ -489,6 +556,7 @@ export default function SociogramResultsPage() {
       clustering: m.clustering.toFixed(3), modularity: m.modularity.toFixed(3),
       components: m.components, communities: new Set(m.community).size, isolates: m.isolates,
       avgIn: avg(m.inDegree).toFixed(2), avgOut: avg(m.outDegree).toFixed(2),
+      cliqueCount: m.cliqueCount, byType: m.byType,
     }
   })() : null
 
@@ -617,6 +685,7 @@ export default function SociogramResultsPage() {
               {[
                 { label: 'Show name labels', state: showLabels, toggle: () => setShowLabels(p => !p) },
                 { label: 'Reciprocal ties only', state: showRecipOnly, toggle: () => setShowRecipOnly(p => !p) },
+                { label: 'Highlight most central', state: highlightCentral, toggle: () => setHighlightCentral(p => !p) },
               ].map(opt => (
                 <label key={opt.label} className="flex items-center gap-2.5 cursor-pointer select-none">
                   <button onClick={opt.toggle}
@@ -693,13 +762,29 @@ export default function SociogramResultsPage() {
                       { l:'Modularity',  v:analytics.modularity,  c:'#C6A8F0' },
                       { l:'Components',  v:analytics.components,  c:'#86C99A' },
                       { l:'Avg in / out', v:`${analytics.avgIn} / ${analytics.avgOut}`, c:'#C6A8F0' },
+                      { l:'Cliques',     v:analytics.cliqueCount, c:'#EC8FC8' },
                     ].map(s => (
                       <div key={s.l} className="bg-muted/50 rounded-xl p-2.5 text-center">
                         <p className="text-sm font-bold tabular-nums" style={{ color: s.c }}>{s.v}</p>
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wide leading-tight mt-1">{s.l}</p>
                       </div>
                     ))}
-                    <p className="col-span-2 text-[11px] text-muted-foreground/70 leading-snug">Modularity &gt; 0.3 = strong subgroup structure.</p>
+                    <p className="col-span-2 text-[11px] text-muted-foreground/70 leading-snug">Modularity &gt; 0.3 = strong subgroup structure. A clique is 3+ people all mutually tied.</p>
+
+                    {analytics.byType.length > 1 && (
+                      <div className="col-span-2 mt-1 pt-2.5 border-t border-border/60">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5">Density &amp; reciprocity by relationship</p>
+                        <div className="space-y-1.5">
+                          {analytics.byType.map(t => (
+                            <div key={t.id} className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: t.color }} />
+                              <span className="text-[11px] text-foreground flex-1 truncate">{t.label}</span>
+                              <span className="text-[11px] font-mono text-muted-foreground">{(t.density*100).toFixed(0)}% dens · {(t.reciprocity*100).toFixed(0)}% recip</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -783,6 +868,11 @@ export default function SociogramResultsPage() {
       {/* ══ CANVAS ══ */}
       <div ref={containerRef} className="flex-1 relative overflow-hidden">
         <svg ref={svgRef} className="w-full h-full" style={{ display:'block' }} />
+
+        {/* Minimap — overview + current-viewport indicator for a dense/zoomed graph */}
+        <div className="absolute bottom-4 right-4 rounded-lg border border-border shadow-sm overflow-hidden pointer-events-none">
+          <svg ref={minimapRef} />
+        </div>
 
         {/* Status */}
         <div className="absolute top-3 left-3 flex items-center gap-2 pointer-events-none">
