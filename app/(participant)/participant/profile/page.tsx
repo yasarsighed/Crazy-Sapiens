@@ -147,7 +147,7 @@ export default function ParticipantProfilePage() {
                 />
               ) : (
                 <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary text-2xl font-serif font-semibold">
-                  {getInitials(fullName || profile?.email)}
+                  {getInitials(fullName || profile?.email || null)}
                 </div>
               )}
             </div>

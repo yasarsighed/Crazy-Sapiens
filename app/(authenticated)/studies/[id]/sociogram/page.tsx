@@ -265,18 +265,22 @@ export default function SociogramResultsPage() {
       let best = -Infinity
       metricArr.forEach((v, i) => { if (v > best) { best = v; centralId = i } })
     }
-    svgSel.current.selectAll('.central-ring').attr('display', function (this: any, d: any) {
+    // d3's .attr() overloads don't unify a ValueFn returning `string | null`
+    // cleanly against `any`-typed selections — same class of typing gap as
+    // the couple of d3 `this`-typing quirks elsewhere in this file. Runtime
+    // behavior is unaffected; the cast just satisfies the checker.
+    svgSel.current.selectAll('.central-ring').attr('display', ((d: any) => {
       return hc && d.id === centralId ? null : 'none'
-    })
+    }) as any)
 
-    svgSel.current.selectAll('.edge-path').each(function (d: any) {
+    svgSel.current.selectAll('.edge-path').each(function (this: any, d: any) {
       const sa = d.source.id ?? d.source, ta = d.target.id ?? d.target
       const show = fn === null || sa === fn || ta === fn
-      d3Lib.select(this).style('opacity', show ? 0.8 : 0).style('pointer-events', show ? null : 'none')
+      d3Lib.select(this).style('opacity', show ? 0.8 : 0).style('pointer-events', (show ? null : 'none') as any)
     })
 
     const visibleEdges = renderedEdgesRef.current
-    svgSel.current.selectAll('.node-g').each(function (d: any) {
+    svgSel.current.selectAll('.node-g').each(function (this: any, d: any) {
       const nameMatch = !lq || (d.name as string).toLowerCase().includes(lq)
       const focusDim  = fn !== null && d.id !== fn && !visibleEdges.some(e => (e[0] === fn && e[1] === d.id) || (e[1] === fn && e[0] === d.id))
       d3Lib.select(this).style('opacity', (focusDim || (!!lq && !nameMatch)) ? 0.06 : 1)

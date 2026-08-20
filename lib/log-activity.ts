@@ -7,6 +7,7 @@ type ActionType =
   | 'instrument_added'
   | 'instrument_deleted'
   | 'participant_added'
+  | 'participants_bulk_added'
   | 'participant_removed'
   | 'alert_acknowledged'
   | 'consent_updated'
@@ -28,7 +29,7 @@ export async function logActivity(
   userId: string,
   action: ActionType,
   entity: EntityType,
-  entityId: string,
+  entityId: string | null,
   details?: Record<string, unknown>,
 ) {
   try {

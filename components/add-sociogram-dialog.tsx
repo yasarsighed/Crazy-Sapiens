@@ -179,14 +179,21 @@ export function AddSociogramDialog({ studyId, open, onClose, onSuccess }: Props)
         .eq('status', 'active')
 
       if (enrollments && enrollments.length > 0) {
-        const participantInserts = enrollments.map(e => ({
-          sociogram_id: sociogram.id,
-          participant_id: e.participant_id,
-          enrollment_id: e.id,
-          display_name: (e.profiles as { full_name: string | null } | null)?.full_name ?? 'Participant',
-          has_submitted: false,
-          is_active: true,
-        }))
+        const participantInserts = enrollments.map(e => {
+          // Supabase types this FK embed as a possible array even though
+          // study_enrollments -> profiles is a to-one relation; guard the
+          // shape at runtime instead of just casting past the type error,
+          // in case it ever actually comes back as an array.
+          const profileRow = (Array.isArray(e.profiles) ? e.profiles[0] : e.profiles) as { full_name: string | null } | null
+          return {
+            sociogram_id: sociogram.id,
+            participant_id: e.participant_id,
+            enrollment_id: e.id,
+            display_name: profileRow?.full_name ?? 'Participant',
+            has_submitted: false,
+            is_active: true,
+          }
+        })
 
         await supabase.from('sociogram_participants').insert(participantInserts)
       }

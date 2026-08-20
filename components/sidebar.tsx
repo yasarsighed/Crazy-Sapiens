@@ -251,7 +251,7 @@ export function Sidebar({ profile }: SidebarProps) {
               className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm"
               style={{ background: accentColor }}
             >
-              {getInitials(profile?.full_name)}
+              {getInitials(profile?.full_name ?? null)}
             </div>
           )}
           <div className="min-w-0 flex-1">

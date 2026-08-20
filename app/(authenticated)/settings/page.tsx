@@ -37,7 +37,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState('')
-  const [researcherColor, setResearcherColor] = useState<ResearcherColor>('#86C99A')
+  const [researcherColor, setResearcherColor] = useState<ResearcherColor>('#CE2029')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [createdAt, setCreatedAt] = useState<string | null>(null)
 
