@@ -183,9 +183,22 @@ export default function SociogramResultsPage() {
         return { id: i, name: p.display_name, short: initials(p.display_name) }
       })
 
+      // Dash patterns give relationship types a non-color way to tell apart
+      // — needed since color alone doesn't work for colorblind researchers,
+      // and this canvas can have 5-6 relationship types' edges overlapping
+      // at once. Positive/negative dimensions each get their own pattern
+      // pool so the broad polarity (solid-ish vs broken-looking) still
+      // reads at a glance, and each individual type within a pool gets a
+      // pattern distinct from its siblings.
+      const POSITIVE_DASHES = [null, '2 2', '7 2', '9 2 2 2']
+      const NEGATIVE_DASHES = ['5 3', '1 3', '3 1 1 1']
+      let posIdx = 0, negIdx = 0
       const edgeCfg: EdgeCfg = {}
       relTypes.forEach((rt, i) => {
-        edgeCfg[rt.id] = { label: rt.label, color: rt.color_hex || COMMUNITY_PALETTE[i % COMMUNITY_PALETTE.length], dash: rt.is_negative_dimension ? '6 3' : null }
+        const dash = rt.is_negative_dimension
+          ? NEGATIVE_DASHES[negIdx++ % NEGATIVE_DASHES.length]
+          : POSITIVE_DASHES[posIdx++ % POSITIVE_DASHES.length]
+        edgeCfg[rt.id] = { label: rt.label, color: rt.color_hex || COMMUNITY_PALETTE[i % COMMUNITY_PALETTE.length], dash }
       })
 
       const edges: EdgeTuple[] = nominations
@@ -429,7 +442,12 @@ export default function SociogramResultsPage() {
         const r = containerRef.current!.getBoundingClientRect()
         setTooltip(p => p ? { ...p, x: ev.clientX - r.left + 16, y: ev.clientY - r.top - 12 } : null)
       })
-      .on('mouseleave', () => setTooltip(null))
+      .on('mouseleave', (_ev: any, d: any) => {
+        // Keep the card open when the node you clicked to focus is the one
+        // the mouse just left — otherwise reading it while investigating a
+        // node meant fighting your own cursor movement the whole time.
+        if (stateRef.current.focusNode !== d.id) setTooltip(null)
+      })
 
     // Community glow ring
     node.append('circle').attr('r', (d: any) => rScale(d.id, vd.indegree) + 4).attr('fill', 'none')
@@ -544,12 +562,30 @@ export default function SociogramResultsPage() {
   const toggleRelType = (id: string) => setActiveRelTypes(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
   const filtersActive = minScore > 1 || showRecipOnly || (vizData ? activeRelTypes.size < vizData.relTypes.length : false) || search !== ''
   const resetFilters = () => {
-    setMinScore(1); setShowRecipOnly(false); setSearch(''); setFocusNode(null)
+    setMinScore(1); setShowRecipOnly(false); setSearch(''); setFocusNode(null); setTooltip(null)
     if (vizData) setActiveRelTypes(new Set(vizData.relTypes.map(rt => rt.id)))
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const tipNode  = tooltip && vizData ? vizData.nodes[tooltip.id] : null
+  // Share of this node's ties that go both ways — same definition as the
+  // panel-wide reciprocity stat, just scoped to one node's neighbors.
+  const tipReciprocity = (() => {
+    if (!tipNode || !vizData) return 0
+    const neighbors = new Set<number>()
+    vizData.edges.forEach(e => {
+      if (e[0] === tipNode.id) neighbors.add(e[1])
+      if (e[1] === tipNode.id) neighbors.add(e[0])
+    })
+    if (neighbors.size === 0) return 0
+    let mutual = 0
+    neighbors.forEach(n => {
+      const out = vizData.edges.some(e => e[0] === tipNode.id && e[1] === n)
+      const inn = vizData.edges.some(e => e[0] === n && e[1] === tipNode.id)
+      if (out && inn) mutual++
+    })
+    return mutual / neighbors.size
+  })()
   const relNomCounts = vizData ? vizData.relTypes.map(rt => ({ rt, count: vizData.edges.filter(e => e[2]===rt.id).length })) : []
 
   const analytics = vizData ? (() => {
@@ -662,7 +698,13 @@ export default function SociogramResultsPage() {
                           ? { backgroundColor: cfg.color+'18', borderColor: cfg.color+'55', color: 'var(--foreground)' }
                           : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }
                         }>
-                        <span className="w-6 h-1.5 rounded-full shrink-0" style={{ background: active ? cfg.color : 'var(--muted)' }} />
+                        {/* Shows the actual dash pattern, not just a solid
+                            color swatch — color alone doesn't distinguish
+                            relationship types for colorblind researchers. */}
+                        <svg width="24" height="6" className="shrink-0" aria-hidden="true">
+                          <line x1="0" y1="3" x2="24" y2="3" stroke={active ? cfg.color : 'var(--muted-foreground)'}
+                            strokeWidth={active ? 2.5 : 1.5} strokeDasharray={cfg.dash ?? undefined} opacity={active ? 1 : 0.4} />
+                        </svg>
                         <span className="flex-1 font-semibold text-left truncate">{rt.label}</span>
                         <span className="text-[11px] font-mono opacity-60 shrink-0">{count}</span>
                       </button>
@@ -888,7 +930,7 @@ export default function SociogramResultsPage() {
             <div className="flex items-center gap-2 bg-card/90 backdrop-blur-md border border-primary/30 rounded-xl px-3.5 py-2 shadow-sm pointer-events-auto">
               <span className="w-1.5 h-1.5 rounded-full bg-primary" />
               <span className="text-[13px] font-semibold text-primary">{vizData.nodes[focusNode]?.name}</span>
-              <button onClick={() => setFocusNode(null)} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+              <button onClick={() => { setFocusNode(null); setTooltip(null) }} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
             </div>
           )}
           {cappedInfo && (
@@ -959,6 +1001,13 @@ export default function SociogramResultsPage() {
                 </svg>
                 <span>arc = directed tie</span>
               </div>
+              <div className="w-px h-4 bg-border" />
+              <div className="flex items-center gap-1.5">
+                <svg width="24" height="10" aria-hidden="true">
+                  <line x1="0" y1="5" x2="24" y2="5" stroke="var(--muted-foreground)" strokeWidth="1.5" strokeDasharray="5 3" />
+                </svg>
+                <span>dash = relationship type</span>
+              </div>
             </div>
           </div>
         </div>
@@ -988,6 +1037,10 @@ export default function SociogramResultsPage() {
                   </div>
                 ))}
               </div>
+              <div className="flex items-center justify-between mb-3 px-0.5">
+                <span className="text-[11px] text-muted-foreground">Reciprocity</span>
+                <span className="text-[11px] font-bold font-mono tabular-nums" style={{ color: '#EBC15C' }}>{(tipReciprocity * 100).toFixed(0)}%</span>
+              </div>
               <div className="space-y-1">
                 <p className="section-label">Centrality</p>
                 {[
@@ -1006,6 +1059,22 @@ export default function SociogramResultsPage() {
                   <p className="section-label mb-1">Received by type</p>
                   {vizData.relTypes.map(rt => {
                     const c = vizData.edges.filter(e=>e[1]===tipNode.id&&e[2]===rt.id).length
+                    if (!c) return null
+                    return (
+                      <div key={rt.id} className="flex items-center gap-2 mb-0.5">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{background:vizData.edgeCfg[rt.id]?.color??'#888'}} />
+                        <span className="text-xs text-foreground flex-1 truncate">{rt.label}</span>
+                        <span className="text-xs font-bold" style={{color:vizData.edgeCfg[rt.id]?.color??'#888'}}>{c}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              {vizData.relTypes.length > 0 && (
+                <div className="mt-2.5 pt-2.5 border-t border-border">
+                  <p className="section-label mb-1">Sent by type</p>
+                  {vizData.relTypes.map(rt => {
+                    const c = vizData.edges.filter(e=>e[0]===tipNode.id&&e[2]===rt.id).length
                     if (!c) return null
                     return (
                       <div key={rt.id} className="flex items-center gap-2 mb-0.5">
