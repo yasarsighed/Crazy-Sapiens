@@ -7,6 +7,16 @@ import { logActivity } from '@/lib/log-activity'
 // Body: { rows: Array<{ email, full_name }>, study_id? }
 // Creates many participants in one go. Skips duplicates gracefully.
 // Returns per-row results so the UI can show a summary.
+//
+// Processes rows in small concurrent batches rather than one at a time —
+// 200 fully sequential auth.admin.createUser() calls (each a real network
+// round trip) risked running past Vercel's function timeout before this
+// route ever finished. Batching is also just faster. maxDuration is a
+// second line of defense, not the primary fix.
+export const maxDuration = 300
+
+const BATCH_SIZE = 10
+
 type BulkRow = { email: string; full_name: string }
 type RowResult = {
   email: string
@@ -43,12 +53,11 @@ export async function POST(req: Request) {
     const svc = createServiceClient()
     const results: RowResult[] = []
 
-    for (const raw of rows) {
+    async function createOneParticipant(raw: BulkRow): Promise<RowResult> {
       const email = (raw.email ?? '').trim().toLowerCase()
       const full_name = (raw.full_name ?? '').trim()
       if (!email || !full_name) {
-        results.push({ email, ok: false, error: 'missing email or full_name' })
-        continue
+        return { email, ok: false, error: 'missing email or full_name' }
       }
 
       const tempPassword = `Tmp-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
@@ -60,8 +69,7 @@ export async function POST(req: Request) {
       })
 
       if (createErr || !created?.user) {
-        results.push({ email, ok: false, error: createErr?.message || 'Failed to create user' })
-        continue
+        return { email, ok: false, error: createErr?.message || 'Failed to create user' }
       }
 
       const newUserId = created.user.id
@@ -82,7 +90,13 @@ export async function POST(req: Request) {
         })
       }
 
-      results.push({ email, ok: true, participant_id: newUserId, temp_password: tempPassword })
+      return { email, ok: true, participant_id: newUserId, temp_password: tempPassword }
+    }
+
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+      const batch = rows.slice(i, i + BATCH_SIZE)
+      const batchResults = await Promise.all(batch.map(createOneParticipant))
+      results.push(...batchResults)
     }
 
     const createdCount = results.filter(r => r.ok).length
