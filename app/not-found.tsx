@@ -14,7 +14,6 @@ const NOT_FOUND_LINES = [
   'p > .05 — we fail to reject the null: this page does not exist.',
   "Even a null result is still a result. This isn't even that.",
   'Reviewer 2 requested this page be removed.',
-  'Even Rashmin sir couldn’t find this one.',
 ]
 
 export default function NotFound() {
@@ -35,11 +34,7 @@ export default function NotFound() {
           The page you're looking for wandered off the sampling frame.
         </p>
 
-        <p className="text-xs text-muted-foreground/70 italic font-sans mb-8">
-          It's okay, even Rashmin sir makes mistakes.
-        </p>
-
-        <Button asChild size="lg" className="px-8">
+        <Button asChild size="lg" className="px-8 mt-6">
           <Link href="/dashboard">Back to the lab</Link>
         </Button>
       </div>

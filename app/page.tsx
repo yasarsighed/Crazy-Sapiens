@@ -44,16 +44,6 @@ export default function SplashPage() {
           </p>
         </div>
 
-        {/* A blessing, kept exactly as given */}
-        <div className="mb-10 text-center">
-          <p className="font-serif italic text-base text-foreground/80">
-            &ldquo;Kalyanam Astu&rdquo;
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            &mdash; Dr Rashmin Sompura
-          </p>
-        </div>
-
         {/* Enter button */}
         <Button asChild size="lg" className="px-8">
           <Link href="/login">

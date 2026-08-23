@@ -119,8 +119,6 @@ const QUIPS = [
   'built on caffeine and confidence intervals',
   'correlation is not causation, but it is suspicious',
   'n=20 and a prayer',
-  'when in doubt, ask what Rashmin sir would do',
-  "it's okay, even Rashmin sir makes mistakes",
 ]
 
 function getInitials(name: string | null): string {
