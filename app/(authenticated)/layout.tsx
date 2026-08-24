@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/sidebar'
 import { GlobalProviders } from '@/components/global-providers'
 import { OnboardingChecklist } from '@/components/onboarding-checklist'
+import { deriveCustomTheme, customThemeToCSSVars } from '@/lib/custom-theme'
 import type { Profile } from '@/types/database'
 
 export default async function AuthenticatedLayout({
@@ -33,11 +34,21 @@ export default async function AuthenticatedLayout({
   const researcherColor = profile?.researcher_color || '#CE2029'
   const isNewUser = !profile?.researcher_color // no color set = likely new
 
+  // Custom background: computed server-side from the same DB value on every
+  // render, so there's no client/server mismatch risk (unlike Math.random()
+  // content elsewhere, this is deterministic). Derives a full contrast-safe
+  // token set rather than just swapping --background, so text/cards/borders
+  // stay legible against whatever color the researcher picked — see
+  // lib/custom-theme.ts for the WCAG-contrast guarantee this relies on.
+  const customBg = (profile?.dashboard_prefs as { bgColor?: string | null } | null)?.bgColor
+  const customThemeStyle = customBg ? customThemeToCSSVars(deriveCustomTheme(customBg)) : {}
+
   return (
     <GlobalProviders>
       <div
+        data-app-shell
         className={`min-h-screen bg-background role-${role}`}
-        style={{ '--researcher-color': researcherColor } as React.CSSProperties}
+        style={{ '--researcher-color': researcherColor, ...customThemeStyle } as React.CSSProperties}
       >
         <Sidebar profile={profile as Profile | null} />
         <main id="main-content" className="ml-[240px] min-h-screen">

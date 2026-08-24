@@ -165,7 +165,7 @@ export default async function DashboardPage() {
   const researcherColor = profile?.researcher_color || '#CE2029'
 
   // ── Per-researcher personalization ──
-  const prefs = (profile?.dashboard_prefs as { hidden?: string[]; greeting?: string | null } | null) ?? {}
+  const prefs = (profile?.dashboard_prefs as { hidden?: string[]; greeting?: string | null; bgColor?: string | null } | null) ?? {}
   const hidden = new Set<string>(prefs.hidden ?? [])
   const show = (key: string) => !hidden.has(key)
 
@@ -218,6 +218,7 @@ export default async function DashboardPage() {
                 initialColor={researcherColor}
                 initialHidden={prefs.hidden ?? []}
                 initialGreeting={prefs.greeting ?? null}
+                initialBgColor={prefs.bgColor ?? null}
               />
             )}
             {alertsCount ? (
