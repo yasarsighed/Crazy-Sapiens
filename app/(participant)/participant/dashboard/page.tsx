@@ -221,13 +221,15 @@ export default async function ParticipantDashboardPage() {
           ) : (
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #CE2029, #EC8FC8)' }}
+              style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
             >
               {getInitials(profile?.full_name ?? null)}
             </div>
           )}
           {allDone && studyIds.length > 0 && (
-            <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center shadow-sm text-xs" style={{ background: '#D09028' }}>🏆</div>
+            <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center shadow-sm" style={{ background: '#D09028' }}>
+              <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+            </div>
           )}
         </div>
 
@@ -250,8 +252,8 @@ export default async function ParticipantDashboardPage() {
               </p>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {allDone
-                  ? '🎉 All done — you are awesome!'
-                  : `${grandPending} remaining · you got this!`}
+                  ? 'All done — thank you.'
+                  : `${grandPending} remaining`}
               </p>
               {!allDone && minutesRemaining > 0 && (
                 <p className="text-xs text-muted-foreground/80 mt-0.5">
@@ -370,9 +372,11 @@ export default async function ParticipantDashboardPage() {
                 {/* All done celebration */}
                 {isAllDone && (
                   <div className="flex items-center gap-3 p-4 rounded-2xl border" style={{ background: 'color-mix(in srgb, #86C99A 10%, var(--card))', borderColor: 'color-mix(in srgb, #86C99A 30%, transparent)' }}>
-                    <span className="text-2xl">🏆</span>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: '#86C99A' }}>
+                      <CheckCircle2 className="w-4 h-4 text-white" strokeWidth={3} />
+                    </div>
                     <div>
-                      <p className="text-sm font-bold text-foreground">All done — amazing!</p>
+                      <p className="text-sm font-bold text-foreground">All done — thank you.</p>
                       <p className="text-xs text-muted-foreground">Your contributions support meaningful research.</p>
                     </div>
                   </div>

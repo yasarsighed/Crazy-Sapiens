@@ -124,14 +124,14 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
 
   const funnelRows: FunnelRow[] = [
     ...qStats.map(q => ({
-      label: `📋 ${q.title}`,
+      label: q.title,
       enrolled,
       completed: q.completed,
       pct: enrolled > 0 ? Math.round((q.completed / enrolled) * 100) : 0,
       color: TYPE_COLORS.questionnaire,
     })),
     ...iatStats.map(i => ({
-      label: `⏱️ ${i.title}`,
+      label: i.title,
       enrolled,
       completed: i.completed,
       pct: enrolled > 0 ? Math.round((i.completed / enrolled) * 100) : 0,
@@ -153,7 +153,7 @@ export default async function StudyAnalyticsPage({ params }: { params: Promise<{
       .eq('has_submitted', true)
 
     funnelRows.push({
-      label: `🔗 ${soc.title}`,
+      label: soc.title,
       enrolled,
       completed: submittedCount ?? 0,
       pct: enrolled > 0 ? Math.round(((submittedCount ?? 0) / enrolled) * 100) : 0,

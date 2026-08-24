@@ -298,9 +298,9 @@ export function IatSummary({ stats }: { stats: IatStats[] }) {
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Preference Strength</p>
                   <div className="space-y-2 mt-1">
                     {[
-                      { label: 'Strong preference (|D| ≥ 0.65)', count: strongPref, color: '#DC2626' },
-                      { label: 'Moderate (0.35 ≤ |D| < 0.65)', count: modPref, color: '#F97316' },
-                      { label: 'Slight (0 < |D| < 0.35)', count: slightPref, color: '#EAB308' },
+                      { label: 'Strong preference (|D| ≥ 0.65)', count: strongPref, color: '#CE2029' },
+                      { label: 'Moderate (0.35 ≤ |D| < 0.65)', count: modPref, color: '#F0A65C' },
+                      { label: 'Slight (0 < |D| < 0.35)', count: slightPref, color: '#EBC15C' },
                       { label: 'No preference (D ≈ 0)', count: neutral, color: '#86C99A' },
                     ].map(row => {
                       const pct = iat.completed > 0 ? Math.round((row.count / iat.completed) * 100) : 0
@@ -340,7 +340,10 @@ export function CompletionFunnel({ rows }: { rows: FunnelRow[] }) {
       {rows.map(r => (
         <div key={r.label} className="flex items-center gap-4 p-4 rounded-2xl border border-border bg-card">
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-foreground truncate">{r.label}</p>
+            <p className="text-[13px] font-semibold text-foreground truncate flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: r.color }} />
+              {r.label}
+            </p>
             <div className="flex items-center gap-3 mt-2">
               <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
                 <div

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Circle, ChevronDown, X, Sparkles } from 'lucide-react'
+import { CheckCircle2, Circle, ChevronDown, X, ListChecks } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -57,25 +57,27 @@ export function OnboardingChecklist() {
   if (dismissed || allDone) return null
 
   return (
-    <div className="fixed bottom-6 left-[256px] z-40 w-72 rounded-2xl border border-border bg-card shadow-xl overflow-hidden animate-slide-up">
-      {/* Header */}
+    <div className="fixed bottom-6 left-[256px] z-40 w-72 rounded-xl border border-border bg-card shadow-lg overflow-hidden animate-slide-up">
+      {/* Header — same dark-ink treatment as the sidebar/panel headers
+          elsewhere, not a one-off gradient no other surface in this app uses. */}
       <div
         className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
-        style={{ background: 'linear-gradient(135deg, #C6A8F0, #8B5CF6)' }}
+        style={{ background: 'var(--popover)' }}
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-white/80" />
-          <span className="text-[13px] font-semibold text-white">Getting started</span>
-          <span className="text-[10px] font-bold text-white/70 bg-white/20 px-1.5 py-px rounded-full">
+          <ListChecks className="w-3.5 h-3.5" style={{ color: 'var(--brand-gold)' }} />
+          <span className="text-[13px] font-semibold" style={{ color: 'var(--popover-foreground)' }}>Getting started</span>
+          <span className="text-[10px] font-bold px-1.5 py-px rounded-md" style={{ color: 'var(--popover-foreground)', background: 'color-mix(in srgb, var(--popover-foreground) 16%, transparent)' }}>
             {doneCount}/{STEPS.length}
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <ChevronDown className={cn('w-3.5 h-3.5 text-white/70 transition-transform', !expanded && 'rotate-180')} />
+          <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', !expanded && 'rotate-180')} style={{ color: 'color-mix(in srgb, var(--popover-foreground) 70%, transparent)' }} />
           <button
             onClick={e => { e.stopPropagation(); dismiss() }}
-            className="text-white/60 hover:text-white transition-colors ml-1"
+            className="transition-colors ml-1 hover:opacity-80"
+            style={{ color: 'color-mix(in srgb, var(--popover-foreground) 60%, transparent)' }}
             aria-label="Dismiss"
           >
             <X className="w-3.5 h-3.5" />
