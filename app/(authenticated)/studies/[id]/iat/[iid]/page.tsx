@@ -447,7 +447,11 @@ export default async function IATResultsPage({
             ].map(row => (
               <div key={row.label} className="flex items-center justify-between border-b border-border last:border-0 pb-2 last:pb-0">
                 <span className="text-muted-foreground">{row.label}</span>
-                <span className="font-mono font-medium" style={{ color: row.color }}>
+                {/* row.color as literal text sat directly on the card
+                    background — measured 1.23 contrast against a saturated
+                    custom background. A dot now carries the color coding. */}
+                <span className="font-mono font-medium text-card-foreground inline-flex items-center gap-1.5">
+                  {row.color && <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{ background: row.color }} />}
                   {row.value}
                 </span>
               </div>
