@@ -11,6 +11,33 @@
 // against the chosen background is therefore always at least WCAG AA
 // (4.5:1) for normal text, for literally any input color.
 
+// The sidebar (and anything else that must stay outside the customizable
+// area) sits *inside* the shell div in the DOM, so it needs to explicitly
+// re-declare every one of these custom properties back to the fixed Red
+// Room defaults — not just reset its own `color`. A component using
+// `text-foreground`/`text-muted-foreground`/etc. reads the *custom property*
+// directly at that element; it isn't relying on inherited `color` at all, so
+// resetting `color` on an ancestor does nothing for it. Values copied
+// verbatim from :root in app/globals.css — keep in sync if that changes.
+export const FIXED_THEME_VARS: React.CSSProperties = {
+  '--background': '#A50E22',
+  '--foreground': '#FEF9EE',
+  '--card': '#97091C',
+  '--card-foreground': '#FEF9EE',
+  '--popover': '#14090A',
+  '--popover-foreground': '#FEF9EE',
+  '--muted': '#8E0A1B',
+  '--muted-foreground': '#F2E7CF',
+  '--secondary': '#180D0C',
+  '--secondary-foreground': '#FBF3E4',
+  '--accent': '#BE1329',
+  '--accent-foreground': '#FEF9EE',
+  '--border': 'rgba(254,249,238,0.32)',
+  '--input': 'rgba(254,249,238,0.36)',
+  '--ring': '#FEF9EE',
+  color: '#FEF9EE',
+} as React.CSSProperties
+
 export interface CustomThemeTokens {
   background: string
   foreground: string

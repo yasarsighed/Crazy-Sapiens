@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Logo } from './logo'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/types/database'
+import { FIXED_THEME_VARS } from '@/lib/custom-theme'
 import {
   LayoutDashboard,
   FlaskConical,
@@ -211,7 +212,7 @@ export function Sidebar({ profile }: SidebarProps) {
     <TooltipProvider delayDuration={200}>
       <aside
         className="w-[240px] h-screen flex flex-col fixed left-0 top-0 z-40 bg-sidebar border-r border-sidebar-border"
-        style={{ '--researcher-color': accentColor, color: 'var(--sidebar-foreground)' } as React.CSSProperties}
+        style={{ ...FIXED_THEME_VARS, '--researcher-color': accentColor, color: 'var(--sidebar-foreground)' } as React.CSSProperties}
       >
         {/* ── Header: logo + role badge ── */}
         <div
