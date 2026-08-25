@@ -41,10 +41,14 @@ interface Props {
 function previewBackground(hex: string | null) {
   const shell = document.querySelector<HTMLElement>('[data-app-shell]')
   if (!shell) return
+  // Derive the property list from the same source customThemeToCSSVars
+  // builds from, rather than a separately hand-maintained list — a
+  // previous version of this list drifted out of sync when --primary/
+  // --primary-foreground were added to the derived set, so Reset wasn't
+  // actually clearing them from the live preview.
+  const sampleKeys = Object.keys(customThemeToCSSVars(deriveCustomTheme('#000000')))
   if (!hex) {
-    for (const k of ['--background','--foreground','--card','--card-foreground','--popover','--popover-foreground','--muted','--muted-foreground','--secondary','--secondary-foreground','--accent','--accent-foreground','--border','--input','--ring']) {
-      shell.style.removeProperty(k)
-    }
+    for (const k of sampleKeys) shell.style.removeProperty(k)
     return
   }
   const vars = customThemeToCSSVars(deriveCustomTheme(hex))

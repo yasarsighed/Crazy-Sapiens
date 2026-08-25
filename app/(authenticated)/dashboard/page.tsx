@@ -340,7 +340,17 @@ export default async function DashboardPage() {
                             <td className="px-4 py-3 align-middle">
                               <div className="flex gap-1 flex-wrap">
                                 {typeMeta.filter(t => counts[t.k] > 0).map(t => (
-                                  <span key={t.k} className="font-mono text-[10px] px-1.5 py-0.5 rounded border tabular-nums" style={{ color: t.color, borderColor: `color-mix(in srgb, ${t.color} 30%, transparent)` }}>
+                                  // These pastel instrument colors (lavender/mint/orange) were
+                                  // tuned for legibility on the fixed dark-red background — used
+                                  // directly as text color, they measure as low as 1.7:1 contrast
+                                  // against a light custom background. A background tint doesn't
+                                  // fix that (the text color itself is the problem, not what's
+                                  // behind it), so identity now comes from the border + a small
+                                  // dot instead, and the text uses the guaranteed-safe foreground
+                                  // token — same pattern already used for relationship-type badges
+                                  // elsewhere in the app.
+                                  <span key={t.k} className="font-mono text-[10px] pl-1 pr-1.5 py-0.5 rounded border tabular-nums flex items-center gap-1" style={{ color: 'var(--card-foreground)', borderColor: `color-mix(in srgb, ${t.color} 40%, transparent)` }}>
+                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: t.color }} />
                                     {counts[t.k]}&nbsp;{t.label}
                                   </span>
                                 ))}

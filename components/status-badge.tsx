@@ -37,7 +37,15 @@ export function StatusBadge({ status, className, showDot = true, size = 'sm' }: 
         className
       )}
       style={{
-        color,
+        // Text uses the guaranteed-safe card-foreground token, not the
+        // status color directly — several of these (the greens/oranges
+        // especially) are pastel enough that as literal text color they
+        // measured well under WCAG AA against a light custom background
+        // (as low as 1.74:1, confirmed with an automated contrast audit).
+        // Identity now comes from the dot + border + tint instead, which
+        // doesn't have that failure mode regardless of what background a
+        // researcher picks.
+        color: 'var(--card-foreground)',
         background: `color-mix(in srgb, ${color} 12%, var(--card))`,
         borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
       }}

@@ -32,6 +32,8 @@ export const FIXED_THEME_VARS: React.CSSProperties = {
   '--secondary-foreground': '#FBF3E4',
   '--accent': '#BE1329',
   '--accent-foreground': '#FEF9EE',
+  '--primary': '#FBF3E4',
+  '--primary-foreground': '#B71329',
   '--border': 'rgba(254,249,238,0.32)',
   '--input': 'rgba(254,249,238,0.36)',
   '--ring': '#FEF9EE',
@@ -51,6 +53,8 @@ export interface CustomThemeTokens {
   secondaryForeground: string
   accent: string
   accentForeground: string
+  primary: string
+  primaryForeground: string
   border: string
   input: string
   ring: string
@@ -160,6 +164,21 @@ export function deriveCustomTheme(backgroundHex: string): CustomThemeTokens {
   const mutedForeground = blend(foreground, backgroundHex, 0.72)
   const borderAlpha = useWhiteText ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)'
 
+  // --primary is used both as a button's own background (bg-primary +
+  // text-primary-foreground — safe regardless, since it carries its own
+  // background) *and*, in ~24 places across the app, as plain inline link/
+  // accent text color sitting directly on the page background (text-primary
+  // with no bg of its own). Leaving it as the fixed cream broke every one of
+  // those — confirmed live: a "View all" link measured 1.01 contrast against
+  // a light custom card. Reusing the same guaranteed-safe foreground/
+  // background pair fixes the text-color use case everywhere at once,
+  // trading the fixed cream-button-red-text brand look for a
+  // still-legible black/white button under a custom theme — legibility
+  // over brand distinctiveness once a researcher has opted into a custom
+  // background.
+  const primary = foreground
+  const primaryForeground = useWhiteText ? '#000000' : '#FFFFFF'
+
   return {
     background: backgroundHex,
     foreground,
@@ -173,6 +192,8 @@ export function deriveCustomTheme(backgroundHex: string): CustomThemeTokens {
     secondaryForeground: foreground,
     accent,
     accentForeground: foreground,
+    primary,
+    primaryForeground,
     border: borderAlpha,
     input: borderAlpha,
     ring: foreground,
@@ -193,6 +214,8 @@ export function customThemeToCSSVars(tokens: CustomThemeTokens): React.CSSProper
     '--secondary-foreground': tokens.secondaryForeground,
     '--accent': tokens.accent,
     '--accent-foreground': tokens.accentForeground,
+    '--primary': tokens.primary,
+    '--primary-foreground': tokens.primaryForeground,
     '--border': tokens.border,
     '--input': tokens.input,
     '--ring': tokens.ring,
