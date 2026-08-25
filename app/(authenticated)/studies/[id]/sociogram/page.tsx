@@ -647,14 +647,21 @@ export default function SociogramResultsPage() {
 
         {/* Header — dark ink, matching the app's own sidebar header treatment.
             Was `background: var(--primary)` (a near-white cream, #FBF3E4)
-            with white text on top — effectively invisible. */}
+            with white text on top — effectively invisible. Text here uses
+            var(--popover-foreground), not hardcoded white: a custom
+            background can make --popover render *lighter* (it's derived
+            from whatever background the researcher picked), and hardcoded
+            white text doesn't track that — same invisible-text bug, new
+            trigger. --popover-foreground is guaranteed to contrast with
+            --popover specifically, by construction. */}
         <div className="px-4 pt-5 pb-4 shrink-0" style={{ background: 'var(--popover)' }}>
-          <Link href={`/studies/${studyId}`} className="flex items-center gap-1 text-white/60 hover:text-white text-xs mb-3 transition-colors">
+          <Link href={`/studies/${studyId}`} className="flex items-center gap-1 text-xs mb-3 transition-colors hover:opacity-100"
+            style={{ color: 'color-mix(in srgb, var(--popover-foreground) 60%, transparent)' }}>
             <ArrowLeft className="w-3.5 h-3.5" /> Back to study
           </Link>
           <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--brand-gold)' }}>Sociogram</p>
-          <h1 className="font-serif text-lg font-bold text-white leading-tight">{vizData?.sociogramTitle}</h1>
-          <p className="text-xs text-white/60 mt-1.5">{vizData?.participantCount} enrolled · {vizData?.submittedCount} submitted</p>
+          <h1 className="font-serif text-lg font-bold leading-tight" style={{ color: 'var(--popover-foreground)' }}>{vizData?.sociogramTitle}</h1>
+          <p className="text-xs mt-1.5" style={{ color: 'color-mix(in srgb, var(--popover-foreground) 60%, transparent)' }}>{vizData?.participantCount} enrolled · {vizData?.submittedCount} submitted</p>
         </div>
 
         {/* Search */}
