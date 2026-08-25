@@ -58,7 +58,15 @@ export function ClinicalAlert({
         <AlertTriangle className={cn('w-4 h-4 mt-0.5 shrink-0', styles.icon)} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className={cn('text-[10px] font-medium uppercase', styles.icon)}>
+            {/* Was styles.icon (var(--destructive) directly) — that color is
+                fixed, tuned for the original light card, and isn't part of
+                the custom-background system. Confirmed live: "Critical"
+                measured a 1.48 contrast ratio against a dark custom card —
+                dark red text on a dark background. The icon above keeps the
+                accent color (decorative, paired with the explicit word
+                "Critical" either way); the label itself uses the
+                guaranteed-safe foreground token. */}
+            <span className="text-[10px] font-medium uppercase text-foreground">
               {styles.label}
             </span>
             <span className="text-[10px] text-muted-foreground">
