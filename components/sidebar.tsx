@@ -211,7 +211,7 @@ export function Sidebar({ profile }: SidebarProps) {
     <TooltipProvider delayDuration={200}>
       <aside
         className="w-[240px] h-screen flex flex-col fixed left-0 top-0 z-40 bg-sidebar border-r border-sidebar-border"
-        style={{ '--researcher-color': accentColor } as React.CSSProperties}
+        style={{ '--researcher-color': accentColor, color: 'var(--sidebar-foreground)' } as React.CSSProperties}
       >
         {/* ── Header: logo + role badge ── */}
         <div

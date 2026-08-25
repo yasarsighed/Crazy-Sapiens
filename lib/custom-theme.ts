@@ -169,5 +169,18 @@ export function customThemeToCSSVars(tokens: CustomThemeTokens): React.CSSProper
     '--border': tokens.border,
     '--input': tokens.input,
     '--ring': tokens.ring,
+    // `color` is CSS-inherited, and this app's base layer sets it once on
+    // <body> (color: var(--foreground)), resolved against the *original*
+    // :root value before it ever reaches this element. Redefining the
+    // --foreground custom property here doesn't change that already-
+    // inherited value — nothing between <body> and here re-consumes the
+    // variable. Elements without their own explicit text-color utility
+    // (most headings, most plain text) were silently keeping the original
+    // cream color no matter what background was picked — confirmed via a
+    // live contrast audit: cream-on-light-custom-card measured a 1.06
+    // contrast ratio. Setting `color` explicitly here, not just the custom
+    // property, makes this element the new inherited base for everything
+    // under it that doesn't set its own color.
+    color: tokens.foreground,
   } as React.CSSProperties
 }
