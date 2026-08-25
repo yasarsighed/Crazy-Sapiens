@@ -234,7 +234,14 @@ export default async function QuestionnaireResultsPage({
         <div className="flex items-start gap-3 mb-1 flex-wrap">
           <h1 className="font-serif text-2xl text-foreground">{questionnaire.title}</h1>
           {questionnaire.validated_scale_name && (
-            <Badge variant="outline" className="mt-1 border-[#C6A8F0] text-[#C6A8F0]">
+            // A literal purple text color on the raw page background measured
+            // 1.21 contrast against a saturated custom background. Tint now
+            // carries identity; text uses the guaranteed-safe foreground token.
+            <Badge
+              variant="outline"
+              className="mt-1"
+              style={{ borderColor: '#C6A8F060', backgroundColor: '#C6A8F018', color: 'var(--foreground)' }}
+            >
               {questionnaire.validated_scale_name}
             </Badge>
           )}
@@ -336,10 +343,14 @@ export default async function QuestionnaireResultsPage({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="rounded-lg border border-border p-3">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cronbach's α</p>
-                <p className="text-xl font-serif font-semibold" style={{ color: alphaInfo.color }}>
-                  {isNaN(alpha) ? '—' : alpha.toFixed(3)}
+                {/* alphaInfo.color as literal text sat directly on the card
+                    background — measured 1.23 contrast against a saturated
+                    custom background. A dot now carries the color coding. */}
+                <p className="text-xl font-serif font-semibold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: alphaInfo.color }} />
+                  <span className="text-card-foreground">{isNaN(alpha) ? '—' : alpha.toFixed(3)}</span>
                 </p>
-                <p className="text-[10px] mt-0.5" style={{ color: alphaInfo.color }}>{alphaInfo.label}</p>
+                <p className="text-[10px] mt-0.5 text-muted-foreground">{alphaInfo.label}</p>
                 <p className="text-[10px] text-muted-foreground mt-1">n = {completeMatrix.length}, k = {itemList.length}</p>
               </div>
               <div className="rounded-lg border border-border p-3">
@@ -428,7 +439,12 @@ export default async function QuestionnaireResultsPage({
                               {isNaN(r) ? '—' : r.toFixed(3)}
                             </td>
                             {alphaIfDeleted.length > 0 && (
-                              <td className={`py-1.5 text-right font-mono tabular-nums ${improves ? 'text-[#E76F51] font-semibold' : ''}`}>
+                              // text-[#E76F51] as a literal sat directly on the
+                              // table's ambient background — measured 2.28
+                              // contrast against a saturated custom
+                              // background. Bold weight now carries the
+                              // emphasis; text uses the safe foreground token.
+                              <td className={`py-1.5 text-right font-mono tabular-nums ${improves ? 'font-semibold text-foreground' : ''}`}>
                                 {isNaN(aIf) ? '—' : aIf.toFixed(3)}
                                 {improves && <span className="ml-1 text-[9px]">↑</span>}
                               </td>

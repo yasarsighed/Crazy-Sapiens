@@ -659,7 +659,13 @@ export default function SociogramResultsPage() {
             style={{ color: 'color-mix(in srgb, var(--popover-foreground) 60%, transparent)' }}>
             <ArrowLeft className="w-3.5 h-3.5" /> Back to study
           </Link>
-          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--brand-gold)' }}>Sociogram</p>
+          {/* --brand-gold is a fixed literal, not derived per custom
+              background — same bug class as the earlier hardcoded-white
+              header fix, new trigger. Measured 1.31 contrast against a
+              derived --popover on a saturated custom background.
+              --popover-foreground is guaranteed to contrast with --popover
+              by construction. */}
+          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--popover-foreground)' }}>Sociogram</p>
           <h1 className="font-serif text-lg font-bold leading-tight" style={{ color: 'var(--popover-foreground)' }}>{vizData?.sociogramTitle}</h1>
           <p className="text-xs mt-1.5" style={{ color: 'color-mix(in srgb, var(--popover-foreground) 60%, transparent)' }}>{vizData?.participantCount} enrolled · {vizData?.submittedCount} submitted</p>
         </div>

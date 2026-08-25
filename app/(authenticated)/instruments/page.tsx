@@ -132,7 +132,16 @@ export default async function InstrumentsPage() {
                     )}
                   </div>
                 </div>
-                <Badge variant="outline" className="shrink-0 capitalize text-xs" style={{ borderColor: accent + '60', color: accent }}>
+                {/* Text used to be the raw accent color, sitting directly on the
+                    page background — the pastel iat/sociogram accents measured
+                    ~1.2 contrast against a saturated custom background. Identity
+                    now comes from the border/background tint; text uses the
+                    guaranteed-safe foreground token. */}
+                <Badge
+                  variant="outline"
+                  className="shrink-0 capitalize text-xs"
+                  style={{ borderColor: accent + '60', backgroundColor: accent + '18', color: 'var(--foreground)' }}
+                >
                   {row.type}
                 </Badge>
                 <Link

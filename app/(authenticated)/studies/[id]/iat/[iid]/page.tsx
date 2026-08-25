@@ -242,10 +242,14 @@ export default async function IATResultsPage({
       <div className="mb-6">
         <div className="flex items-start gap-3 mb-2 flex-wrap">
           <h1 className="font-serif text-2xl text-foreground">{instrument.title}</h1>
+          {/* cfg.badgeColor as literal text color sat directly on the page
+              background — measured 2.47 contrast against a saturated custom
+              background. Tint now carries identity; text uses the
+              guaranteed-safe foreground token. */}
           <Badge
             variant="outline"
             className="mt-1"
-            style={{ borderColor: cfg.badgeColor, color: cfg.badgeColor }}
+            style={{ borderColor: cfg.badgeColor + '60', backgroundColor: cfg.badgeColor + '18', color: 'var(--foreground)' }}
           >
             {cfg.name}
           </Badge>
@@ -326,13 +330,22 @@ export default async function IATResultsPage({
             </div>
             {cohensD(scoresA, scoresB) && (() => {
               const eff = cohensD(scoresA, scoresB)!
-              const tone = Math.abs(eff.d) < 0.2 ? 'text-[#52B788]' : Math.abs(eff.d) < 0.5 ? 'text-[#E9C46A]' : 'text-destructive'
+              const dot = Math.abs(eff.d) < 0.2 ? '#52B788' : Math.abs(eff.d) < 0.5 ? '#E9C46A' : '#E63946'
               const interpretation = Math.abs(eff.d) < 0.2 ? '— negligible order effect'
                 : Math.abs(eff.d) < 0.5 ? '— small order effect, monitor'
                 : '— substantial order effect, investigate before reporting'
               return (
                 <div className="mt-3 text-xs text-muted-foreground">
-                  Cohen&apos;s <em>d</em> (A − B) = <span className={`font-mono font-medium ${tone}`}>{fmt(eff.d, 2)}</span>{' '}
+                  Cohen&apos;s <em>d</em> (A − B) ={' '}
+                  {/* The effect-size color used to be the text color itself,
+                      sitting directly on the card background — as low as
+                      1.23 contrast against a saturated custom background.
+                      A dot now carries the color coding; the number uses the
+                      guaranteed-safe foreground token. */}
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: dot }} />
+                    <span className="font-mono font-medium text-foreground">{fmt(eff.d, 2)}</span>
+                  </span>{' '}
                   <span className="font-mono">[95% CI {fmt(eff.ciLow, 2)}, {fmt(eff.ciHigh, 2)}]</span>
                   <span className="ml-2 opacity-80">{interpretation}</span>
                 </div>
@@ -357,7 +370,11 @@ export default async function IATResultsPage({
               <div key={band.label} className="rounded-lg p-3 border" style={{ borderColor: band.color + '60', backgroundColor: band.color + '12' }}>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: band.color }} />
-                  <span className="font-semibold" style={{ color: band.color }}>{band.short.replace(' ⚑', '')}</span>
+                  {/* band.color as literal text color measured well under
+                      WCAG AA against a lightly-tinted custom card. The dot
+                      above carries the color identity; text uses the
+                      guaranteed-safe card-foreground token. */}
+                  <span className="font-semibold text-card-foreground">{band.short.replace(' ⚑', '')}</span>
                   {band.clinical && <span className="text-destructive font-bold">⚑</span>}
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-snug">{band.label}</p>
@@ -492,7 +509,10 @@ export default async function IATResultsPage({
                         <td className="py-3 pr-3">
                           {ps.dScore !== null ? (
                             <div>
-                              <span className="font-serif font-semibold text-base" style={{ color: band?.color }}>
+                              {/* band.color as literal text color sat directly
+                                  on the table row background — same fix as the
+                                  interpretation-guide band label above. */}
+                              <span className="font-serif font-semibold text-base text-card-foreground">
                                 {fmt(ps.dScore)}
                               </span>
                               {band && (

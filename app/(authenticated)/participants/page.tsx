@@ -262,11 +262,19 @@ export default async function ParticipantsPage() {
                               <>
                                 <CheckCircle className="w-4 h-4" style={{ color: typeColor[inst.type] }} />
                                 {qScore && (
-                                  <span
-                                    className="text-[9px] mt-0.5 font-medium"
-                                    style={{ color: severityColor(qScore.severity) }}
-                                  >
-                                    {qScore.score}{qScore.severity ? ` · ${qScore.severity}` : ''}
+                                  <span className="flex items-center gap-1 mt-0.5">
+                                    <span
+                                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                                      style={{ background: severityColor(qScore.severity) }}
+                                    />
+                                    {/* Severity color used to be the text color itself, sitting
+                                        directly on the page background — a pastel like #E9C46A
+                                        measured 1.01 contrast against a saturated custom
+                                        background. Identity now comes from the dot; the text uses
+                                        the guaranteed-safe foreground token. */}
+                                    <span className="text-[9px] font-medium text-foreground">
+                                      {qScore.score}{qScore.severity ? ` · ${qScore.severity}` : ''}
+                                    </span>
                                   </span>
                                 )}
                               </>

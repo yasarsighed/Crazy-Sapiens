@@ -46,7 +46,15 @@ export default function ScaleLibraryPage() {
                 <span
                   key={band.label}
                   className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                  style={{ color: band.color, background: `color-mix(in srgb, ${band.color} 16%, var(--card))` }}
+                  style={{
+                    // band.color as literal text color measured as low as 1.01
+                    // contrast against a saturated custom background — a 16%
+                    // tint barely shifts luminance. Text now uses the
+                    // guaranteed-safe card-foreground token; band.color stays
+                    // as the tint for visual identity.
+                    color: 'var(--card-foreground)',
+                    background: `color-mix(in srgb, ${band.color} 16%, var(--card))`,
+                  }}
                 >
                   {band.label} {band.min}–{band.max}
                 </span>
