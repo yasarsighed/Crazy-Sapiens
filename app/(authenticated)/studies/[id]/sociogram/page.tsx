@@ -11,7 +11,7 @@ import * as d3Lib from 'd3'
 import {
   reciprocity, clusteringCoefficient, connectedComponents,
   betweennessCentrality, closenessCentrality, eigenvectorCentrality,
-  labelPropagationCommunities, modularity, edgeListCSV, nodeListCSV,
+  modularityCommunities, modularity, edgeListCSV, nodeListCSV,
   maximalCliques, densityByType,
 } from '@/lib/sociogram-analytics'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -211,7 +211,7 @@ export default function SociogramResultsPage() {
       const betweenness = betweennessCentrality(nodes.length, dirEdges)
       const closeness   = closenessCentrality(nodes.length, dirEdges)
       const eigenvector = eigenvectorCentrality(nodes.length, dirEdges)
-      const community   = labelPropagationCommunities(nodes.length, dirEdges)
+      const community   = modularityCommunities(nodes.length, dirEdges)
       const components  = connectedComponents(nodes.length, dirEdges)
       const recip       = reciprocity(dirEdges)
       const clustering  = clusteringCoefficient(nodes.length, dirEdges)
@@ -902,7 +902,7 @@ export default function SociogramResultsPage() {
                     </div>
                   ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground/70 mt-2.5">Label propagation (undirected).</p>
+                <p className="text-[11px] text-muted-foreground/70 mt-2.5">Greedy modularity maximisation (directed).</p>
               </div>
             )}
 

@@ -133,15 +133,21 @@ export function closenessCentrality(n: number, edges: DirectedEdge[]): number[] 
 }
 
 // ─── Eigenvector centrality (power iteration on in-degree adjacency) ──────────
+// Iterates on (A + I) rather than A. The leading eigenvector is the same
+// whenever the plain measure is defined, but when ties only point one way (no
+// cycles, common in small classroom sociograms) plain power iteration on A
+// collapses to all zeros, scoring even the most-nominated person as 0.
 
-export function eigenvectorCentrality(n: number, edges: DirectedEdge[], iter = 100): number[] {
+export function eigenvectorCentrality(n: number, edges: DirectedEdge[], iter = 200): number[] {
+  if (n === 0) return []
   // Use in-degree: a node is important if important nodes point to it.
   const inAdj: number[][] = Array.from({ length: n }, () => [])
   for (const [a, b] of edges) if (a !== b) inAdj[b].push(a)
 
   let x = new Array(n).fill(1 / Math.sqrt(n))
   for (let k = 0; k < iter; k++) {
-    const y = new Array(n).fill(0)
+    const y = [...x] // the + I term
+
     for (let i = 0; i < n; i++) for (const j of inAdj[i]) y[i] += x[j]
     const norm = Math.sqrt(y.reduce((s, v) => s + v * v, 0)) || 1
     const next = y.map(v => v / norm)
@@ -153,36 +159,70 @@ export function eigenvectorCentrality(n: number, edges: DirectedEdge[], iter = 1
   return x
 }
 
-// ─── Community detection via label propagation (undirected) ───────────────────
-// Deterministic-ish: iterates in fixed order, breaks ties by lowest label.
-// Good enough for sociogram-scale networks (n < 200).
+// ─── Community detection via greedy modularity maximisation ───────────────────
+// Agglomerative, in the spirit of Clauset, Newman & Moore (2004), "Finding
+// community structure in very large networks," Physical Review E, 70, 066111.
+// Starts with everyone alone and repeatedly merges the two groups whose merge
+// raises modularity most, stopping when no merge helps. It optimises exactly
+// the directed modularity that modularity() below reports, on the same edge
+// list (repeated ties across relationship types count as weight).
+//
+// Replaces label propagation, which with a fixed update order swept one label
+// across any bridging person and reported two linked cliques as ONE group
+// (modularity 0). Always test with two triangles joined by a bridge.
 
-export function labelPropagationCommunities(n: number, edges: DirectedEdge[]): number[] {
-  const adj = undirectedAdj(n, edges)
-  const labels = Array.from({ length: n }, (_, i) => i)
-  const maxIter = 50
+export function modularityCommunities(n: number, edges: DirectedEdge[]): number[] {
+  const ties = edges.filter(([a, b]) => a !== b)
+  const m = ties.length
+  const comm = Array.from({ length: n }, (_, i) => i)
+  if (m === 0) return comm
 
-  for (let it = 0; it < maxIter; it++) {
-    let changed = false
-    for (let i = 0; i < n; i++) {
-      if (adj[i].size === 0) continue
-      const counts = new Map<number, number>()
-      for (const j of adj[i]) counts.set(labels[j], (counts.get(labels[j]) ?? 0) + 1)
-      // Pick label with max count; tie-break by lowest label id
-      let best = labels[i], bestCount = -1
-      for (const [lbl, c] of counts) {
-        if (c > bestCount || (c === bestCount && lbl < best)) { best = lbl; bestCount = c }
-      }
-      if (best !== labels[i]) { labels[i] = best; changed = true }
+  const Kout = new Map<number, number>()
+  const Kin = new Map<number, number>()
+  for (let i = 0; i < n; i++) { Kout.set(i, 0); Kin.set(i, 0) }
+  const between = new Map<string, number>() // "a>b": tie count from group a to group b
+  for (const [a, b] of ties) {
+    Kout.set(a, Kout.get(a)! + 1)
+    Kin.set(b, Kin.get(b)! + 1)
+    between.set(`${a}>${b}`, (between.get(`${a}>${b}`) ?? 0) + 1)
+  }
+
+  for (;;) {
+    let best: [number, number] | null = null
+    let bestGain = 1e-12
+    const pairs = new Set<string>()
+    for (const key of between.keys()) {
+      const [a, b] = key.split('>').map(Number)
+      if (a !== b) pairs.add(a < b ? `${a}|${b}` : `${b}|${a}`)
     }
-    if (!changed) break
+    for (const p of [...pairs].sort()) {
+      const [a, b] = p.split('|').map(Number)
+      const eab = (between.get(`${a}>${b}`) ?? 0) + (between.get(`${b}>${a}`) ?? 0)
+      const gain = eab / m - (Kout.get(a)! * Kin.get(b)! + Kout.get(b)! * Kin.get(a)!) / (m * m)
+      if (gain > bestGain) { bestGain = gain; best = [a, b] }
+    }
+    if (!best) break
+    const [keep, gone] = best
+    for (let i = 0; i < n; i++) if (comm[i] === gone) comm[i] = keep
+    Kout.set(keep, Kout.get(keep)! + Kout.get(gone)!)
+    Kin.set(keep, Kin.get(keep)! + Kin.get(gone)!)
+    Kout.delete(gone)
+    Kin.delete(gone)
+    const next = new Map<string, number>()
+    for (const [key, count] of between) {
+      const [x, y] = key.split('>').map(Number)
+      const k = `${x === gone ? keep : x}>${y === gone ? keep : y}`
+      next.set(k, (next.get(k) ?? 0) + count)
+    }
+    between.clear()
+    for (const [k, v] of next) between.set(k, v)
   }
 
   // Renumber communities to 0..k-1
   const remap = new Map<number, number>()
-  return labels.map(l => {
-    if (!remap.has(l)) remap.set(l, remap.size)
-    return remap.get(l)!
+  return comm.map(c => {
+    if (!remap.has(c)) remap.set(c, remap.size)
+    return remap.get(c)!
   })
 }
 

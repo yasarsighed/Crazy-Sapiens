@@ -23,13 +23,19 @@ specific formula/algorithm it implements rather than one paper:
     there.
   - eigenvector_centrality: Bonacich (1972) eigenvector centrality via
     power iteration on the in-degree adjacency (a node is important if
-    important nodes nominate it).
+    important nodes nominate it). Iterates on (A + I): same leading
+    eigenvector whenever the plain measure is defined, but does not
+    collapse to all zeros on acyclic (one-way) networks.
   - modularity: Leicht & Newman (2007), "Community structure in
     directed networks." Physical Review Letters, 100(11), 118703 —
     the directed-graph modularity formula.
-  - label_propagation_communities: Raghavan, Albert & Kumara (2007),
-    "Near linear time algorithm to detect community structures in
-    large-scale networks." Physical Review E, 76(3), 036106.
+  - modularity_communities: greedy agglomerative modularity maximisation
+    in the spirit of Clauset, Newman & Moore (2004), "Finding community
+    structure in very large networks." Physical Review E, 70, 066111.
+    Optimises the same directed modularity that modularity() reports.
+    Replaces label propagation (Raghavan et al., 2007), whose fixed-order
+    variant merged two cliques joined by one bridge person into a single
+    community.
 
 Mirrors lib/sociogram-analytics.ts function-for-function so the two can
 be diffed directly; node IDs are 0-indexed integers throughout, same as
@@ -168,7 +174,9 @@ def closeness_centrality(n: int, edges: list[DirectedEdge]) -> list[float]:
     return out
 
 
-def eigenvector_centrality(n: int, edges: list[DirectedEdge], iterations: int = 100) -> list[float]:
+def eigenvector_centrality(n: int, edges: list[DirectedEdge], iterations: int = 200) -> list[float]:
+    if n == 0:
+        return []
     in_adj: list[list[int]] = [[] for _ in range(n)]
     for a, b in edges:
         if a != b:
@@ -176,7 +184,7 @@ def eigenvector_centrality(n: int, edges: list[DirectedEdge], iterations: int = 
 
     x = [1 / (n ** 0.5)] * n
     for _ in range(iterations):
-        y = [0.0] * n
+        y = list(x)  # the + I term
         for i in range(n):
             for j in in_adj[i]:
                 y[i] += x[j]
@@ -189,32 +197,46 @@ def eigenvector_centrality(n: int, edges: list[DirectedEdge], iterations: int = 
     return x
 
 
-def label_propagation_communities(n: int, edges: list[DirectedEdge]) -> list[int]:
-    adj = _undirected_adj(n, edges)
-    labels = list(range(n))
-    max_iter = 50
+def modularity_communities(n: int, edges: list[DirectedEdge]) -> list[int]:
+    ties = [(a, b) for a, b in edges if a != b]
+    m = len(ties)
+    comm = list(range(n))
+    if m == 0:
+        return comm
 
-    for _ in range(max_iter):
-        changed = False
-        for i in range(n):
-            if not adj[i]:
-                continue
-            counts: dict[int, int] = {}
-            for j in adj[i]:
-                counts[labels[j]] = counts.get(labels[j], 0) + 1
-            best, best_count = labels[i], -1
-            for lbl, c in counts.items():
-                if c > best_count or (c == best_count and lbl < best):
-                    best, best_count = lbl, c
-            if best != labels[i]:
-                labels[i] = best
-                changed = True
-        if not changed:
+    k_out = {i: 0 for i in range(n)}
+    k_in = {i: 0 for i in range(n)}
+    between: dict[tuple[int, int], int] = {}
+    for a, b in ties:
+        k_out[a] += 1
+        k_in[b] += 1
+        between[(a, b)] = between.get((a, b), 0) + 1
+
+    while True:
+        pairs = sorted({(min(a, b), max(a, b)) for a, b in between if a != b},
+                       key=lambda p: f"{p[0]}|{p[1]}")  # same order as the TS string sort
+        best = None
+        best_gain = 1e-12
+        for a, b in pairs:
+            eab = between.get((a, b), 0) + between.get((b, a), 0)
+            gain = eab / m - (k_out[a] * k_in[b] + k_out[b] * k_in[a]) / (m * m)
+            if gain > best_gain:
+                best_gain, best = gain, (a, b)
+        if best is None:
             break
+        keep, gone = best
+        comm = [keep if c == gone else c for c in comm]
+        k_out[keep] += k_out.pop(gone)
+        k_in[keep] += k_in.pop(gone)
+        merged: dict[tuple[int, int], int] = {}
+        for (x, y), count in between.items():
+            key = (keep if x == gone else x, keep if y == gone else y)
+            merged[key] = merged.get(key, 0) + count
+        between = merged
 
     remap: dict[int, int] = {}
     result = []
-    for l in labels:
+    for l in comm:
         if l not in remap:
             remap[l] = len(remap)
         result.append(remap[l])
@@ -293,9 +315,20 @@ def _self_test() -> None:
     ec = eigenvector_centrality(n, edges)
     assert abs(sum(v * v for v in ec) - 1.0) < 1e-6, "Eigenvector centrality should be unit-normalized."
 
-    comms = label_propagation_communities(n, edges)
+    comms = modularity_communities(n, edges)
     q = modularity(n, edges, comms)
     assert -1.0 <= q <= 1.0
+
+    # One-way chain 0->2, 1->2: plain power iteration collapses to zeros.
+    ec_dag = eigenvector_centrality(3, [(0, 2), (1, 2)])
+    assert ec_dag[2] > ec_dag[0] > 0, "Most-nominated node must score highest, not 0."
+
+    # Two reciprocated triangles bridged by one tie must give two communities.
+    tri = [(0, 1), (1, 0), (1, 2), (2, 1), (0, 2), (2, 0),
+           (3, 4), (4, 3), (4, 5), (5, 4), (3, 5), (5, 3), (2, 3), (3, 2)]
+    bridged = modularity_communities(6, tri)
+    assert len(set(bridged)) == 2 and bridged[0] == bridged[2] and bridged[3] == bridged[5], bridged
+    assert modularity(6, tri, bridged) > 0.3
 
     print("All sociogram-metrics self-tests passed.")
 

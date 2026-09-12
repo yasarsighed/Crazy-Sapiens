@@ -144,8 +144,17 @@ function buildBlockDefs(cfg: IATTypeConfig, orderB: boolean): BlockDef[] {
 
   if (!orderB) return blocks
 
-  // Order B: swap B3/B4 ↔ B6/B7 content (pools + labels)
+  // Order B: swap B3/B4 ↔ B6/B7 content (pools + labels), and also flip B1.
+  // Each combined round must keep the concept sides the participant just
+  // practised: B1 → B3/B4 and B5 → B6/B7. Without flipping B1, Order B
+  // practised ConceptA on the left and then immediately tested with ConceptB
+  // on the left, so Order B's first combined rounds carried an extra
+  // side-switch cost that Order A never had.
   return blocks.map(def => {
+    if (def.blockNum === 1) {
+      return { ...def, label: `Practice — ${cB} vs ${cA}`, leftLabel: def.rightLabel, rightLabel: def.leftLabel,
+        pools: def.pools.map(p => ({ ...p, key: p.key === 'e' ? 'i' : 'e' as ResponseKey })) }
+    }
     if (def.blockNum === 3) {
       const src = blocks.find(b => b.blockNum === 6)!
       return { ...def, label: src.label.replace('Practice', 'Practice'), leftLabel: src.leftLabel, rightLabel: src.rightLabel, pools: src.pools }
@@ -156,7 +165,7 @@ function buildBlockDefs(cfg: IATTypeConfig, orderB: boolean): BlockDef[] {
     }
     if (def.blockNum === 5) {
       // Reversed — flip pool keys
-      return { ...def, leftLabel: def.rightLabel, rightLabel: def.leftLabel,
+      return { ...def, label: `Practice — ${cA} vs ${cB} (switched)`, leftLabel: def.rightLabel, rightLabel: def.leftLabel,
         pools: def.pools.map(p => ({ ...p, key: p.key === 'e' ? 'i' : 'e' as ResponseKey })) }
     }
     if (def.blockNum === 6) {
