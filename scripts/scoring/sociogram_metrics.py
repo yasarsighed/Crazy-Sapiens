@@ -21,11 +21,13 @@ specific formula/algorithm it implements rather than one paper:
     wf_improved=True closeness, chosen because sociograms are frequently
     disconnected and the classic Bavelas (1950) formula is undefined
     there.
-  - eigenvector_centrality: Bonacich (1972) eigenvector centrality via
-    power iteration on the in-degree adjacency (a node is important if
-    important nodes nominate it). Iterates on (A + I): same leading
-    eigenvector whenever the plain measure is defined, but does not
-    collapse to all zeros on acyclic (one-way) networks.
+  - katz_centrality: Katz (1953), "A new status index derived from
+    sociometric analysis." Psychometrika, 18(1), 39-43. x_i = beta +
+    alpha * sum of x_j over people j who chose i, beta = 1, alpha =
+    0.85 / largest eigenvalue (0.5 when ties never loop back, where the
+    eigenvalue is 0). Replaces eigenvector centrality, which is undefined
+    on one-way networks. Cross-checked against NetworkX
+    katz_centrality(normalized=False).
   - modularity: Leicht & Newman (2007), "Community structure in
     directed networks." Physical Review Letters, 100(11), 118703 —
     the directed-graph modularity formula.
@@ -174,27 +176,99 @@ def closeness_centrality(n: int, edges: list[DirectedEdge]) -> list[float]:
     return out
 
 
-def eigenvector_centrality(n: int, edges: list[DirectedEdge], iterations: int = 200) -> list[float]:
-    if n == 0:
-        return []
-    in_adj: list[list[int]] = [[] for _ in range(n)]
-    for a, b in edges:
-        if a != b:
-            in_adj[b].append(a)
+KATZ_BETA = 1.0
+KATZ_ALPHA_SHARE = 0.85
+KATZ_FALLBACK_ALPHA = 0.5
 
-    x = [1 / (n ** 0.5)] * n
-    for _ in range(iterations):
-        y = list(x)  # the + I term
-        for i in range(n):
-            for j in in_adj[i]:
-                y[i] += x[j]
-        norm = (sum(v * v for v in y)) ** 0.5 or 1.0
-        nxt = [v / norm for v in y]
-        diff = sum(abs(nxt[i] - x[i]) for i in range(n))
+
+def _strongly_connected_components(n: int, ties: list[DirectedEdge]) -> list[list[int]]:
+    """Kosaraju, iterative. Mirrors stronglyConnectedComponents() in the TS file."""
+    out: list[list[int]] = [[] for _ in range(n)]
+    inn: list[list[int]] = [[] for _ in range(n)]
+    for a, b in ties:
+        out[a].append(b)
+        inn[b].append(a)
+    seen = [False] * n
+    order: list[int] = []
+    for s in range(n):
+        if seen[s]:
+            continue
+        seen[s] = True
+        stack = [[s, 0]]
+        while stack:
+            top = stack[-1]
+            v = top[0]
+            if top[1] < len(out[v]):
+                w = out[v][top[1]]
+                top[1] += 1
+                if not seen[w]:
+                    seen[w] = True
+                    stack.append([w, 0])
+            else:
+                stack.pop()
+                order.append(v)
+    comp = [-1] * n
+    comps: list[list[int]] = []
+    for s in reversed(order):
+        if comp[s] != -1:
+            continue
+        c = len(comps)
+        comps.append([])
+        comp[s] = c
+        st = [s]
+        while st:
+            v = st.pop()
+            comps[c].append(v)
+            for w in inn[v]:
+                if comp[w] == -1:
+                    comp[w] = c
+                    st.append(w)
+    return comps
+
+
+def largest_eigenvalue(n: int, edges: list[DirectedEdge]) -> float:
+    """Spectral radius: max over strongly connected components (block-triangular
+    matrix). 0 when ties never loop back; otherwise power iteration on the
+    component's primitive (A + I), which converges geometrically to the exact value."""
+    ties = [(a, b) for a, b in edges if a != b]
+    lam = 0.0
+    for members in _strongly_connected_components(n, ties):
+        if len(members) < 2:
+            continue
+        local = {v: i for i, v in enumerate(members)}
+        sub = [(local[a], local[b]) for a, b in ties if a in local and b in local]
+        m = len(members)
+        x = [1 / (m ** 0.5)] * m
+        r = 0.0
+        for _ in range(20_000):
+            y = list(x)
+            for a, b in sub:
+                y[b] += x[a]
+            norm = sum(v * v for v in y) ** 0.5
+            x = [v / norm for v in y]
+            done = abs(norm - r) < 1e-13 * norm
+            r = norm
+            if done:
+                break
+        lam = max(lam, r - 1)
+    return lam
+
+
+def katz_centrality(n: int, edges: list[DirectedEdge]) -> tuple[list[float], float]:
+    """Returns (scores, alpha). Mirrors katzCentrality() in lib/sociogram-analytics.ts."""
+    lam = largest_eigenvalue(n, edges)
+    alpha = KATZ_ALPHA_SHARE / lam if lam > 0 else KATZ_FALLBACK_ALPHA
+    ties = [(a, b) for a, b in edges if a != b]
+    x = [KATZ_BETA] * n
+    for _ in range(100_000):
+        nxt = [KATZ_BETA] * n
+        for a, b in ties:
+            nxt[b] += alpha * x[a]
+        diff = max((abs(nxt[i] - x[i]) for i in range(n)), default=0.0)
         x = nxt
-        if diff < 1e-8:
+        if diff < 1e-12:
             break
-    return x
+    return x, alpha
 
 
 def modularity_communities(n: int, edges: list[DirectedEdge]) -> list[int]:
@@ -312,16 +386,19 @@ def _self_test() -> None:
     clc = closeness_centrality(n, edges)
     assert all(0 <= v <= 1 for v in clc)
 
-    ec = eigenvector_centrality(n, edges)
-    assert abs(sum(v * v for v in ec) - 1.0) < 1e-6, "Eigenvector centrality should be unit-normalized."
+    kz, kz_alpha = katz_centrality(n, edges)
+    assert abs(largest_eigenvalue(n, edges) - 1.3247179572) < 1e-6, "Plastic number: root of l^3 = l + 1."
+    assert abs(kz_alpha - 0.85 / 1.3247179572) < 1e-6
+    assert all(v >= 1.0 for v in kz), "Katz scores are never below the baseline."
 
     comms = modularity_communities(n, edges)
     q = modularity(n, edges, comms)
     assert -1.0 <= q <= 1.0
 
-    # One-way chain 0->2, 1->2: plain power iteration collapses to zeros.
-    ec_dag = eigenvector_centrality(3, [(0, 2), (1, 2)])
-    assert ec_dag[2] > ec_dag[0] > 0, "Most-nominated node must score highest, not 0."
+    # One-way network: 0, 1, 3 choose 2; 2 chooses 4. Hand values with alpha 0.5.
+    kz_dag, a_dag = katz_centrality(5, [(0, 2), (1, 2), (3, 2), (2, 4)])
+    assert a_dag == 0.5
+    assert all(abs(v - e) < 1e-12 for v, e in zip(kz_dag, [1, 1, 2.5, 1, 2.25])), kz_dag
 
     # Two reciprocated triangles bridged by one tie must give two communities.
     tri = [(0, 1), (1, 0), (1, 2), (2, 1), (0, 2), (2, 0),

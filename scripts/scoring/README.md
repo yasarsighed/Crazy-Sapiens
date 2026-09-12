@@ -70,10 +70,13 @@ method. Three findings:
 3. **Sociogram network metrics**
    ([lib/sociogram-analytics.ts](../../lib/sociogram-analytics.ts)):
    standard graph-theory formulas (Brandes' betweenness, Wasserman & Faust
-   closeness, Bonacich eigenvector centrality, Leicht & Newman directed
-   modularity), cross-validated against `sociogram_metrics.py`. Two fixes:
-   eigenvector centrality now iterates on (A + I), because plain power
-   iteration collapsed to all zeros on one-way (acyclic) networks; and
+   closeness, Katz status, Leicht & Newman directed modularity),
+   cross-validated against `sociogram_metrics.py`. Two fixes:
+   eigenvector centrality was replaced by Katz (1953) centrality (beta = 1,
+   alpha = 0.85 / largest eigenvalue, or 0.5 when ties never loop back),
+   because eigenvector centrality is undefined on one-way (acyclic)
+   networks: plain power iteration collapsed to all zeros. Katz matches
+   NetworkX `katz_centrality(normalized=False)`; and
    community detection now uses greedy modularity maximisation (Clauset,
    Newman & Moore 2004) instead of label propagation, which merged two
    groups joined by a single bridging person into one (modularity 0).

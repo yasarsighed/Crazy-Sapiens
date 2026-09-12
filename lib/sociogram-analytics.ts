@@ -132,31 +132,111 @@ export function closenessCentrality(n: number, edges: DirectedEdge[]): number[] 
   return out
 }
 
-// ─── Eigenvector centrality (power iteration on in-degree adjacency) ──────────
-// Iterates on (A + I) rather than A. The leading eigenvector is the same
-// whenever the plain measure is defined, but when ties only point one way (no
-// cycles, common in small classroom sociograms) plain power iteration on A
-// collapses to all zeros, scoring even the most-nominated person as 0.
+// ─── Katz centrality ──────────────────────────────────────────────────────────
+// Katz, L. (1953). "A new status index derived from sociometric analysis."
+// Psychometrika, 18(1), 39-43. Everyone starts with beta = 1 and gains alpha
+// times the score of each person who chose them:
+//   x_i = beta + alpha * sum over j->i of x_j
+// so 1.00 means chosen by no one. alpha = 0.85 / largest eigenvalue (the
+// sum only converges below 1 / largest eigenvalue); when ties never loop back
+// that eigenvalue is 0, any alpha converges, and a fixed 0.5 is used.
+//
+// Replaces eigenvector centrality, which is undefined on one-way networks
+// (common in small classroom sociograms): plain power iteration collapsed to
+// all zeros, and the (A + I) workaround piled the scores onto whoever sat at
+// the end of the longest chain, with values that shifted with iteration count.
+// Cross-checked against NetworkX katz_centrality(normalized=False).
 
-export function eigenvectorCentrality(n: number, edges: DirectedEdge[], iter = 200): number[] {
-  if (n === 0) return []
-  // Use in-degree: a node is important if important nodes point to it.
-  const inAdj: number[][] = Array.from({ length: n }, () => [])
-  for (const [a, b] of edges) if (a !== b) inAdj[b].push(a)
-
-  let x = new Array(n).fill(1 / Math.sqrt(n))
-  for (let k = 0; k < iter; k++) {
-    const y = [...x] // the + I term
-
-    for (let i = 0; i < n; i++) for (const j of inAdj[i]) y[i] += x[j]
-    const norm = Math.sqrt(y.reduce((s, v) => s + v * v, 0)) || 1
-    const next = y.map(v => v / norm)
-    let diff = 0
-    for (let i = 0; i < n; i++) diff += Math.abs(next[i] - x[i])
-    x = next
-    if (diff < 1e-8) break
+// Strongly connected components (Kosaraju, iterative): groups in which
+// everyone can reach everyone else along ties.
+function stronglyConnectedComponents(n: number, ties: DirectedEdge[]): number[][] {
+  const out: number[][] = Array.from({ length: n }, () => [])
+  const inn: number[][] = Array.from({ length: n }, () => [])
+  for (const [a, b] of ties) { out[a].push(b); inn[b].push(a) }
+  const seen = new Array(n).fill(false)
+  const order: number[] = []
+  for (let s = 0; s < n; s++) {
+    if (seen[s]) continue
+    seen[s] = true
+    const stack: [number, number][] = [[s, 0]]
+    while (stack.length) {
+      const top = stack[stack.length - 1]
+      const v = top[0]
+      if (top[1] < out[v].length) {
+        const w = out[v][top[1]++]
+        if (!seen[w]) { seen[w] = true; stack.push([w, 0]) }
+      } else {
+        stack.pop()
+        order.push(v)
+      }
+    }
   }
-  return x
+  const comp = new Array(n).fill(-1)
+  const comps: number[][] = []
+  for (let k = order.length - 1; k >= 0; k--) {
+    const s = order[k]
+    if (comp[s] !== -1) continue
+    const c = comps.length
+    comps.push([])
+    comp[s] = c
+    const stack = [s]
+    while (stack.length) {
+      const v = stack.pop()!
+      comps[c].push(v)
+      for (const w of inn[v]) if (comp[w] === -1) { comp[w] = c; stack.push(w) }
+    }
+  }
+  return comps
+}
+
+// Largest eigenvalue (spectral radius) of the tie matrix. The matrix is block
+// triangular over strongly connected components, so this is the largest value
+// over components: 0 when ties never loop back, otherwise at least 1. Inside a
+// component (A + I) is primitive, so power iteration converges geometrically
+// to the exact value, including on periodic networks where plain A oscillates.
+export function largestEigenvalue(n: number, edges: DirectedEdge[]): number {
+  const ties = edges.filter(([a, b]) => a !== b)
+  let lambda = 0
+  for (const members of stronglyConnectedComponents(n, ties)) {
+    if (members.length < 2) continue
+    const local = new Map(members.map((v, i) => [v, i]))
+    const sub = ties.filter(([a, b]) => local.has(a) && local.has(b)).map(([a, b]) => [local.get(a)!, local.get(b)!])
+    const m = members.length
+    let x = new Array(m).fill(1 / Math.sqrt(m))
+    let r = 0
+    for (let k = 0; k < 20_000; k++) {
+      const y = [...x]
+      for (const [a, b] of sub) y[b] += x[a]
+      const norm = Math.hypot(...y)
+      x = y.map(v => v / norm)
+      const done = Math.abs(norm - r) < 1e-13 * norm
+      r = norm
+      if (done) break
+    }
+    lambda = Math.max(lambda, r - 1)
+  }
+  return lambda
+}
+
+export const KATZ_BETA = 1
+export const KATZ_ALPHA_SHARE = 0.85
+export const KATZ_FALLBACK_ALPHA = 0.5
+
+export function katzCentrality(n: number, edges: DirectedEdge[]): { scores: number[]; alpha: number } {
+  const lambda = largestEigenvalue(n, edges)
+  const alpha = lambda > 0 ? KATZ_ALPHA_SHARE / lambda : KATZ_FALLBACK_ALPHA
+  // Repeated ties (the same pair under several relationship types) count as weight.
+  const ties = edges.filter(([a, b]) => a !== b)
+  let x = new Array(n).fill(KATZ_BETA)
+  for (let k = 0; k < 100_000; k++) {
+    const next = new Array(n).fill(KATZ_BETA)
+    for (const [a, b] of ties) next[b] += alpha * x[a]
+    let diff = 0
+    for (let i = 0; i < n; i++) diff = Math.max(diff, Math.abs(next[i] - x[i]))
+    x = next
+    if (diff < 1e-12) break
+  }
+  return { scores: x, alpha }
 }
 
 // ─── Community detection via greedy modularity maximisation ───────────────────
@@ -338,11 +418,12 @@ export function nodeListCSV(
     outDegree: number[]
     betweenness: number[]
     closeness: number[]
-    eigenvector: number[]
+    katz: number[]
+    katzAlpha: number
     community: number[]
   },
 ): string {
-  const rows = ['Id,Label,InDegree,OutDegree,Betweenness,Closeness,Eigenvector,Community']
+  const rows = ['Id,Label,InDegree,OutDegree,Betweenness,Closeness,Katz,KatzAlpha,Community']
   for (const n of nodes) {
     const safe = n.name.replace(/[",]/g, ' ')
     rows.push([
@@ -352,7 +433,8 @@ export function nodeListCSV(
       metrics.outDegree[n.id] ?? 0,
       (metrics.betweenness[n.id] ?? 0).toFixed(4),
       (metrics.closeness[n.id] ?? 0).toFixed(4),
-      (metrics.eigenvector[n.id] ?? 0).toFixed(4),
+      (metrics.katz[n.id] ?? 1).toFixed(4),
+      metrics.katzAlpha.toFixed(6),
       metrics.community[n.id] ?? 0,
     ].join(','))
   }

@@ -10,7 +10,7 @@ import {
 import * as d3Lib from 'd3'
 import {
   reciprocity, clusteringCoefficient, connectedComponents,
-  betweennessCentrality, closenessCentrality, eigenvectorCentrality,
+  betweennessCentrality, closenessCentrality, katzCentrality,
   modularityCommunities, modularity, edgeListCSV, nodeListCSV,
   maximalCliques, densityByType,
 } from '@/lib/sociogram-analytics'
@@ -25,7 +25,7 @@ type EdgeTuple = [number, number, string, number]
 type EdgeCfg   = Record<string, { label: string; color: string; dash: string | null }>
 interface NetworkMetrics {
   inDegree: number[]; outDegree: number[]; betweenness: number[]
-  closeness: number[]; eigenvector: number[]; community: number[]
+  closeness: number[]; katz: number[]; katzAlpha: number; community: number[]
   reciprocity: number; clustering: number; components: number
   modularity: number; density: number; isolates: number
   cliqueCount: number
@@ -145,8 +145,8 @@ export default function SociogramResultsPage() {
   const [cappedInfo, setCappedInfo] = useState<{ shown: number; total: number } | null>(null)
   // Defaults to in-degree ("who got nominated the most") — the question a
   // researcher almost always asks first, rather than the more academic
-  // betweenness/closeness/eigenvector metrics.
-  const [sortBy, setSortBy] = useState<'betweenness' | 'closeness' | 'eigenvector' | 'in' | 'out'>('in')
+  // betweenness/closeness/Katz metrics.
+  const [sortBy, setSortBy] = useState<'betweenness' | 'closeness' | 'katz' | 'in' | 'out'>('in')
   const [showAdvancedMetrics, setShowAdvancedMetrics] = useState(false)
   const [highlightCentral, setHighlightCentral] = useState(false)
 
@@ -210,7 +210,7 @@ export default function SociogramResultsPage() {
 
       const betweenness = betweennessCentrality(nodes.length, dirEdges)
       const closeness   = closenessCentrality(nodes.length, dirEdges)
-      const eigenvector = eigenvectorCentrality(nodes.length, dirEdges)
+      const katzResult  = katzCentrality(nodes.length, dirEdges)
       const community   = modularityCommunities(nodes.length, dirEdges)
       const components  = connectedComponents(nodes.length, dirEdges)
       const recip       = reciprocity(dirEdges)
@@ -239,7 +239,7 @@ export default function SociogramResultsPage() {
         sociogramTitle: sociogram.title,
         metrics: {
           inDegree: indegree, outDegree: nodes.map((_, i) => edges.filter(e => e[0] === i).length),
-          betweenness, closeness, eigenvector, community,
+          betweenness, closeness, katz: katzResult.scores, katzAlpha: katzResult.alpha, community,
           reciprocity: recip, clustering, components: new Set(components).size,
           modularity: mod, density: uniqueDyads / maxEdges,
           isolates: nodes.filter((_, i) => indegree[i] === 0 && edges.filter(e => e[0] === i).length === 0).length,
@@ -274,7 +274,7 @@ export default function SociogramResultsPage() {
     if (hc) {
       const m = vd.metrics
       const metricArr = sb === 'in' ? m.inDegree : sb === 'out' ? m.outDegree
-        : sb === 'betweenness' ? m.betweenness : sb === 'closeness' ? m.closeness : m.eigenvector
+        : sb === 'betweenness' ? m.betweenness : sb === 'closeness' ? m.closeness : m.katz
       let best = -Infinity
       metricArr.forEach((v, i) => { if (v > best) { best = v; centralId = i } })
     }
@@ -604,15 +604,15 @@ export default function SociogramResultsPage() {
     ? [...vizData.nodes].map(n => ({
         node: n, inD: vizData.metrics.inDegree[n.id]??0, outD: vizData.metrics.outDegree[n.id]??0,
         betw: vizData.metrics.betweenness[n.id]??0, clos: vizData.metrics.closeness[n.id]??0,
-        eig: vizData.metrics.eigenvector[n.id]??0, comm: vizData.metrics.community[n.id]??0,
+        katz: vizData.metrics.katz[n.id]??1, comm: vizData.metrics.community[n.id]??0,
       }))
       .sort((a,b) => {
-        const k = sortBy==='in'?'inD':sortBy==='out'?'outD':sortBy==='betweenness'?'betw':sortBy==='closeness'?'clos':'eig'
+        const k = sortBy==='in'?'inD':sortBy==='out'?'outD':sortBy==='betweenness'?'betw':sortBy==='closeness'?'clos':'katz'
         return (b as any)[k]-(a as any)[k]
       })
     : []
 
-  const maxFor = (k: 'betw'|'clos'|'eig'|'inD'|'outD') => Math.max(...centralityRows.map(r=>r[k] as number), 0.0001)
+  const maxFor = (k: 'betw'|'clos'|'katz'|'inD'|'outD') => Math.max(...centralityRows.map(r=>r[k] as number), 0.0001)
 
   const communities = vizData ? (() => {
     const map: Record<number, VizNode[]> = {}
@@ -860,14 +860,19 @@ export default function SociogramResultsPage() {
                     <option value="out">Most nominations sent</option>
                     <option value="betweenness">Betweenness</option>
                     <option value="closeness">Closeness</option>
-                    <option value="eigenvector">Eigenvector</option>
+                    <option value="katz">Katz status</option>
                   </select>
                 </div>
+                {sortBy === 'katz' && (
+                  <p className="text-[11px] text-muted-foreground/70 mb-2">
+                    Katz (1953): 1.00 = chosen by no one; rises with each nominator, more when they are chosen themselves. α = {vizData?.metrics.katzAlpha.toFixed(3)}.
+                  </p>
+                )}
                 <div className="space-y-1">
                   {centralityRows.slice(0, 12).map(r => {
-                    const rv = sortBy==='in'?r.inD:sortBy==='out'?r.outD:sortBy==='betweenness'?r.betw:sortBy==='closeness'?r.clos:r.eig
+                    const rv = sortBy==='in'?r.inD:sortBy==='out'?r.outD:sortBy==='betweenness'?r.betw:sortBy==='closeness'?r.clos:r.katz
                     const dv = typeof rv==='number'&&!Number.isInteger(rv)?rv.toFixed(3):String(rv)
-                    const mk = sortBy==='in'?'inD':sortBy==='out'?'outD':sortBy==='betweenness'?'betw':sortBy==='closeness'?'clos':'eig'
+                    const mk = sortBy==='in'?'inD':sortBy==='out'?'outD':sortBy==='betweenness'?'betw':sortBy==='closeness'?'clos':'katz'
                     const bp = maxFor(mk as any)>0?(rv as number)/maxFor(mk as any)*100:0
                     const col = communityColor(r.comm)
                     return (
@@ -1059,7 +1064,7 @@ export default function SociogramResultsPage() {
                 {[
                   { l:'Betweenness', v:vizData.metrics.betweenness[tipNode.id]?.toFixed(3)??"—", c:'#CE2029' },
                   { l:'Closeness',   v:vizData.metrics.closeness[tipNode.id]?.toFixed(3)??"—",   c:'#F0A65C' },
-                  { l:'Eigenvector', v:vizData.metrics.eigenvector[tipNode.id]?.toFixed(3)??"—", c:'#C6A8F0' },
+                  { l:'Katz status', v:vizData.metrics.katz[tipNode.id]?.toFixed(3)??"—", c:'#C6A8F0' },
                 ].map(s => (
                   <div key={s.l} className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{s.l}</span>
